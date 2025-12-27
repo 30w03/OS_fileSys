@@ -27,20 +27,20 @@ void File::saveInode() {
     dirty_ = false;
 }
 
-int32_t File::getBlockNum(uint32_t logicalBlock) {
-    if (logicalBlock < Config::DIRECT_BLOCKS) {
+uint32_t File::getBlockNum(uint32_t logicalBlock) {
+    if (logicalBlock < MAX_DIRECT_BLOCKS) {
         return inode_.directBlocks[logicalBlock];
     }
-    return -1;
+    return INVALID_BLOCK;
 }
 
 bool File::allocateBlock(uint32_t logicalBlock) {
-    if (logicalBlock >= Config::DIRECT_BLOCKS) {
+    if (logicalBlock >= MAX_DIRECT_BLOCKS) {
         return false;
     }
     
-    int32_t physicalBlock = blockManager_->allocateBlock();
-    if (physicalBlock < 0) {
+    uint32_t physicalBlock = blockManager_->allocateBlock();
+    if (physicalBlock == INVALID_BLOCK) {
         return false;
     }
     
@@ -70,8 +70,8 @@ int32_t File::read(char* buffer, uint32_t size, uint32_t offset) {
         uint32_t remaining = bytesToRead - bytesRead;
         uint32_t toRead = std::min(remaining, Config::BLOCK_SIZE - blockOffset);
         
-        int32_t physicalBlock = getBlockNum(blockIndex);
-        if (physicalBlock < 0 || physicalBlock == 0) {
+        uint32_t physicalBlock = getBlockNum(blockIndex);
+        if (physicalBlock == INVALID_BLOCK || physicalBlock == 0) {
             std::cerr << "Invalid physical block " << physicalBlock 
                       << " for logical block " << blockIndex << std::endl;
             break;
@@ -107,8 +107,8 @@ int32_t File::write(const char* buffer, uint32_t size, uint32_t offset) {
         uint32_t remaining = size - bytesWritten;
         uint32_t toWrite = std::min(remaining, Config::BLOCK_SIZE - blockOffset);
         
-        int32_t physicalBlock = getBlockNum(blockIndex);
-        if (physicalBlock <= 0) {
+        uint32_t physicalBlock = getBlockNum(blockIndex);
+        if (physicalBlock == INVALID_BLOCK || physicalBlock == 0) {
             if (!allocateBlock(blockIndex)) {
                 std::cerr << "Failed to allocate block for logical block " << blockIndex << std::endl;
                 break;
@@ -163,7 +163,7 @@ bool File::truncate(uint32_t newSize) {
     
     uint32_t newBlockCount = (newSize + Config::BLOCK_SIZE - 1) / Config::BLOCK_SIZE;
     
-    for (uint32_t i = newBlockCount; i < inode_.blockCount && i < Config::DIRECT_BLOCKS; i++) {
+    for (uint32_t i = newBlockCount; i < inode_.blockCount && i < MAX_DIRECT_BLOCKS; i++) {
         if (inode_.directBlocks[i] != 0) {
             blockManager_->freeBlock(inode_.directBlocks[i]);
             inode_.directBlocks[i] = 0;

@@ -438,46 +438,55 @@ CMakeFiles/filesystem.dir/src/filesystem/block_manager.cpp.o: ../src/filesystem/
   /usr/include/c++/11/bits/vector.tcc \
   ../include/filesystem/inode.h \
   /usr/include/c++/11/ctime \
-  ../include/storage/cache.h \
+  ../include/filesystem/superblock.h \
+  /usr/include/c++/11/cstring \
+  /usr/include/string.h \
+  /usr/include/strings.h \
+  /usr/include/c++/11/iostream \
+  /usr/include/c++/11/algorithm \
+  /usr/include/c++/11/utility \
+  /usr/include/c++/11/bits/stl_relops.h \
+  /usr/include/c++/11/bits/stl_algo.h \
+  /usr/include/c++/11/bits/algorithmfwd.h \
+  /usr/include/c++/11/bits/stl_heap.h \
+  /usr/include/c++/11/bits/stl_tempbuf.h \
+  /usr/include/c++/11/bits/uniform_int_dist.h \
+  /usr/include/c++/11/pstl/glue_algorithm_defs.h \
+  /usr/include/c++/11/functional \
+  /usr/include/c++/11/tuple \
+  /usr/include/c++/11/array \
+  /usr/include/c++/11/bits/uses_allocator.h \
+  /usr/include/c++/11/bits/invoke.h \
+  /usr/include/c++/11/bits/refwrap.h \
+  /usr/include/c++/11/bits/std_function.h \
   /usr/include/c++/11/unordered_map \
   /usr/include/c++/11/ext/aligned_buffer.h \
   /usr/include/c++/11/bits/hashtable.h \
   /usr/include/c++/11/bits/hashtable_policy.h \
-  /usr/include/c++/11/tuple \
-  /usr/include/c++/11/utility \
-  /usr/include/c++/11/bits/stl_relops.h \
-  /usr/include/c++/11/array \
-  /usr/include/c++/11/bits/uses_allocator.h \
-  /usr/include/c++/11/bits/invoke.h \
   /usr/include/c++/11/bits/enable_special_members.h \
   /usr/include/c++/11/bits/node_handle.h \
   /usr/include/c++/11/bits/unordered_map.h \
   /usr/include/c++/11/bits/erase_if.h \
+  /usr/include/c++/11/pstl/execution_defs.h \
+  ../include/common/config.h \
+  ../include/storage/cache.h \
   /usr/include/c++/11/list \
   /usr/include/c++/11/bits/stl_list.h \
   /usr/include/c++/11/bits/allocated_ptr.h \
   /usr/include/c++/11/bits/list.tcc \
-  /usr/include/c++/11/cstring \
-  /usr/include/string.h \
-  /usr/include/strings.h \
-  ../include/common/config.h \
   /usr/include/c++/11/memory \
-  /usr/include/c++/11/bits/stl_tempbuf.h \
   /usr/include/c++/11/bits/stl_raw_storage_iter.h \
   /usr/include/c++/11/bits/align.h \
   /usr/include/c++/11/bit \
   /usr/include/c++/11/bits/unique_ptr.h \
   /usr/include/c++/11/bits/shared_ptr.h \
   /usr/include/c++/11/bits/shared_ptr_base.h \
-  /usr/include/c++/11/bits/refwrap.h \
   /usr/include/c++/11/ext/concurrence.h \
   /usr/include/c++/11/bits/shared_ptr_atomic.h \
   /usr/include/c++/11/bits/atomic_base.h \
   /usr/include/c++/11/bits/atomic_lockfree_defines.h \
   /usr/include/c++/11/backward/auto_ptr.h \
-  /usr/include/c++/11/pstl/glue_memory_defs.h \
-  /usr/include/c++/11/pstl/execution_defs.h \
-  /usr/include/c++/11/iostream
+  /usr/include/c++/11/pstl/glue_memory_defs.h
 
 CMakeFiles/filesystem.dir/src/filesystem/directory_ops.cpp.o: ../src/filesystem/directory_ops.cpp \
   /usr/include/stdc-predef.h \
@@ -673,45 +682,55 @@ CMakeFiles/filesystem.dir/src/filesystem/directory_ops.cpp.o: ../src/filesystem/
   /usr/include/c++/11/bits/vector.tcc \
   ../include/filesystem/inode.h \
   /usr/include/c++/11/ctime \
-  ../include/storage/cache.h \
+  ../include/filesystem/superblock.h \
+  /usr/include/c++/11/cstring \
+  /usr/include/string.h \
+  /usr/include/strings.h \
+  /usr/include/c++/11/iostream \
+  /usr/include/c++/11/algorithm \
+  /usr/include/c++/11/utility \
+  /usr/include/c++/11/bits/stl_relops.h \
+  /usr/include/c++/11/bits/stl_algo.h \
+  /usr/include/c++/11/bits/algorithmfwd.h \
+  /usr/include/c++/11/bits/stl_heap.h \
+  /usr/include/c++/11/bits/stl_tempbuf.h \
+  /usr/include/c++/11/bits/uniform_int_dist.h \
+  /usr/include/c++/11/pstl/glue_algorithm_defs.h \
+  /usr/include/c++/11/functional \
+  /usr/include/c++/11/tuple \
+  /usr/include/c++/11/array \
+  /usr/include/c++/11/bits/uses_allocator.h \
+  /usr/include/c++/11/bits/invoke.h \
+  /usr/include/c++/11/bits/refwrap.h \
+  /usr/include/c++/11/bits/std_function.h \
   /usr/include/c++/11/unordered_map \
   /usr/include/c++/11/ext/aligned_buffer.h \
   /usr/include/c++/11/bits/hashtable.h \
   /usr/include/c++/11/bits/hashtable_policy.h \
-  /usr/include/c++/11/tuple \
-  /usr/include/c++/11/utility \
-  /usr/include/c++/11/bits/stl_relops.h \
-  /usr/include/c++/11/array \
-  /usr/include/c++/11/bits/uses_allocator.h \
-  /usr/include/c++/11/bits/invoke.h \
   /usr/include/c++/11/bits/enable_special_members.h \
   /usr/include/c++/11/bits/node_handle.h \
   /usr/include/c++/11/bits/unordered_map.h \
   /usr/include/c++/11/bits/erase_if.h \
+  /usr/include/c++/11/pstl/execution_defs.h \
+  ../include/common/config.h \
+  ../include/storage/cache.h \
   /usr/include/c++/11/list \
   /usr/include/c++/11/bits/stl_list.h \
   /usr/include/c++/11/bits/allocated_ptr.h \
   /usr/include/c++/11/bits/list.tcc \
-  /usr/include/c++/11/cstring \
-  /usr/include/string.h \
-  /usr/include/strings.h \
-  ../include/common/config.h \
   /usr/include/c++/11/memory \
-  /usr/include/c++/11/bits/stl_tempbuf.h \
   /usr/include/c++/11/bits/stl_raw_storage_iter.h \
   /usr/include/c++/11/bits/align.h \
   /usr/include/c++/11/bit \
   /usr/include/c++/11/bits/unique_ptr.h \
   /usr/include/c++/11/bits/shared_ptr.h \
   /usr/include/c++/11/bits/shared_ptr_base.h \
-  /usr/include/c++/11/bits/refwrap.h \
   /usr/include/c++/11/ext/concurrence.h \
   /usr/include/c++/11/bits/shared_ptr_atomic.h \
   /usr/include/c++/11/bits/atomic_base.h \
   /usr/include/c++/11/bits/atomic_lockfree_defines.h \
   /usr/include/c++/11/backward/auto_ptr.h \
   /usr/include/c++/11/pstl/glue_memory_defs.h \
-  /usr/include/c++/11/pstl/execution_defs.h \
   ../include/filesystem/directory.h \
   /usr/include/c++/11/sstream \
   /usr/include/c++/11/bits/sstream.tcc
@@ -1105,55 +1124,57 @@ CMakeFiles/filesystem.dir/src/filesystem/file_ops.cpp.o: ../src/filesystem/file_
   /usr/include/c++/11/bits/vector.tcc \
   ../include/filesystem/inode.h \
   /usr/include/c++/11/ctime \
-  ../include/storage/cache.h \
+  ../include/filesystem/superblock.h \
+  /usr/include/c++/11/cstring \
+  /usr/include/string.h \
+  /usr/include/strings.h \
+  /usr/include/c++/11/iostream \
+  /usr/include/c++/11/algorithm \
+  /usr/include/c++/11/utility \
+  /usr/include/c++/11/bits/stl_relops.h \
+  /usr/include/c++/11/bits/stl_algo.h \
+  /usr/include/c++/11/bits/algorithmfwd.h \
+  /usr/include/c++/11/bits/stl_heap.h \
+  /usr/include/c++/11/bits/stl_tempbuf.h \
+  /usr/include/c++/11/bits/uniform_int_dist.h \
+  /usr/include/c++/11/pstl/glue_algorithm_defs.h \
+  /usr/include/c++/11/functional \
+  /usr/include/c++/11/tuple \
+  /usr/include/c++/11/array \
+  /usr/include/c++/11/bits/uses_allocator.h \
+  /usr/include/c++/11/bits/invoke.h \
+  /usr/include/c++/11/bits/refwrap.h \
+  /usr/include/c++/11/bits/std_function.h \
   /usr/include/c++/11/unordered_map \
   /usr/include/c++/11/ext/aligned_buffer.h \
   /usr/include/c++/11/bits/hashtable.h \
   /usr/include/c++/11/bits/hashtable_policy.h \
-  /usr/include/c++/11/tuple \
-  /usr/include/c++/11/utility \
-  /usr/include/c++/11/bits/stl_relops.h \
-  /usr/include/c++/11/array \
-  /usr/include/c++/11/bits/uses_allocator.h \
-  /usr/include/c++/11/bits/invoke.h \
   /usr/include/c++/11/bits/enable_special_members.h \
   /usr/include/c++/11/bits/node_handle.h \
   /usr/include/c++/11/bits/unordered_map.h \
   /usr/include/c++/11/bits/erase_if.h \
+  /usr/include/c++/11/pstl/execution_defs.h \
+  ../include/common/config.h \
+  ../include/storage/cache.h \
   /usr/include/c++/11/list \
   /usr/include/c++/11/bits/stl_list.h \
   /usr/include/c++/11/bits/allocated_ptr.h \
   /usr/include/c++/11/bits/list.tcc \
-  /usr/include/c++/11/cstring \
-  /usr/include/string.h \
-  /usr/include/strings.h \
-  ../include/common/config.h \
   /usr/include/c++/11/memory \
-  /usr/include/c++/11/bits/stl_tempbuf.h \
   /usr/include/c++/11/bits/stl_raw_storage_iter.h \
   /usr/include/c++/11/bits/align.h \
   /usr/include/c++/11/bit \
   /usr/include/c++/11/bits/unique_ptr.h \
   /usr/include/c++/11/bits/shared_ptr.h \
   /usr/include/c++/11/bits/shared_ptr_base.h \
-  /usr/include/c++/11/bits/refwrap.h \
   /usr/include/c++/11/ext/concurrence.h \
   /usr/include/c++/11/bits/shared_ptr_atomic.h \
   /usr/include/c++/11/bits/atomic_base.h \
   /usr/include/c++/11/bits/atomic_lockfree_defines.h \
   /usr/include/c++/11/backward/auto_ptr.h \
   /usr/include/c++/11/pstl/glue_memory_defs.h \
-  /usr/include/c++/11/pstl/execution_defs.h \
   ../include/filesystem/directory_ops.h \
-  ../include/filesystem/directory.h \
-  /usr/include/c++/11/algorithm \
-  /usr/include/c++/11/bits/stl_algo.h \
-  /usr/include/c++/11/bits/algorithmfwd.h \
-  /usr/include/c++/11/bits/stl_heap.h \
-  /usr/include/c++/11/bits/uniform_int_dist.h \
-  /usr/include/c++/11/pstl/glue_algorithm_defs.h \
-  /usr/include/c++/11/functional \
-  /usr/include/c++/11/bits/std_function.h
+  ../include/filesystem/directory.h
 
 CMakeFiles/filesystem.dir/src/filesystem/filesystem.cpp.o: ../src/filesystem/filesystem.cpp \
   /usr/include/stdc-predef.h \
@@ -1396,17 +1417,11 @@ CMakeFiles/filesystem.dir/src/filesystem/filesystem.cpp.o: ../src/filesystem/fil
 
 ../include/filesystem/filesystem.h:
 
-/usr/include/c++/11/algorithm:
-
 ../include/filesystem/directory.h:
 
 ../include/filesystem/directory_ops.h:
 
 ../src/filesystem/directory_ops.cpp:
-
-/usr/include/c++/11/bits/algorithmfwd.h:
-
-/usr/include/c++/11/pstl/execution_defs.h:
 
 /usr/include/c++/11/pstl/glue_memory_defs.h:
 
@@ -1426,19 +1441,27 @@ CMakeFiles/filesystem.dir/src/filesystem/filesystem.cpp.o: ../src/filesystem/fil
 
 /usr/include/c++/11/bits/stl_raw_storage_iter.h:
 
-/usr/include/c++/11/bits/std_function.h:
-
-/usr/include/c++/11/bits/stl_tempbuf.h:
-
 /usr/include/c++/11/memory:
-
-/usr/include/strings.h:
 
 /usr/include/c++/11/bits/list.tcc:
 
 /usr/include/c++/11/bits/allocated_ptr.h:
 
 /usr/include/c++/11/bits/stl_list.h:
+
+/usr/include/c++/11/list:
+
+../include/storage/cache.h:
+
+/usr/include/c++/11/bits/unordered_map.h:
+
+/usr/include/c++/11/bits/hashtable.h:
+
+/usr/include/c++/11/unordered_map:
+
+/usr/include/c++/11/ext/aligned_buffer.h:
+
+/usr/include/x86_64-linux-gnu/sys/types.h:
 
 /usr/include/stdlib.h:
 
@@ -1456,6 +1479,8 @@ CMakeFiles/filesystem.dir/src/filesystem/filesystem.cpp.o: ../src/filesystem/fil
 
 /usr/include/x86_64-linux-gnu/bits/struct_rwlock.h:
 
+/usr/include/strings.h:
+
 /usr/include/c++/11/cstdlib:
 
 /usr/include/c++/11/bits/stl_iterator_base_types.h:
@@ -1465,10 +1490,6 @@ CMakeFiles/filesystem.dir/src/filesystem/filesystem.cpp.o: ../src/filesystem/fil
 /usr/include/c++/11/ext/new_allocator.h:
 
 /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h:
-
-/usr/include/x86_64-linux-gnu/sys/types.h:
-
-/usr/include/c++/11/ext/aligned_buffer.h:
 
 /usr/include/x86_64-linux-gnu/bits/types/timer_t.h:
 
@@ -1492,7 +1513,13 @@ CMakeFiles/filesystem.dir/src/filesystem/filesystem.cpp.o: ../src/filesystem/fil
 
 /usr/include/x86_64-linux-gnu/bits/select.h:
 
+/usr/include/c++/11/bits/node_handle.h:
+
+/usr/include/c++/11/iostream:
+
 /usr/include/x86_64-linux-gnu/bits/struct_stat.h:
+
+/usr/include/c++/11/algorithm:
 
 /usr/include/x86_64-linux-gnu/bits/endianness.h:
 
@@ -1594,10 +1621,6 @@ CMakeFiles/filesystem.dir/src/filesystem/filesystem.cpp.o: ../src/filesystem/fil
 
 /usr/include/x86_64-linux-gnu/bits/wchar.h:
 
-/usr/include/c++/11/iostream:
-
-/usr/include/c++/11/bits/node_handle.h:
-
 /usr/include/stdc-predef.h:
 
 /usr/include/c++/11/bits/alloc_traits.h:
@@ -1656,8 +1679,6 @@ CMakeFiles/filesystem.dir/src/filesystem/filesystem.cpp.o: ../src/filesystem/fil
 
 /usr/include/c++/11/bits/exception_ptr.h:
 
-/usr/include/c++/11/list:
-
 /usr/include/x86_64-linux-gnu/bits/stdio_lim.h:
 
 /usr/include/x86_64-linux-gnu/bits/timex.h:
@@ -1692,8 +1713,6 @@ CMakeFiles/filesystem.dir/src/filesystem/filesystem.cpp.o: ../src/filesystem/fil
 
 /usr/include/ctype.h:
 
-/usr/include/c++/11/bits/unordered_map.h:
-
 /usr/include/c++/11/ext/alloc_traits.h:
 
 /usr/include/x86_64-linux-gnu/bits/sched.h:
@@ -1712,6 +1731,14 @@ CMakeFiles/filesystem.dir/src/filesystem/filesystem.cpp.o: ../src/filesystem/fil
 
 /usr/include/c++/11/bits/stl_iterator.h:
 
+/usr/include/c++/11/bits/erase_if.h:
+
+/usr/include/endian.h:
+
+/usr/include/stdint.h:
+
+/usr/include/c++/11/bits/ptr_traits.h:
+
 /usr/include/c++/11/bits/sstream.tcc:
 
 /usr/include/c++/11/new:
@@ -1726,13 +1753,11 @@ CMakeFiles/filesystem.dir/src/filesystem/filesystem.cpp.o: ../src/filesystem/fil
 
 /usr/include/c++/11/bits/ostream.tcc:
 
-/usr/include/c++/11/bits/stl_algo.h:
-
-/usr/include/asm-generic/int-ll64.h:
-
 /usr/include/wchar.h:
 
 /usr/include/c++/11/bits/cxxabi_init_exception.h:
+
+../include/filesystem/superblock.h:
 
 /usr/include/x86_64-linux-gnu/bits/libc-header-start.h:
 
@@ -1744,9 +1769,9 @@ CMakeFiles/filesystem.dir/src/filesystem/filesystem.cpp.o: ../src/filesystem/fil
 
 /usr/include/x86_64-linux-gnu/bits/types/clock_t.h:
 
-/usr/include/c++/11/cstring:
+/usr/include/c++/11/bits/std_function.h:
 
-/usr/include/x86_64-linux-gnu/bits/types/__FILE.h:
+/usr/include/c++/11/bits/stl_tempbuf.h:
 
 /usr/include/c++/11/bits/predefined_ops.h:
 
@@ -1755,8 +1780,6 @@ CMakeFiles/filesystem.dir/src/filesystem/filesystem.cpp.o: ../src/filesystem/fil
 /usr/include/c++/11/iomanip:
 
 /usr/include/c++/11/cctype:
-
-/usr/include/c++/11/unordered_map:
 
 /usr/include/x86_64-linux-gnu/bits/byteswap.h:
 
@@ -1767,10 +1790,6 @@ CMakeFiles/filesystem.dir/src/filesystem/filesystem.cpp.o: ../src/filesystem/fil
 ../src/filesystem/block_manager.cpp:
 
 /usr/include/alloca.h:
-
-/usr/include/c++/11/bits/stl_heap.h:
-
-/usr/include/c++/11/bits/std_abs.h:
 
 /usr/include/c++/11/cstdio:
 
@@ -1848,10 +1867,6 @@ CMakeFiles/filesystem.dir/src/filesystem/filesystem.cpp.o: ../src/filesystem/fil
 
 /usr/include/c++/11/stdexcept:
 
-/usr/include/string.h:
-
-/usr/include/c++/11/bits/streambuf.tcc:
-
 /usr/include/c++/11/bits/uniform_int_dist.h:
 
 /usr/include/c++/11/bits/basic_ios.h:
@@ -1868,7 +1883,11 @@ CMakeFiles/filesystem.dir/src/filesystem/filesystem.cpp.o: ../src/filesystem/fil
 
 /usr/include/c++/11/bits/locale_facets.tcc:
 
-../include/storage/cache.h:
+/usr/include/c++/11/bits/enable_special_members.h:
+
+/usr/include/c++/11/bits/codecvt.h:
+
+/usr/include/c++/11/bits/basic_ios.tcc:
 
 /usr/include/c++/11/istream:
 
@@ -1936,6 +1955,10 @@ CMakeFiles/filesystem.dir/src/filesystem/filesystem.cpp.o: ../src/filesystem/fil
 
 /usr/include/x86_64-linux-gnu/asm/posix_types.h:
 
+/usr/include/c++/11/bits/hashtable_policy.h:
+
+/usr/include/x86_64-linux-gnu/bits/statx-generic.h:
+
 /usr/include/x86_64-linux-gnu/c++/11/bits/ctype_base.h:
 
 /usr/include/dirent.h:
@@ -1966,22 +1989,22 @@ CMakeFiles/filesystem.dir/src/filesystem/filesystem.cpp.o: ../src/filesystem/fil
 
 ../include/filesystem/inode.h:
 
-/usr/include/c++/11/bits/hashtable.h:
+/usr/include/x86_64-linux-gnu/bits/types/__FILE.h:
 
-/usr/include/x86_64-linux-gnu/bits/statx-generic.h:
+/usr/include/c++/11/cstring:
 
-/usr/include/c++/11/bits/hashtable_policy.h:
+/usr/include/c++/11/bits/streambuf.tcc:
 
-/usr/include/c++/11/bits/codecvt.h:
+/usr/include/string.h:
 
-/usr/include/c++/11/bits/basic_ios.tcc:
+/usr/include/asm-generic/int-ll64.h:
 
-/usr/include/c++/11/bits/enable_special_members.h:
+/usr/include/c++/11/bits/stl_algo.h:
 
-/usr/include/endian.h:
+/usr/include/c++/11/pstl/execution_defs.h:
 
-/usr/include/stdint.h:
+/usr/include/c++/11/bits/algorithmfwd.h:
 
-/usr/include/c++/11/bits/ptr_traits.h:
+/usr/include/c++/11/bits/std_abs.h:
 
-/usr/include/c++/11/bits/erase_if.h:
+/usr/include/c++/11/bits/stl_heap.h:

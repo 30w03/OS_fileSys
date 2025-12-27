@@ -56,3 +56,19 @@
 ---
 
 如需进一步了解，请查看各模块的具体代码或文档。
+
+## 看文件系统时
+
+第一步：看“骨架” (On-Disk Layout)
+
+superblock.h: 整个世界的入口。看它存了什么全局信息（魔数、总块数、Inode表偏移量）。
+inode.h: 文件的灵魂。看它怎么索引数据块（就是刚才讨论的那些）。
+block.h: 数据的最小单位。
+第二步：看“心脏” (The Engine)
+
+block_manager.h / .cpp: 这是最关键的模块。
+核心疑问：它是直接读写文件（模拟磁盘），还是通过 LRU 缓存读写？
+关键点：看它如何把 Block ID 转换成物理偏移量。
+第三步：看“大脑” (High-Level Logic)
+
+filesystem.h: 这时候再看它，你就知道它只是一个指挥官，指挥 Inode 和 Block Manager 干活。

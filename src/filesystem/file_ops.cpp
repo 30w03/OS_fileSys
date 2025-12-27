@@ -13,16 +13,19 @@ bool FileOps::createFile(const std::string& path, mode_t mode) {
     std::string fileName = path.substr(lastSlash + 1);
     
     uint32_t parentInode = dirOps_->resolvePath(parentPath);
-    if (parentPath != "/" && parentInode == 0) {
+    if (parentPath != "/" && parentInode == INVALID_INODE) {
+        return false;
+    }
+    if (parentInode == INVALID_INODE) return false;
+    
+    if (dirOps_->lookup(parentInode, fileName) != INVALID_INODE) {
         return false;
     }
     
-    if (dirOps_->lookup(parentInode, fileName) != 0) {
+    uint32_t newInodeNum = blockManager_->allocateInode();
+    if (newInodeNum == INVALID_INODE) {
         return false;
     }
-    
-    static uint32_t nextInode = 1;
-    uint32_t newInodeNum = nextInode++;
     
     Inode fileInode;
     fileInode.type = FileType::REGULAR;
@@ -40,11 +43,7 @@ bool FileOps::createFile(const std::string& path, mode_t mode) {
     fileInode.doubleIndirectBlock = 0;
     fileInode.tripleIndirectBlock = 0;
     
-    char buffer[4096];
-    std::memset(buffer, 0, sizeof(buffer));
-    std::memcpy(buffer, &fileInode, sizeof(Inode));
-    
-    if (!blockManager_->writeBlock(newInodeNum, buffer)) {
+    if (!blockManager_->writeInode(newInodeNum, fileInode)) {
         return false;
     }
     
@@ -57,16 +56,33 @@ bool FileOps::deleteFile(const std::string& path) {
     std::string fileName = path.substr(lastSlash + 1);
     
     uint32_t parentInode = dirOps_->resolvePath(parentPath);
-    if (parentPath != "/" && parentInode == 0) {
+    if (parentPath != "/" && parentInode == INVALID_INODE) {
+        return false;
+    }
+    if (parentInode == INVALID_INODE) return false;
+    
+    uint32_t fileInodeNum = dirOps_->lookup(parentInode, fileName);
+    if (fileInodeNum == INVALID_INODE) {
         return false;
     }
     
-    uint32_t fileInode = dirOps_->lookup(parentInode, fileName);
-    if (fileInode == 0) {
+    // 从父目录移除条目
+    if (!dirOps_->removeEntry(parentInode, fileName)) {
         return false;
     }
     
-    return dirOps_->removeEntry(parentInode, fileName);
+    // 释放文件占用的资源
+    Inode inode;
+    if (blockManager_->readInode(fileInodeNum, inode)) {
+        for (int i = 0; i < MAX_DIRECT_BLOCKS; i++) {
+            if (inode.directBlocks[i] != 0) {
+                blockManager_->freeBlock(inode.directBlocks[i]);
+            }
+        }
+        blockManager_->freeInode(fileInodeNum);
+    }
+    
+    return true;
 }
 
 bool FileOps::fileExists(const std::string& path) {
@@ -74,79 +90,111 @@ bool FileOps::fileExists(const std::string& path) {
         return true;
     }
     uint32_t inode = dirOps_->resolvePath(path);
-    return inode != 0;
+    return inode != INVALID_INODE;
 }
 
 ssize_t FileOps::readFile(const std::string& path, char* buffer, size_t size, off_t offset) {
     uint32_t inodeNum = dirOps_->resolvePath(path);
-    if (path != "/" && inodeNum == 0) {
+    if (path != "/" && inodeNum == INVALID_INODE) {
         return -1;
     }
+    if (inodeNum == INVALID_INODE) return -1;
     
     Inode inode;
-    char inodeBuffer[4096];
-    if (!blockManager_->readBlock(inodeNum, inodeBuffer)) {
+    if (!blockManager_->readInode(inodeNum, inode)) {
         return -1;
     }
-    std::memcpy(&inode, inodeBuffer, sizeof(Inode));
     
     if (inode.type != FileType::REGULAR) {
         return -1;
     }
     
-    size_t toRead = std::min(size, static_cast<size_t>(inode.size - offset));
-    if (toRead == 0) {
+    if (offset >= inode.size) {
         return 0;
     }
     
-    if (inode.blocks > 0 && inode.directBlocks[0] != 0) {
-        char blockBuffer[4096];
-        if (blockManager_->readBlock(inode.directBlocks[0], blockBuffer)) {
-            std::memcpy(buffer, blockBuffer + offset, toRead);
-            return toRead;
+    size_t bytesToRead = std::min(size, static_cast<size_t>(inode.size - offset));
+    size_t bytesRead = 0;
+    
+    while (bytesRead < bytesToRead) {
+        uint32_t logicalBlock = (offset + bytesRead) / 4096;
+        uint32_t blockOffset = (offset + bytesRead) % 4096;
+        uint32_t toRead = std::min(bytesToRead - bytesRead, static_cast<size_t>(4096 - blockOffset));
+        
+        uint32_t physicalBlock = getBlockNumber(inode, logicalBlock);
+        
+        if (physicalBlock == INVALID_BLOCK || physicalBlock == 0) {
+            // Sparse file hole, fill with zeros
+            std::memset(buffer + bytesRead, 0, toRead);
+        } else {
+            char blockBuffer[4096];
+            if (!blockManager_->readBlock(physicalBlock, blockBuffer)) {
+                return -1;
+            }
+            std::memcpy(buffer + bytesRead, blockBuffer + blockOffset, toRead);
         }
+        
+        bytesRead += toRead;
     }
     
-    return -1;
+    return bytesRead;
 }
 
 ssize_t FileOps::writeFile(const std::string& path, const char* data, size_t size, off_t offset) {
     uint32_t inodeNum = dirOps_->resolvePath(path);
-    if (path != "/" && inodeNum == 0) {
+    if (path != "/" && inodeNum == INVALID_INODE) {
         return -1;
     }
+    if (inodeNum == INVALID_INODE) return -1;
     
     Inode inode;
-    char inodeBuffer[4096];
-    if (!blockManager_->readBlock(inodeNum, inodeBuffer)) {
+    if (!blockManager_->readInode(inodeNum, inode)) {
         return -1;
     }
-    std::memcpy(&inode, inodeBuffer, sizeof(Inode));
     
-    if (inode.blocks == 0) {
-        static uint32_t nextDataBlock = 100;
-        inode.directBlocks[0] = nextDataBlock++;
-        inode.blocks = 1;
+    size_t bytesWritten = 0;
+    
+    while (bytesWritten < size) {
+        uint32_t logicalBlock = (offset + bytesWritten) / 4096;
+        uint32_t blockOffset = (offset + bytesWritten) % 4096;
+        uint32_t toWrite = std::min(size - bytesWritten, static_cast<size_t>(4096 - blockOffset));
+        
+        uint32_t physicalBlock = getBlockNumber(inode, logicalBlock);
+        
+        if (physicalBlock == 0 || physicalBlock == INVALID_BLOCK) {
+            physicalBlock = blockManager_->allocateBlock();
+            if (physicalBlock == INVALID_BLOCK) {
+                break; // Disk full
+            }
+            if (!setBlockNumber(inode, logicalBlock, physicalBlock)) {
+                blockManager_->freeBlock(physicalBlock);
+                break; // Failed to set block (e.g. limit reached)
+            }
+            inode.blocks++;
+        }
+        
+        char blockBuffer[4096];
+        // If partial write to block, read existing content first
+        if (toWrite < 4096) {
+             if (!blockManager_->readBlock(physicalBlock, blockBuffer)) {
+                 std::memset(blockBuffer, 0, 4096);
+             }
+        }
+        
+        std::memcpy(blockBuffer + blockOffset, data + bytesWritten, toWrite);
+        
+        if (!blockManager_->writeBlock(physicalBlock, blockBuffer)) {
+            break;
+        }
+        
+        bytesWritten += toWrite;
     }
     
-    char blockBuffer[4096];
-    std::memset(blockBuffer, 0, sizeof(blockBuffer));
-    
-    if (inode.directBlocks[0] != 0) {
-        blockManager_->readBlock(inode.directBlocks[0], blockBuffer);
-    }
-    
-    std::memcpy(blockBuffer + offset, data, size);
-    
-    if (blockManager_->writeBlock(inode.directBlocks[0], blockBuffer)) {
-        inode.size = std::max(inode.size, static_cast<uint32_t>(offset + size));
+    if (bytesWritten > 0) {
+        inode.size = std::max(inode.size, static_cast<uint32_t>(offset + bytesWritten));
         inode.mtime = std::time(nullptr);
-        
-        std::memset(inodeBuffer, 0, sizeof(inodeBuffer));
-        std::memcpy(inodeBuffer, &inode, sizeof(Inode));
-        blockManager_->writeBlock(inodeNum, inodeBuffer);
-        
-        return size;
+        blockManager_->writeInode(inodeNum, inode);
+        return bytesWritten;
     }
     
     return -1;
@@ -154,14 +202,13 @@ ssize_t FileOps::writeFile(const std::string& path, const char* data, size_t siz
 
 size_t FileOps::getFileSize(const std::string& path) {
     uint32_t inodeNum = dirOps_->resolvePath(path);
-    if (path != "/" && inodeNum == 0) {
+    if (path != "/" && inodeNum == INVALID_INODE) {
         return 0;
     }
+    if (inodeNum == INVALID_INODE) return 0;
     
-    char buffer[4096];
-    if (blockManager_->readBlock(inodeNum, buffer)) {
-        Inode inode;
-        std::memcpy(&inode, buffer, sizeof(Inode));
+    Inode inode;
+    if (blockManager_->readInode(inodeNum, inode)) {
         return inode.size;
     }
     
@@ -174,17 +221,12 @@ bool FileOps::truncate(const std::string& path, size_t newSize) {
 
 bool FileOps::getFileInfo(const std::string& path, Inode& inode) {
     uint32_t inodeNum = dirOps_->resolvePath(path);
-    if (path != "/" && inodeNum == 0) {
+    if (path != "/" && inodeNum == INVALID_INODE) {
         return false;
     }
+    if (inodeNum == INVALID_INODE) return false;
     
-    char buffer[4096];
-    if (blockManager_->readBlock(inodeNum, buffer)) {
-        std::memcpy(&inode, buffer, sizeof(Inode));
-        return true;
-    }
-    
-    return false;
+    return blockManager_->readInode(inodeNum, inode);
 }
 
 bool FileOps::setPermissions(const std::string& path, mode_t mode) {
@@ -203,7 +245,7 @@ uint32_t FileOps::getBlockNumber(const Inode& inode, size_t logicalBlock) {
     if (logicalBlock < MAX_DIRECT_BLOCKS) {
         return inode.directBlocks[logicalBlock];
     }
-    return 0;
+    return INVALID_BLOCK;
 }
 
 bool FileOps::setBlockNumber(Inode& inode, size_t logicalBlock, uint32_t physicalBlock) {

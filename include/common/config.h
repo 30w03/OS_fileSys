@@ -4,38 +4,49 @@
 #include <cstdint>
 
 namespace Config {
-    // 磁盘配置
+    // ==========================================
+    // 1. 物理/核心参数 (一旦定下，极少修改)
+    // ==========================================
+    
+    // 块大小 (4KB)
     constexpr uint32_t BLOCK_SIZE = 4096;
-    constexpr uint32_t TOTAL_BLOCKS = 25600;
-    constexpr uint64_t DISK_SIZE = static_cast<uint64_t>(BLOCK_SIZE) * TOTAL_BLOCKS;
     
-    // Inode配置
+    // Inode 大小 (128字节)
     constexpr uint32_t INODE_SIZE = 128;
+    
+    // 一个块能存多少个 Inode (4096 / 128 = 32)
     constexpr uint32_t INODES_PER_BLOCK = BLOCK_SIZE / INODE_SIZE;
-    constexpr uint32_t TOTAL_INODES = 10240;
-    constexpr uint32_t INODE_BLOCKS = (TOTAL_INODES + INODES_PER_BLOCK - 1) / INODES_PER_BLOCK;
-    
-    // 文件系统布局
-    constexpr uint32_t SUPERBLOCK_BLOCK = 0;
-    constexpr uint32_t INODE_BITMAP_BLOCK = 1;
-    constexpr uint32_t DATA_BITMAP_BLOCK = 2;
-    constexpr uint32_t INODE_TABLE_BLOCK = 3;
-    constexpr uint32_t DATA_BLOCK_START = INODE_TABLE_BLOCK + INODE_BLOCKS;
-    
-    // 数据块配置
-    constexpr uint32_t DATA_BLOCKS = TOTAL_BLOCKS - DATA_BLOCK_START;
-    
-    // 直接块数量
+
+    // 直接索引块数量 (Ext2 标准通常是 12)
     constexpr uint32_t DIRECT_BLOCKS = 12;
-    
-    // 缓存配置
-    constexpr uint32_t CACHE_SIZE = 128;
-    
-    // 文件名最大长度
+
+    // 文件名最大长度 (27 + 1 null + 4 inode_id = 32字节对齐，很完美)
     constexpr uint32_t MAX_FILENAME = 27;
     
     // 路径最大长度
     constexpr uint32_t MAX_PATH_LENGTH = 256;
+
+    // ==========================================
+    // 2. 默认格式化参数 (可以被命令行参数覆盖)
+    // ==========================================
+    
+    // 默认磁盘总大小 (约 100MB)
+    constexpr uint32_t DEFAULT_TOTAL_BLOCKS = 25600;
+    
+    // 默认 Inode 总数 (通常是总块数的 1/4 或 1/3)
+    constexpr uint32_t DEFAULT_TOTAL_INODES = DEFAULT_TOTAL_BLOCKS / 4;
+
+    // ==========================================
+    // 3. 绝对固定的位置 (仅限 Superblock)
+    // ==========================================
+    
+    // Superblock 永远在第 0 块，这是雷打不动的
+    constexpr uint32_t SUPERBLOCK_BLOCK_ID = 0;
+
+    // ------------------------------------------
+    // 警告：不要在这里定义 DATA_BLOCK_START 等位置！
+    // 这些位置应该从 Superblock 结构体中读取。
+    // ------------------------------------------
 }
 
 #endif

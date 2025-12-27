@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstring>
 #include "common/config.h"
+#include "filesystem/inode.h"
 
 struct DirectoryEntry {
     uint32_t inodeNum;
@@ -13,7 +14,7 @@ struct DirectoryEntry {
     uint8_t nameLen;
     
     DirectoryEntry() {
-        inodeNum = 0;
+        inodeNum = INVALID_INODE;
         nameLen = 0;
         std::memset(name, 0, Config::MAX_FILENAME);
     }
@@ -30,7 +31,7 @@ struct DirectoryEntry {
     }
     
     bool isValid() const {
-        return inodeNum != 0;
+        return inodeNum != INVALID_INODE && nameLen > 0;
     }
     
     void serialize(char* buffer) const {

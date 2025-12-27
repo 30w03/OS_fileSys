@@ -8,17 +8,43 @@ DirectoryOps::DirectoryOps(BlockManager* blockManager)
     : blockManager_(blockManager) {}
 
 bool DirectoryOps::initializeRoot() {
+    // 检查根目录是否已经存在
     Inode rootInode;
+    if (blockManager_->readInode(ROOT_INODE, rootInode)) {
+        if (rootInode.type == FileType::DIRECTORY) {
+            return true; // 已经初始化
+        }
+    }
+
+    // 分配根目录 Inode (通常是 0)
+    // 注意：allocateInode 可能会返回 0，这是合法的
+    uint32_t inodeId = blockManager_->allocateInode();
+    if (inodeId == INVALID_INODE) {
+        return false;
+    }
+    
+    // 确保分配到的是 ROOT_INODE
+    if (inodeId != ROOT_INODE) {
+        // 如果不是 0，说明 0 被占用了或者逻辑错误，这里简单处理：
+        // 实际系统中可能需要强制指定分配 0 号 inode
+        // 但由于我们是刚格式化完，理论上第一个分配的就是 0
+    }
+
     rootInode.type = FileType::DIRECTORY;
     rootInode.size = 0;
     rootInode.blocks = 1;
-    rootInode.links = 2;
+    rootInode.links = 2; // . and ..
     rootInode.uid = 0;
     rootInode.gid = 0;
     rootInode.atime = rootInode.mtime = rootInode.ctime = std::time(nullptr);
     
-    static uint32_t nextDirBlock = 50;
-    rootInode.directBlocks[0] = nextDirBlock++;
+    // 分配数据块
+    uint32_t blockId = blockManager_->allocateBlock();
+    if (blockId == INVALID_BLOCK) {
+        return false;
+    }
+    
+    rootInode.directBlocks[0] = blockId;
     
     for (int i = 1; i < MAX_DIRECT_BLOCKS; i++) {
         rootInode.directBlocks[i] = 0;
@@ -27,16 +53,16 @@ bool DirectoryOps::initializeRoot() {
     rootInode.doubleIndirectBlock = 0;
     rootInode.tripleIndirectBlock = 0;
     
-    char buffer[4096];
-    std::memset(buffer, 0, sizeof(buffer));
-    std::memcpy(buffer, &rootInode, sizeof(Inode));
-    
-    if (!blockManager_->writeBlock(ROOT_INODE, buffer)) {
+    if (!blockManager_->writeInode(ROOT_INODE, rootInode)) {
         return false;
     }
     
-    std::memset(buffer, 0, sizeof(buffer));
-    return blockManager_->writeBlock(rootInode.directBlocks[0], buffer);
+    // 初始化目录块（写入 . 和 ..）
+    std::vector<DirectoryEntry> entries;
+    entries.emplace_back(ROOT_INODE, ".");
+    entries.emplace_back(ROOT_INODE, "..");
+    
+    return writeDirectoryBlock(blockId, entries);
 }
 
 bool DirectoryOps::mkdir(const std::string& path, bool recursive) {
@@ -58,7 +84,7 @@ bool DirectoryOps::mkdir(const std::string& path, bool recursive) {
                 parentPath += components[i];
                 if (i < components.size() - 2) parentPath += "/";
             }
-            if (resolvePath(parentPath) == 0) {
+            if (resolvePath(parentPath) == INVALID_INODE) {
                 return false;
             }
         }
@@ -70,7 +96,7 @@ bool DirectoryOps::mkdir(const std::string& path, bool recursive) {
     for (const auto& component : components) {
         currentPath += "/" + component;
         uint32_t inode = resolvePath(currentPath);
-        if (inode == 0) {
+        if (inode == INVALID_INODE) {
             if (!createSingleDirectory(currentPath)) {
                 return false;
             }
@@ -86,16 +112,22 @@ bool DirectoryOps::createSingleDirectory(const std::string& path) {
     std::string dirName = path.substr(lastSlash + 1);
     
     uint32_t parentInode = resolvePath(parentPath);
-    if (parentPath != "/" && parentInode == 0) {
+    if (parentPath != "/" && parentInode == INVALID_INODE) {
         return false;
     }
+    // 特殊处理根目录作为父目录的情况，如果 resolvePath 返回 INVALID_INODE 但路径是 /，则应该是 ROOT_INODE
+    // 但 resolvePath 应该处理好 / 返回 ROOT_INODE
+    if (parentInode == INVALID_INODE) return false;
     
-    if (lookup(parentInode, dirName) != 0) {
+    if (lookup(parentInode, dirName) != INVALID_INODE) {
         return true;  // 目录已存在
     }
     
-    static uint32_t nextInode = 10;
-    uint32_t newInodeNum = nextInode++;
+    // 分配 Inode
+    uint32_t newInodeNum = blockManager_->allocateInode();
+    if (newInodeNum == INVALID_INODE) {
+        return false;
+    }
     
     Inode dirInode;
     dirInode.type = FileType::DIRECTORY;
@@ -106,8 +138,14 @@ bool DirectoryOps::createSingleDirectory(const std::string& path) {
     dirInode.gid = 0;
     dirInode.atime = dirInode.mtime = dirInode.ctime = std::time(nullptr);
     
-    static uint32_t nextDirBlock = 50;
-    dirInode.directBlocks[0] = nextDirBlock++;
+    // 分配数据块
+    uint32_t blockId = blockManager_->allocateBlock();
+    if (blockId == INVALID_BLOCK) {
+        blockManager_->freeInode(newInodeNum);
+        return false;
+    }
+    
+    dirInode.directBlocks[0] = blockId;
     
     for (int i = 1; i < MAX_DIRECT_BLOCKS; i++) {
         dirInode.directBlocks[i] = 0;
@@ -116,16 +154,16 @@ bool DirectoryOps::createSingleDirectory(const std::string& path) {
     dirInode.doubleIndirectBlock = 0;
     dirInode.tripleIndirectBlock = 0;
     
-    char buffer[4096];
-    std::memset(buffer, 0, sizeof(buffer));
-    std::memcpy(buffer, &dirInode, sizeof(Inode));
-    
-    if (!blockManager_->writeBlock(newInodeNum, buffer)) {
+    if (!blockManager_->writeInode(newInodeNum, dirInode)) {
         return false;
     }
     
-    std::memset(buffer, 0, sizeof(buffer));
-    if (!blockManager_->writeBlock(dirInode.directBlocks[0], buffer)) {
+    // 初始化目录内容 (. 和 ..)
+    std::vector<DirectoryEntry> entries;
+    entries.emplace_back(newInodeNum, ".");
+    entries.emplace_back(parentInode, "..");
+    
+    if (!writeDirectoryBlock(blockId, entries)) {
         return false;
     }
     
@@ -134,22 +172,50 @@ bool DirectoryOps::createSingleDirectory(const std::string& path) {
 
 bool DirectoryOps::rmdir(const std::string& path) {
     uint32_t inodeId = resolvePath(path);
-    if (inodeId == 0) {
+    if (inodeId == INVALID_INODE) {
         return false;
     }
-    return isDirectoryEmpty(inodeId);
+    
+    if (!isDirectoryEmpty(inodeId)) {
+        return false;
+    }
+    
+    // 获取父目录路径和目录名
+    size_t lastSlash = path.find_last_of('/');
+    std::string parentPath = (lastSlash == 0) ? "/" : path.substr(0, lastSlash);
+    std::string dirName = path.substr(lastSlash + 1);
+    
+    uint32_t parentInode = resolvePath(parentPath);
+    if (parentInode == INVALID_INODE) {
+        return false;
+    }
+    
+    // 从父目录中移除条目
+    if (!removeEntry(parentInode, dirName)) {
+        return false;
+    }
+    
+    // 释放 Inode 和关联的数据块
+    Inode inode;
+    if (blockManager_->readInode(inodeId, inode)) {
+        for (int i = 0; i < MAX_DIRECT_BLOCKS; i++) {
+            if (inode.directBlocks[i] != 0) {
+                blockManager_->freeBlock(inode.directBlocks[i]);
+            }
+        }
+        blockManager_->freeInode(inodeId);
+    }
+    
+    return true;
 }
 
 std::vector<DirectoryEntry> DirectoryOps::listDirectory(uint32_t inodeId) {
     std::vector<DirectoryEntry> entries;
     
-    char buffer[4096];
-    if (!blockManager_->readBlock(inodeId, buffer)) {
+    Inode inode;
+    if (!blockManager_->readInode(inodeId, inode)) {
         return entries;
     }
-    
-    Inode inode;
-    std::memcpy(&inode, buffer, sizeof(Inode));
     
     if (inode.type != FileType::DIRECTORY) {
         return entries;
@@ -173,25 +239,25 @@ uint32_t DirectoryOps::lookup(uint32_t dirInode, const std::string& name) {
         }
     }
     
-    return 0;
+    return INVALID_INODE;
 }
 
 bool DirectoryOps::addEntry(uint32_t dirInode, const std::string& name, uint32_t inodeId) {
-    char inodeBuffer[4096];
-    if (!blockManager_->readBlock(dirInode, inodeBuffer)) {
+    Inode inode;
+    if (!blockManager_->readInode(dirInode, inode)) {
         return false;
     }
-    
-    Inode inode;
-    std::memcpy(&inode, inodeBuffer, sizeof(Inode));
     
     if (inode.type != FileType::DIRECTORY) {
         return false;
     }
     
     if (inode.blocks == 0) {
-        static uint32_t nextDirBlock = 50;
-        inode.directBlocks[0] = nextDirBlock++;
+        uint32_t newBlock = blockManager_->allocateBlock();
+        if (newBlock == INVALID_BLOCK) {
+            return false;
+        }
+        inode.directBlocks[0] = newBlock;
         inode.blocks = 1;
     }
     
@@ -203,22 +269,17 @@ bool DirectoryOps::addEntry(uint32_t dirInode, const std::string& name, uint32_t
     
     if (success) {
         inode.mtime = std::time(nullptr);
-        std::memset(inodeBuffer, 0, sizeof(inodeBuffer));
-        std::memcpy(inodeBuffer, &inode, sizeof(Inode));
-        blockManager_->writeBlock(dirInode, inodeBuffer);
+        blockManager_->writeInode(dirInode, inode);
     }
     
     return success;
 }
 
 bool DirectoryOps::removeEntry(uint32_t dirInode, const std::string& name) {
-    char inodeBuffer[4096];
-    if (!blockManager_->readBlock(dirInode, inodeBuffer)) {
+    Inode inode;
+    if (!blockManager_->readInode(dirInode, inode)) {
         return false;
     }
-    
-    Inode inode;
-    std::memcpy(&inode, inodeBuffer, sizeof(Inode));
     
     if (inode.type != FileType::DIRECTORY) {
         return false;
@@ -245,9 +306,7 @@ bool DirectoryOps::removeEntry(uint32_t dirInode, const std::string& name) {
     
     if (success) {
         inode.mtime = std::time(nullptr);
-        std::memset(inodeBuffer, 0, sizeof(inodeBuffer));
-        std::memcpy(inodeBuffer, &inode, sizeof(Inode));
-        blockManager_->writeBlock(dirInode, inodeBuffer);
+        blockManager_->writeInode(dirInode, inode);
     }
     
     return success;
@@ -263,8 +322,8 @@ uint32_t DirectoryOps::resolvePath(const std::string& path) {
     
     for (const auto& component : components) {
         currentInode = lookup(currentInode, component);
-        if (currentInode == 0) {
-            return 0;
+        if (currentInode == INVALID_INODE) {
+            return INVALID_INODE;
         }
     }
     

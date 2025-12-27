@@ -4,52 +4,44 @@
 
 BlockManager::BlockManager(std::shared_ptr<Disk> disk, uint32_t cacheSize)
     : disk_(disk), cache_(std::make_unique<LRUCache>(cacheSize)) {
-    memset(&superblock_, 0, sizeof(SuperBlock));
+    memset(&superblock_, 0, sizeof(Superblock));
 }
 
 BlockManager::~BlockManager() {
     unmount();
 }
 
-bool BlockManager::format() {
+bool BlockManager::format(uint32_t blockSize, uint32_t totalInodes) {
     if (!disk_) {
         std::cerr << "Disk not initialized" << std::endl;
         return false;
     }
     
-    // 初始化超级块
-    superblock_.magic = SUPERBLOCK_MAGIC;
-    superblock_.blockSize = disk_->getBlockSize();
-    superblock_.totalBlocks = disk_->getTotalBlocks();
-    superblock_.inodeBlocks = INODE_BLOCKS;
-    superblock_.totalInodes = (INODE_BLOCKS * disk_->getBlockSize()) / sizeof(Inode);
-    superblock_.firstDataBlock = 1 + INODE_BLOCKS;
-    superblock_.freeBlocks = superblock_.totalBlocks - superblock_.firstDataBlock;
-    superblock_.freeInodes = superblock_.totalInodes;
+    superblock_ = Superblock::create(disk_->getTotalBlocks(), totalInodes);
     
     // 写入超级块
     char buffer[4096];
     memset(buffer, 0, 4096);
-    memcpy(buffer, &superblock_, sizeof(SuperBlock));
+    memcpy(buffer, &superblock_, sizeof(Superblock));
     
     if (!disk_->writeBlock(0, buffer)) {
         std::cerr << "Failed to write superblock" << std::endl;
         return false;
     }
     
-    // 初始化 inode 区域
+    // 初始化元数据区域
     memset(buffer, 0, 4096);
-    for (uint32_t i = 1; i <= INODE_BLOCKS; i++) {
+    for (uint32_t i = 1; i < superblock_.dataBlocksStart; i++) {
         disk_->writeBlock(i, buffer);
     }
     
     // 初始化位图
-    inodeBitmap_.assign(superblock_.totalInodes, false);
-    blockBitmap_.assign(superblock_.totalBlocks, false);
+    inodeBitmap_.assign(superblock_.totalInodes, 0);
+    blockBitmap_.assign(superblock_.totalBlocks, 0);
     
     // 标记已使用的块
-    for (uint32_t i = 0; i < superblock_.firstDataBlock; i++) {
-        blockBitmap_[i] = true;
+    for (uint32_t i = 0; i < superblock_.dataBlocksStart; i++) {
+        blockBitmap_[i] = 1;
     }
     
     // 清空缓存
@@ -58,7 +50,7 @@ bool BlockManager::format() {
     std::cout << "Filesystem formatted successfully" << std::endl;
     std::cout << "Total blocks: " << superblock_.totalBlocks << std::endl;
     std::cout << "Total inodes: " << superblock_.totalInodes << std::endl;
-    std::cout << "First data block: " << superblock_.firstDataBlock << std::endl;
+    std::cout << "Data blocks start: " << superblock_.dataBlocksStart << std::endl;
     
     return true;
 }
@@ -69,46 +61,45 @@ bool BlockManager::mount() {
         return false;
     }
     
-    // 直接从磁盘读取超级块（不通过缓存，因为此时 totalBlocks 还是 0）
+    // 直接从磁盘读取超级块
     char buffer[4096];
     if (!disk_->readBlock(0, buffer)) {
         std::cerr << "Failed to read superblock" << std::endl;
         return false;
     }
     
-    memcpy(&superblock_, buffer, sizeof(SuperBlock));
+    memcpy(&superblock_, buffer, sizeof(Superblock));
     
     // 验证魔数
-    if (superblock_.magic != SUPERBLOCK_MAGIC) {
+    if (superblock_.magic != 0x53465350) {
         std::cerr << "Invalid filesystem magic number" << std::endl;
         return false;
     }
     
-    // 现在 superblock 已加载，可以使用缓存了
     // 将超级块放入缓存
     cache_->put(0, buffer);
     
     // 重建位图
-    inodeBitmap_.assign(superblock_.totalInodes, false);
-    blockBitmap_.assign(superblock_.totalBlocks, false);
+    inodeBitmap_.assign(superblock_.totalInodes, 0);
+    blockBitmap_.assign(superblock_.totalBlocks, 0);
     
     // 标记已使用的块
-    for (uint32_t i = 0; i < superblock_.firstDataBlock; i++) {
-        blockBitmap_[i] = true;
+    for (uint32_t i = 0; i < superblock_.dataBlocksStart; i++) {
+        blockBitmap_[i] = 1;
     }
     
     // 扫描 inode 表，重建位图
     for (uint32_t i = 0; i < superblock_.totalInodes; i++) {
         Inode inode;
         if (readInode(i, inode) && inode.type != FileType::UNUSED) {
-            inodeBitmap_[i] = true;
+            inodeBitmap_[i] = 1;
             superblock_.freeInodes--;
             
             // 标记使用的数据块
             for (uint32_t j = 0; j < MAX_DIRECT_BLOCKS && inode.directBlocks[j] != 0; j++) {
                 if (inode.directBlocks[j] < superblock_.totalBlocks) {
                     if (!blockBitmap_[inode.directBlocks[j]]) {
-                        blockBitmap_[inode.directBlocks[j]] = true;
+                        blockBitmap_[inode.directBlocks[j]] = 1;
                         superblock_.freeBlocks--;
                     }
                 }
@@ -125,10 +116,10 @@ bool BlockManager::unmount() {
         return true;
     }
     
-    // 更新超级块（使用缓存）
+    // 更新超级块
     char buffer[4096];
     memset(buffer, 0, 4096);
-    memcpy(buffer, &superblock_, sizeof(SuperBlock));
+    memcpy(buffer, &superblock_, sizeof(Superblock));
     writeBlock(0, buffer);
     
     // 清空缓存
@@ -140,7 +131,7 @@ bool BlockManager::unmount() {
 uint32_t BlockManager::allocateInode() {
     for (uint32_t i = 0; i < superblock_.totalInodes; i++) {
         if (!inodeBitmap_[i]) {
-            inodeBitmap_[i] = true;
+            inodeBitmap_[i] = 1;
             superblock_.freeInodes--;
             return i;
         }
@@ -162,15 +153,15 @@ bool BlockManager::freeInode(uint32_t inodeId) {
     inode.type = FileType::UNUSED;
     writeInode(inodeId, inode);
     
-    inodeBitmap_[inodeId] = false;
+    inodeBitmap_[inodeId] = 0;
     superblock_.freeInodes++;
     return true;
 }
 
 uint32_t BlockManager::allocateBlock() {
-    for (uint32_t i = superblock_.firstDataBlock; i < superblock_.totalBlocks; i++) {
+    for (uint32_t i = superblock_.dataBlocksStart; i < superblock_.totalBlocks; i++) {
         if (!blockBitmap_[i]) {
-            blockBitmap_[i] = true;
+            blockBitmap_[i] = 1;
             superblock_.freeBlocks--;
             return i;
         }
@@ -179,7 +170,7 @@ uint32_t BlockManager::allocateBlock() {
 }
 
 bool BlockManager::freeBlock(uint32_t blockId) {
-    if (blockId >= superblock_.totalBlocks || blockId < superblock_.firstDataBlock) {
+    if (blockId >= superblock_.totalBlocks || blockId < superblock_.dataBlocksStart) {
         return false;
     }
     
@@ -187,7 +178,7 @@ bool BlockManager::freeBlock(uint32_t blockId) {
         return false;
     }
     
-    blockBitmap_[blockId] = false;
+    blockBitmap_[blockId] = 0;
     superblock_.freeBlocks++;
     return true;
 }
@@ -198,7 +189,7 @@ bool BlockManager::readInode(uint32_t inodeId, Inode& inode) {
     }
     
     uint32_t inodesPerBlock = superblock_.blockSize / sizeof(Inode);
-    uint32_t blockId = 1 + (inodeId / inodesPerBlock);
+    uint32_t blockId = superblock_.inodeTableStart + (inodeId / inodesPerBlock);
     uint32_t offset = (inodeId % inodesPerBlock) * sizeof(Inode);
     
     char buffer[4096];
@@ -217,7 +208,7 @@ bool BlockManager::writeInode(uint32_t inodeId, const Inode& inode) {
     }
     
     uint32_t inodesPerBlock = superblock_.blockSize / sizeof(Inode);
-    uint32_t blockId = 1 + (inodeId / inodesPerBlock);
+    uint32_t blockId = superblock_.inodeTableStart + (inodeId / inodesPerBlock);
     uint32_t offset = (inodeId % inodesPerBlock) * sizeof(Inode);
     
     char buffer[4096];

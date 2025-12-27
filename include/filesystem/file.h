@@ -25,7 +25,7 @@ private:
     Inode inode_;
     bool dirty_;
     
-    int32_t getBlockNum(uint32_t logicalBlock);
+    uint32_t getBlockNum(uint32_t logicalBlock);
     bool allocateBlock(uint32_t logicalBlock);
     void loadInode();
     void saveInode();
