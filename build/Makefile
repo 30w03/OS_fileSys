@@ -356,6 +356,19 @@ test_industrial/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_industrial.dir/build.make CMakeFiles/test_industrial.dir/build
 .PHONY : test_industrial/fast
 
+#=============================================================================
+# Target rules for targets named test_persistence
+
+# Build rule for target.
+test_persistence: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 test_persistence
+.PHONY : test_persistence
+
+# fast build rule for target.
+test_persistence/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_persistence.dir/build.make CMakeFiles/test_persistence.dir/build
+.PHONY : test_persistence/fast
+
 apps/client_main.o: apps/client_main.cpp.o
 .PHONY : apps/client_main.o
 
@@ -956,6 +969,30 @@ tests/test_industrial.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_industrial.dir/build.make CMakeFiles/test_industrial.dir/tests/test_industrial.cpp.s
 .PHONY : tests/test_industrial.cpp.s
 
+tests/test_persistence.o: tests/test_persistence.cpp.o
+.PHONY : tests/test_persistence.o
+
+# target to build an object file
+tests/test_persistence.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_persistence.dir/build.make CMakeFiles/test_persistence.dir/tests/test_persistence.cpp.o
+.PHONY : tests/test_persistence.cpp.o
+
+tests/test_persistence.i: tests/test_persistence.cpp.i
+.PHONY : tests/test_persistence.i
+
+# target to preprocess a source file
+tests/test_persistence.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_persistence.dir/build.make CMakeFiles/test_persistence.dir/tests/test_persistence.cpp.i
+.PHONY : tests/test_persistence.cpp.i
+
+tests/test_persistence.s: tests/test_persistence.cpp.s
+.PHONY : tests/test_persistence.s
+
+# target to generate assembly for a file
+tests/test_persistence.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_persistence.dir/build.make CMakeFiles/test_persistence.dir/tests/test_persistence.cpp.s
+.PHONY : tests/test_persistence.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -982,6 +1019,7 @@ help:
 	@echo "... test_file_ops_debug"
 	@echo "... test_filesystem"
 	@echo "... test_industrial"
+	@echo "... test_persistence"
 	@echo "... user"
 	@echo "... apps/client_main.o"
 	@echo "... apps/client_main.i"
@@ -1058,6 +1096,9 @@ help:
 	@echo "... tests/test_industrial.o"
 	@echo "... tests/test_industrial.i"
 	@echo "... tests/test_industrial.s"
+	@echo "... tests/test_persistence.o"
+	@echo "... tests/test_persistence.i"
+	@echo "... tests/test_persistence.s"
 .PHONY : help
 
 

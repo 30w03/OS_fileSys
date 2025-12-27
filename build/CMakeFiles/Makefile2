@@ -78,6 +78,7 @@ all: CMakeFiles/test_directory.dir/all
 all: CMakeFiles/test_file_ops.dir/all
 all: CMakeFiles/test_file_ops_debug.dir/all
 all: CMakeFiles/test_industrial.dir/all
+all: CMakeFiles/test_persistence.dir/all
 .PHONY : all
 
 # The main recursive "preinstall" target.
@@ -100,6 +101,7 @@ clean: CMakeFiles/test_directory.dir/clean
 clean: CMakeFiles/test_file_ops.dir/clean
 clean: CMakeFiles/test_file_ops_debug.dir/clean
 clean: CMakeFiles/test_industrial.dir/clean
+clean: CMakeFiles/test_persistence.dir/clean
 .PHONY : clean
 
 #=============================================================================
@@ -187,7 +189,7 @@ CMakeFiles/protocol.dir/clean:
 CMakeFiles/user.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/user.dir/build.make CMakeFiles/user.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/user.dir/build.make CMakeFiles/user.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=39,40 "Built target user"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=41,42 "Built target user"
 .PHONY : CMakeFiles/user.dir/all
 
 # Build rule for subdir invocation for target.
@@ -516,6 +518,35 @@ test_industrial: CMakeFiles/test_industrial.dir/rule
 CMakeFiles/test_industrial.dir/clean:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_industrial.dir/build.make CMakeFiles/test_industrial.dir/clean
 .PHONY : CMakeFiles/test_industrial.dir/clean
+
+#=============================================================================
+# Target rules for target CMakeFiles/test_persistence.dir
+
+# All Build rule for target.
+CMakeFiles/test_persistence.dir/all: CMakeFiles/storage.dir/all
+CMakeFiles/test_persistence.dir/all: CMakeFiles/filesystem.dir/all
+CMakeFiles/test_persistence.dir/all: CMakeFiles/user.dir/all
+CMakeFiles/test_persistence.dir/all: CMakeFiles/review.dir/all
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_persistence.dir/build.make CMakeFiles/test_persistence.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_persistence.dir/build.make CMakeFiles/test_persistence.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=39,40 "Built target test_persistence"
+.PHONY : CMakeFiles/test_persistence.dir/all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/test_persistence.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/project/peer-review-system/build/CMakeFiles 17
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/test_persistence.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/project/peer-review-system/build/CMakeFiles 0
+.PHONY : CMakeFiles/test_persistence.dir/rule
+
+# Convenience name for target.
+test_persistence: CMakeFiles/test_persistence.dir/rule
+.PHONY : test_persistence
+
+# clean rule for target.
+CMakeFiles/test_persistence.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_persistence.dir/build.make CMakeFiles/test_persistence.dir/clean
+.PHONY : CMakeFiles/test_persistence.dir/clean
 
 #=============================================================================
 # Special targets to cleanup operation of make.
