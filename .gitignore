@@ -1,0 +1,2 @@
+# 忽略 build_debug 目录中的大文件
+build_debug/test_disk.img
