@@ -1,7 +1,6 @@
-CMakeFiles/filesystem.dir/src/filesystem/block_manager.cpp.o: \
- /home/project/peer-review-system/src/filesystem/block_manager.cpp \
+CMakeFiles/test_industrial.dir/tests/test_industrial.cpp.o: \
+ /home/project/peer-review-system/tests/test_industrial.cpp \
  /usr/include/stdc-predef.h \
- /home/project/peer-review-system/include/filesystem/block_manager.h \
  /home/project/peer-review-system/include/filesystem/disk.h \
  /usr/include/c++/11/string \
  /usr/include/x86_64-linux-gnu/c++/11/bits/c++config.h \
@@ -159,6 +158,7 @@ CMakeFiles/filesystem.dir/src/filesystem/block_manager.cpp.o: \
  /usr/include/c++/11/bits/stl_vector.h \
  /usr/include/c++/11/bits/stl_bvector.h \
  /usr/include/c++/11/bits/vector.tcc \
+ /home/project/peer-review-system/include/filesystem/block_manager.h \
  /home/project/peer-review-system/include/filesystem/inode.h \
  /usr/include/c++/11/ctime \
  /home/project/peer-review-system/include/filesystem/superblock.h \
@@ -200,4 +200,7 @@ CMakeFiles/filesystem.dir/src/filesystem/block_manager.cpp.o: \
  /usr/include/c++/11/bits/atomic_lockfree_defines.h \
  /usr/include/c++/11/backward/auto_ptr.h \
  /usr/include/c++/11/pstl/glue_memory_defs.h \
- /home/project/peer-review-system/include/storage/bitmap.h
+ /home/project/peer-review-system/include/filesystem/directory_ops.h \
+ /home/project/peer-review-system/include/filesystem/directory.h \
+ /home/project/peer-review-system/include/filesystem/file_ops.h \
+ /usr/include/c++/11/cassert /usr/include/assert.h

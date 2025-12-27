@@ -252,27 +252,64 @@ bool DirectoryOps::addEntry(uint32_t dirInode, const std::string& name, uint32_t
         return false;
     }
     
-    if (inode.blocks == 0) {
-        uint32_t newBlock = blockManager_->allocateBlock();
-        if (newBlock == INVALID_BLOCK) {
-            return false;
+    // 1. Try to find space in existing blocks
+    for (uint32_t i = 0; i < inode.blocks && i < MAX_DIRECT_BLOCKS; i++) {
+        uint32_t blockId = inode.directBlocks[i];
+        char buffer[4096];
+        if (!blockManager_->readBlock(blockId, buffer)) {
+            continue;
         }
-        inode.directBlocks[0] = newBlock;
-        inode.blocks = 1;
+        
+        // Scan for free slot
+        for (size_t offset = 0; offset < 4096; offset += sizeof(DirectoryEntry)) {
+            DirectoryEntry entry;
+            entry.deserialize(buffer + offset);
+            
+            if (!entry.isValid()) {
+                // Found free slot
+                DirectoryEntry newEntry(inodeId, name);
+                newEntry.serialize(buffer + offset);
+                
+                if (blockManager_->writeBlock(blockId, buffer)) {
+                    inode.mtime = std::time(nullptr);
+                    blockManager_->writeInode(dirInode, inode);
+                    return true;
+                }
+                return false;
+            }
+        }
     }
     
-    std::vector<DirectoryEntry> entries = listDirectory(dirInode);
+    // 2. No space in existing blocks, allocate new block
+    if (inode.blocks >= MAX_DIRECT_BLOCKS) {
+        // TODO: Support indirect blocks for directories
+        return false;
+    }
+    
+    uint32_t newBlock = blockManager_->allocateBlock();
+    if (newBlock == INVALID_BLOCK) {
+        return false;
+    }
+    
+    // Initialize new block with the entry at the beginning
+    char buffer[4096];
+    std::memset(buffer, 0, 4096);
+    
     DirectoryEntry newEntry(inodeId, name);
-    entries.push_back(newEntry);
+    newEntry.serialize(buffer);
     
-    bool success = writeDirectoryBlock(inode.directBlocks[0], entries);
-    
-    if (success) {
-        inode.mtime = std::time(nullptr);
-        blockManager_->writeInode(dirInode, inode);
+    if (!blockManager_->writeBlock(newBlock, buffer)) {
+        blockManager_->freeBlock(newBlock);
+        return false;
     }
     
-    return success;
+    // Update Inode
+    inode.directBlocks[inode.blocks] = newBlock;
+    inode.blocks++;
+    inode.size += 4096; // Directory size usually reflects block usage or entry count
+    inode.mtime = std::time(nullptr);
+    
+    return blockManager_->writeInode(dirInode, inode);
 }
 
 bool DirectoryOps::removeEntry(uint32_t dirInode, const std::string& name) {
@@ -285,31 +322,39 @@ bool DirectoryOps::removeEntry(uint32_t dirInode, const std::string& name) {
         return false;
     }
     
-    if (inode.blocks == 0) {
-        return false;
-    }
-    
-    std::vector<DirectoryEntry> entries = listDirectory(dirInode);
-    std::vector<DirectoryEntry> newEntries;
-    
-    for (const auto& entry : entries) {
-        if (entry.getName() != name) {
-            newEntries.push_back(entry);
+    for (uint32_t i = 0; i < inode.blocks && i < MAX_DIRECT_BLOCKS; i++) {
+        uint32_t blockId = inode.directBlocks[i];
+        char buffer[4096];
+        if (!blockManager_->readBlock(blockId, buffer)) {
+            continue;
+        }
+        
+        bool found = false;
+        for (size_t offset = 0; offset < 4096; offset += sizeof(DirectoryEntry)) {
+            DirectoryEntry entry;
+            entry.deserialize(buffer + offset);
+            
+            if (entry.isValid() && entry.getName() == name) {
+                // Found it! Mark as invalid (delete)
+                // We just zero out the inodeNum to mark it as free
+                DirectoryEntry emptyEntry; // Default constructor sets INVALID_INODE
+                emptyEntry.serialize(buffer + offset);
+                found = true;
+                break;
+            }
+        }
+        
+        if (found) {
+            if (blockManager_->writeBlock(blockId, buffer)) {
+                inode.mtime = std::time(nullptr);
+                blockManager_->writeInode(dirInode, inode);
+                return true;
+            }
+            return false;
         }
     }
     
-    if (newEntries.size() == entries.size()) {
-        return false;
-    }
-    
-    bool success = writeDirectoryBlock(inode.directBlocks[0], newEntries);
-    
-    if (success) {
-        inode.mtime = std::time(nullptr);
-        blockManager_->writeInode(dirInode, inode);
-    }
-    
-    return success;
+    return false;
 }
 
 uint32_t DirectoryOps::resolvePath(const std::string& path) {

@@ -486,7 +486,8 @@ CMakeFiles/filesystem.dir/src/filesystem/block_manager.cpp.o: ../src/filesystem/
   /usr/include/c++/11/bits/atomic_base.h \
   /usr/include/c++/11/bits/atomic_lockfree_defines.h \
   /usr/include/c++/11/backward/auto_ptr.h \
-  /usr/include/c++/11/pstl/glue_memory_defs.h
+  /usr/include/c++/11/pstl/glue_memory_defs.h \
+  ../include/storage/bitmap.h
 
 CMakeFiles/filesystem.dir/src/filesystem/directory_ops.cpp.o: ../src/filesystem/directory_ops.cpp \
   /usr/include/stdc-predef.h \
@@ -1706,6 +1707,8 @@ CMakeFiles/filesystem.dir/src/filesystem/filesystem.cpp.o: ../src/filesystem/fil
 /usr/include/x86_64-linux-gnu/sys/cdefs.h:
 
 /usr/include/x86_64-linux-gnu/bits/types/__sigset_t.h:
+
+../include/storage/bitmap.h:
 
 /usr/include/x86_64-linux-gnu/bits/long-double.h:
 

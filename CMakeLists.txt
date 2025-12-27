@@ -122,5 +122,8 @@ target_link_libraries(test_file_ops filesystem)
 add_executable(test_file_ops_debug tests/test_file_ops_debug.cpp)
 target_link_libraries(test_file_ops_debug filesystem)
 
+add_executable(test_industrial tests/test_industrial.cpp)
+target_link_libraries(test_industrial filesystem)
+
 # Install targets
 install(TARGETS server client review_cli DESTINATION bin)

@@ -7,7 +7,7 @@
 FileOps::FileOps(BlockManager* blockManager, DirectoryOps* dirOps)
     : blockManager_(blockManager), dirOps_(dirOps) {}
 
-bool FileOps::createFile(const std::string& path, mode_t mode) {
+bool FileOps::createFile(uint32_t userId, const std::string& path, mode_t mode) {
     size_t lastSlash = path.find_last_of('/');
     std::string parentPath = (lastSlash == 0) ? "/" : path.substr(0, lastSlash);
     std::string fileName = path.substr(lastSlash + 1);
@@ -32,7 +32,7 @@ bool FileOps::createFile(const std::string& path, mode_t mode) {
     fileInode.size = 0;
     fileInode.blocks = 0;
     fileInode.links = 1;
-    fileInode.uid = 0;
+    fileInode.uid = userId; // Set owner
     fileInode.gid = 0;
     fileInode.atime = fileInode.mtime = fileInode.ctime = std::time(nullptr);
     
@@ -50,7 +50,7 @@ bool FileOps::createFile(const std::string& path, mode_t mode) {
     return dirOps_->addEntry(parentInode, fileName, newInodeNum);
 }
 
-bool FileOps::deleteFile(const std::string& path) {
+bool FileOps::deleteFile(uint32_t userId, const std::string& path) {
     size_t lastSlash = path.find_last_of('/');
     std::string parentPath = (lastSlash == 0) ? "/" : path.substr(0, lastSlash);
     std::string fileName = path.substr(lastSlash + 1);
@@ -65,6 +65,8 @@ bool FileOps::deleteFile(const std::string& path) {
     if (fileInodeNum == INVALID_INODE) {
         return false;
     }
+    
+    // TODO: Check permissions using userId
     
     // 从父目录移除条目
     if (!dirOps_->removeEntry(parentInode, fileName)) {
@@ -85,7 +87,7 @@ bool FileOps::deleteFile(const std::string& path) {
     return true;
 }
 
-bool FileOps::fileExists(const std::string& path) {
+bool FileOps::fileExists(uint32_t userId, const std::string& path) {
     if (path == "/") {
         return true;
     }
@@ -93,7 +95,7 @@ bool FileOps::fileExists(const std::string& path) {
     return inode != INVALID_INODE;
 }
 
-ssize_t FileOps::readFile(const std::string& path, char* buffer, size_t size, off_t offset) {
+ssize_t FileOps::readFile(uint32_t userId, const std::string& path, char* buffer, size_t size, off_t offset) {
     uint32_t inodeNum = dirOps_->resolvePath(path);
     if (path != "/" && inodeNum == INVALID_INODE) {
         return -1;
@@ -104,6 +106,8 @@ ssize_t FileOps::readFile(const std::string& path, char* buffer, size_t size, of
     if (!blockManager_->readInode(inodeNum, inode)) {
         return -1;
     }
+    
+    // TODO: Check permissions using userId
     
     if (inode.type != FileType::REGULAR) {
         return -1;
@@ -140,7 +144,7 @@ ssize_t FileOps::readFile(const std::string& path, char* buffer, size_t size, of
     return bytesRead;
 }
 
-ssize_t FileOps::writeFile(const std::string& path, const char* data, size_t size, off_t offset) {
+ssize_t FileOps::writeFile(uint32_t userId, const std::string& path, const char* data, size_t size, off_t offset) {
     uint32_t inodeNum = dirOps_->resolvePath(path);
     if (path != "/" && inodeNum == INVALID_INODE) {
         return -1;
@@ -151,6 +155,8 @@ ssize_t FileOps::writeFile(const std::string& path, const char* data, size_t siz
     if (!blockManager_->readInode(inodeNum, inode)) {
         return -1;
     }
+    
+    // TODO: Check permissions using userId
     
     size_t bytesWritten = 0;
     
@@ -200,7 +206,7 @@ ssize_t FileOps::writeFile(const std::string& path, const char* data, size_t siz
     return -1;
 }
 
-size_t FileOps::getFileSize(const std::string& path) {
+size_t FileOps::getFileSize(uint32_t userId, const std::string& path) {
     uint32_t inodeNum = dirOps_->resolvePath(path);
     if (path != "/" && inodeNum == INVALID_INODE) {
         return 0;
@@ -215,11 +221,11 @@ size_t FileOps::getFileSize(const std::string& path) {
     return 0;
 }
 
-bool FileOps::truncate(const std::string& path, size_t newSize) {
+bool FileOps::truncate(uint32_t userId, const std::string& path, size_t newSize) {
     return true;
 }
 
-bool FileOps::getFileInfo(const std::string& path, Inode& inode) {
+bool FileOps::getFileInfo(uint32_t userId, const std::string& path, Inode& inode) {
     uint32_t inodeNum = dirOps_->resolvePath(path);
     if (path != "/" && inodeNum == INVALID_INODE) {
         return false;
@@ -229,7 +235,7 @@ bool FileOps::getFileInfo(const std::string& path, Inode& inode) {
     return blockManager_->readInode(inodeNum, inode);
 }
 
-bool FileOps::setPermissions(const std::string& path, mode_t mode) {
+bool FileOps::setPermissions(uint32_t userId, const std::string& path, mode_t mode) {
     return true;
 }
 
@@ -242,16 +248,72 @@ bool FileOps::freeFileBlocks(Inode& inode) {
 }
 
 uint32_t FileOps::getBlockNumber(const Inode& inode, size_t logicalBlock) {
+    // 1. 直接块 (0-11)
     if (logicalBlock < MAX_DIRECT_BLOCKS) {
         return inode.directBlocks[logicalBlock];
     }
+    
+    // 2. 一级间接块 (12 - 1035)
+    // 4096 / 4 = 1024 pointers
+    uint32_t indirectIndex = logicalBlock - MAX_DIRECT_BLOCKS;
+    if (indirectIndex < 1024) {
+        if (inode.indirectBlock == 0 || inode.indirectBlock == INVALID_BLOCK) {
+            return INVALID_BLOCK;
+        }
+        
+        char buffer[4096];
+        if (!blockManager_->readBlock(inode.indirectBlock, buffer)) {
+            return INVALID_BLOCK;
+        }
+        
+        uint32_t* pointers = reinterpret_cast<uint32_t*>(buffer);
+        return pointers[indirectIndex];
+    }
+    
+    // TODO: 二级间接块 support
     return INVALID_BLOCK;
 }
 
 bool FileOps::setBlockNumber(Inode& inode, size_t logicalBlock, uint32_t physicalBlock) {
+    // 1. 直接块
     if (logicalBlock < MAX_DIRECT_BLOCKS) {
         inode.directBlocks[logicalBlock] = physicalBlock;
         return true;
     }
+    
+    // 2. 一级间接块
+    uint32_t indirectIndex = logicalBlock - MAX_DIRECT_BLOCKS;
+    if (indirectIndex < 1024) {
+        // 如果间接块不存在，先分配
+        if (inode.indirectBlock == 0 || inode.indirectBlock == INVALID_BLOCK) {
+            uint32_t newBlock = blockManager_->allocateBlock();
+            if (newBlock == INVALID_BLOCK) {
+                return false;
+            }
+            inode.indirectBlock = newBlock;
+            inode.blocks++; // 统计元数据块
+            
+            // 初始化为全0
+            char buffer[4096];
+            std::memset(buffer, 0, 4096);
+            if (!blockManager_->writeBlock(newBlock, buffer)) {
+                return false;
+            }
+        }
+        
+        // 读取间接块
+        char buffer[4096];
+        if (!blockManager_->readBlock(inode.indirectBlock, buffer)) {
+            return false;
+        }
+        
+        // 更新指针
+        uint32_t* pointers = reinterpret_cast<uint32_t*>(buffer);
+        pointers[indirectIndex] = physicalBlock;
+        
+        // 写回
+        return blockManager_->writeBlock(inode.indirectBlock, buffer);
+    }
+    
     return false;
 }

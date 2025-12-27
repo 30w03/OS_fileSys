@@ -23,29 +23,31 @@ void testBasicFileOps() {
     
     FileOps fileOps(&blockManager, &dirOps);
     
-    assert(fileOps.createFile("/test.txt"));
+    uint32_t userId = 0; // Root user
+    
+    assert(fileOps.createFile(userId, "/test.txt"));
     std::cout << "✓ Created /test.txt" << std::endl;
     
-    assert(fileOps.fileExists("/test.txt"));
+    assert(fileOps.fileExists(userId, "/test.txt"));
     std::cout << "✓ File exists" << std::endl;
     
     const char* data = "Hello, Peer Review System!";
-    ssize_t written = fileOps.writeFile("/test.txt", data, strlen(data));
+    ssize_t written = fileOps.writeFile(userId, "/test.txt", data, strlen(data));
     assert(written == (ssize_t)strlen(data));
     std::cout << "✓ Wrote " << written << " bytes" << std::endl;
     
-    size_t size = fileOps.getFileSize("/test.txt");
+    size_t size = fileOps.getFileSize(userId, "/test.txt");
     assert(size == strlen(data));
     std::cout << "✓ File size: " << size << " bytes" << std::endl;
     
     char buffer[1024] = {0};
-    ssize_t bytesRead = fileOps.readFile("/test.txt", buffer, sizeof(buffer));
+    ssize_t bytesRead = fileOps.readFile(userId, "/test.txt", buffer, sizeof(buffer));
     assert(bytesRead == (ssize_t)strlen(data));
     assert(strcmp(buffer, data) == 0);
     std::cout << "✓ Read: \"" << buffer << "\"" << std::endl;
     
-    assert(fileOps.deleteFile("/test.txt"));
-    assert(!fileOps.fileExists("/test.txt"));
+    assert(fileOps.deleteFile(userId, "/test.txt"));
+    assert(!fileOps.fileExists(userId, "/test.txt"));
     std::cout << "✓ Deleted file" << std::endl;
     
     disk->close();
@@ -82,8 +84,10 @@ void testLargeFile() {
     std::cout << "Step 9: Creating FileOps..." << std::endl;
     FileOps fileOps(&blockManager, &dirOps);
     
+    uint32_t userId = 0;
+    
     std::cout << "Step 10: Creating file..." << std::endl;
-    if (!fileOps.createFile("/large.dat")) {
+    if (!fileOps.createFile(userId, "/large.dat")) {
         std::cout << "FAILED to create file!" << std::endl;
         return;
     }
@@ -111,16 +115,18 @@ void testFileInDirectory() {
     
     FileOps fileOps(&blockManager, &dirOps);
     
+    uint32_t userId = 0;
+    
     assert(dirOps.mkdir("/papers/2024", true));
     
-    assert(fileOps.createFile("/papers/2024/paper1.pdf"));
+    assert(fileOps.createFile(userId, "/papers/2024/paper1.pdf"));
     std::cout << "✓ Created /papers/2024/paper1.pdf" << std::endl;
     
     const char* content = "This is a research paper";
-    fileOps.writeFile("/papers/2024/paper1.pdf", content, strlen(content));
+    fileOps.writeFile(userId, "/papers/2024/paper1.pdf", content, strlen(content));
     
     char buffer[1024] = {0};
-    ssize_t bytesRead = fileOps.readFile("/papers/2024/paper1.pdf", buffer, sizeof(buffer));
+    ssize_t bytesRead = fileOps.readFile(userId, "/papers/2024/paper1.pdf", buffer, sizeof(buffer));
     assert(strcmp(buffer, content) == 0);
     std::cout << "✓ File content verified" << std::endl;
     

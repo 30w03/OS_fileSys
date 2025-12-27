@@ -343,6 +343,19 @@ test_file_ops_debug/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_file_ops_debug.dir/build.make CMakeFiles/test_file_ops_debug.dir/build
 .PHONY : test_file_ops_debug/fast
 
+#=============================================================================
+# Target rules for targets named test_industrial
+
+# Build rule for target.
+test_industrial: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 test_industrial
+.PHONY : test_industrial
+
+# fast build rule for target.
+test_industrial/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_industrial.dir/build.make CMakeFiles/test_industrial.dir/build
+.PHONY : test_industrial/fast
+
 apps/client_main.o: apps/client_main.cpp.o
 .PHONY : apps/client_main.o
 
@@ -919,6 +932,30 @@ tests/test_filesystem.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_filesystem.dir/build.make CMakeFiles/test_filesystem.dir/tests/test_filesystem.cpp.s
 .PHONY : tests/test_filesystem.cpp.s
 
+tests/test_industrial.o: tests/test_industrial.cpp.o
+.PHONY : tests/test_industrial.o
+
+# target to build an object file
+tests/test_industrial.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_industrial.dir/build.make CMakeFiles/test_industrial.dir/tests/test_industrial.cpp.o
+.PHONY : tests/test_industrial.cpp.o
+
+tests/test_industrial.i: tests/test_industrial.cpp.i
+.PHONY : tests/test_industrial.i
+
+# target to preprocess a source file
+tests/test_industrial.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_industrial.dir/build.make CMakeFiles/test_industrial.dir/tests/test_industrial.cpp.i
+.PHONY : tests/test_industrial.cpp.i
+
+tests/test_industrial.s: tests/test_industrial.cpp.s
+.PHONY : tests/test_industrial.s
+
+# target to generate assembly for a file
+tests/test_industrial.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_industrial.dir/build.make CMakeFiles/test_industrial.dir/tests/test_industrial.cpp.s
+.PHONY : tests/test_industrial.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -944,6 +981,7 @@ help:
 	@echo "... test_file_ops"
 	@echo "... test_file_ops_debug"
 	@echo "... test_filesystem"
+	@echo "... test_industrial"
 	@echo "... user"
 	@echo "... apps/client_main.o"
 	@echo "... apps/client_main.i"
@@ -1017,6 +1055,9 @@ help:
 	@echo "... tests/test_filesystem.o"
 	@echo "... tests/test_filesystem.i"
 	@echo "... tests/test_filesystem.s"
+	@echo "... tests/test_industrial.o"
+	@echo "... tests/test_industrial.i"
+	@echo "... tests/test_industrial.s"
 .PHONY : help
 
 

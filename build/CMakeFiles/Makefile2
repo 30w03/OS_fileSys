@@ -77,6 +77,7 @@ all: CMakeFiles/test_backup.dir/all
 all: CMakeFiles/test_directory.dir/all
 all: CMakeFiles/test_file_ops.dir/all
 all: CMakeFiles/test_file_ops_debug.dir/all
+all: CMakeFiles/test_industrial.dir/all
 .PHONY : all
 
 # The main recursive "preinstall" target.
@@ -98,6 +99,7 @@ clean: CMakeFiles/test_backup.dir/clean
 clean: CMakeFiles/test_directory.dir/clean
 clean: CMakeFiles/test_file_ops.dir/clean
 clean: CMakeFiles/test_file_ops_debug.dir/clean
+clean: CMakeFiles/test_industrial.dir/clean
 .PHONY : clean
 
 #=============================================================================
@@ -185,7 +187,7 @@ CMakeFiles/protocol.dir/clean:
 CMakeFiles/user.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/user.dir/build.make CMakeFiles/user.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/user.dir/build.make CMakeFiles/user.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=37,38 "Built target user"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=39,40 "Built target user"
 .PHONY : CMakeFiles/user.dir/all
 
 # Build rule for subdir invocation for target.
@@ -267,11 +269,11 @@ CMakeFiles/network.dir/clean:
 
 # All Build rule for target.
 CMakeFiles/server.dir/all: CMakeFiles/storage.dir/all
-CMakeFiles/server.dir/all: CMakeFiles/network.dir/all
 CMakeFiles/server.dir/all: CMakeFiles/filesystem.dir/all
 CMakeFiles/server.dir/all: CMakeFiles/protocol.dir/all
 CMakeFiles/server.dir/all: CMakeFiles/user.dir/all
 CMakeFiles/server.dir/all: CMakeFiles/review.dir/all
+CMakeFiles/server.dir/all: CMakeFiles/network.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/build
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=21,22 "Built target server"
@@ -298,11 +300,11 @@ CMakeFiles/server.dir/clean:
 
 # All Build rule for target.
 CMakeFiles/client.dir/all: CMakeFiles/storage.dir/all
-CMakeFiles/client.dir/all: CMakeFiles/network.dir/all
 CMakeFiles/client.dir/all: CMakeFiles/filesystem.dir/all
 CMakeFiles/client.dir/all: CMakeFiles/protocol.dir/all
 CMakeFiles/client.dir/all: CMakeFiles/user.dir/all
 CMakeFiles/client.dir/all: CMakeFiles/review.dir/all
+CMakeFiles/client.dir/all: CMakeFiles/network.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/client.dir/build.make CMakeFiles/client.dir/build
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=1,2 "Built target client"
@@ -487,6 +489,33 @@ test_file_ops_debug: CMakeFiles/test_file_ops_debug.dir/rule
 CMakeFiles/test_file_ops_debug.dir/clean:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_file_ops_debug.dir/build.make CMakeFiles/test_file_ops_debug.dir/clean
 .PHONY : CMakeFiles/test_file_ops_debug.dir/clean
+
+#=============================================================================
+# Target rules for target CMakeFiles/test_industrial.dir
+
+# All Build rule for target.
+CMakeFiles/test_industrial.dir/all: CMakeFiles/storage.dir/all
+CMakeFiles/test_industrial.dir/all: CMakeFiles/filesystem.dir/all
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_industrial.dir/build.make CMakeFiles/test_industrial.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_industrial.dir/build.make CMakeFiles/test_industrial.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=37,38 "Built target test_industrial"
+.PHONY : CMakeFiles/test_industrial.dir/all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/test_industrial.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/project/peer-review-system/build/CMakeFiles 13
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/test_industrial.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/project/peer-review-system/build/CMakeFiles 0
+.PHONY : CMakeFiles/test_industrial.dir/rule
+
+# Convenience name for target.
+test_industrial: CMakeFiles/test_industrial.dir/rule
+.PHONY : test_industrial
+
+# clean rule for target.
+CMakeFiles/test_industrial.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_industrial.dir/build.make CMakeFiles/test_industrial.dir/clean
+.PHONY : CMakeFiles/test_industrial.dir/clean
 
 #=============================================================================
 # Special targets to cleanup operation of make.

@@ -42,13 +42,15 @@ int main() {
     std::cout << "5. Creating FileOps..." << std::endl;
     FileOps fileOps(&blockManager, &dirOps);
     
+    uint32_t userId = 0;
+    
     std::cout << "6. Calling createFile..." << std::endl;
-    bool result = fileOps.createFile("/test.txt");
+    bool result = fileOps.createFile(userId, "/test.txt");
     std::cout << "   createFile result: " << (result ? "SUCCESS" : "FAILED") << std::endl;
     
     if (result) {
         std::cout << "7. Verifying file exists..." << std::endl;
-        bool exists = fileOps.fileExists("/test.txt");
+        bool exists = fileOps.fileExists(userId, "/test.txt");
         std::cout << "   File exists: " << (exists ? "YES" : "NO") << std::endl;
         
         if (exists) {

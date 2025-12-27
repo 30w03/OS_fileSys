@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/test_industrial.dir/tests/test_industrial.cpp.o -o test_industrial  libfilesystem.a libstorage.a 

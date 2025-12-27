@@ -11,21 +11,21 @@ public:
     FileOps(BlockManager* blockManager, DirectoryOps* dirOps);
     
     // 文件基础操作
-    bool createFile(const std::string& path, mode_t mode = 0644);
-    bool deleteFile(const std::string& path);
-    bool fileExists(const std::string& path);
+    bool createFile(uint32_t userId, const std::string& path, mode_t mode = 0644);
+    bool deleteFile(uint32_t userId, const std::string& path);
+    bool fileExists(uint32_t userId, const std::string& path);
     
     // 文件读写
-    ssize_t writeFile(const std::string& path, const char* data, size_t size, off_t offset = 0);
-    ssize_t readFile(const std::string& path, char* buffer, size_t size, off_t offset = 0);
+    ssize_t writeFile(uint32_t userId, const std::string& path, const char* data, size_t size, off_t offset = 0);
+    ssize_t readFile(uint32_t userId, const std::string& path, char* buffer, size_t size, off_t offset = 0);
     
     // 文件信息
-    size_t getFileSize(const std::string& path);
-    bool truncate(const std::string& path, size_t newSize);
+    size_t getFileSize(uint32_t userId, const std::string& path);
+    bool truncate(uint32_t userId, const std::string& path, size_t newSize);
     
     // 文件元数据
-    bool getFileInfo(const std::string& path, Inode& inode);
-    bool setPermissions(const std::string& path, mode_t mode);
+    bool getFileInfo(uint32_t userId, const std::string& path, Inode& inode);
+    bool setPermissions(uint32_t userId, const std::string& path, mode_t mode);
     
 private:
     BlockManager* blockManager_;
