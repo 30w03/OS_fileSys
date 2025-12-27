@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/server.dir/apps/server_main.cpp.o -o server  libnetwork.a libfilesystem.a libuser.a libreview.a libprotocol.a /usr/lib/x86_64-linux-gnu/libssl.so /usr/lib/x86_64-linux-gnu/libcrypto.so libfilesystem.a libstorage.a libuser.a /usr/lib/x86_64-linux-gnu/libcrypto.so 

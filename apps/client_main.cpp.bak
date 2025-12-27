@@ -1,0 +1,159 @@
+#include "network/client.h"
+#include <iostream>
+#include <string>
+#include <sstream>
+
+void printUsage() {
+    std::cout << "\nAvailable commands:" << std::endl;
+    std::cout << "  connect <host> <port>  - Connect to server" << std::endl;
+    std::cout << "  disconnect             - Disconnect from server" << std::endl;
+    std::cout << "  ping                   - Ping server" << std::endl;
+    std::cout << "  list                   - List remote files" << std::endl;
+    std::cout << "  upload <local> <remote> - Upload file" << std::endl;
+    std::cout << "  download <remote> <local> - Download file" << std::endl;
+    std::cout << "  delete <remote>        - Delete remote file" << std::endl;
+    std::cout << "  help                   - Show this help" << std::endl;
+    std::cout << "  quit                   - Exit client" << std::endl;
+}
+
+int main() {
+    Client client;
+    std::string line;
+    
+    std::cout << "=== Peer Review System Client ===" << std::endl;
+    printUsage();
+    
+    while (true) {
+        std::cout << "\n> ";
+        if (!std::getline(std::cin, line)) {
+            break;
+        }
+        
+        std::istringstream iss(line);
+        std::string command;
+        iss >> command;
+        
+        if (command.empty()) {
+            continue;
+        }
+        
+        if (command == "quit" || command == "exit") {
+            break;
+        }
+        
+        if (command == "help") {
+            printUsage();
+            continue;
+        }
+        
+        if (command == "connect") {
+            std::string host;
+            uint16_t port;
+            
+            if (!(iss >> host >> port)) {
+                std::cerr << "Usage: connect <host> <port>" << std::endl;
+                continue;
+            }
+            
+            if (client.connect(host, port)) {
+                std::cout << "Connected successfully" << std::endl;
+            } else {
+                std::cerr << "Connection failed" << std::endl;
+            }
+            continue;
+        }
+        
+        if (command == "disconnect") {
+            client.disconnect();
+            continue;
+        }
+        
+        if (!client.isConnected()) {
+            std::cerr << "Not connected. Use 'connect' first." << std::endl;
+            continue;
+        }
+        
+        if (command == "ping") {
+            if (client.ping()) {
+                std::cout << "Pong received" << std::endl;
+            } else {
+                std::cerr << "Ping failed" << std::endl;
+            }
+        }
+        else if (command == "list") {
+            auto files = client.listFiles();
+            
+            if (files.empty()) {
+                std::cout << "No files on server" << std::endl;
+            } else {
+                std::cout << "\nRemote files:" << std::endl;
+                std::cout << "----------------------------------------" << std::endl;
+                
+                for (const auto& entry : files) {
+                    std::cout << "  " << entry.filename 
+                             << " (" << entry.size << " bytes, "
+                             << "timestamp: " << entry.timestamp << ")" 
+                             << std::endl;
+                }
+                
+                std::cout << "----------------------------------------" << std::endl;
+                std::cout << "Total: " << files.size() << " file(s)" << std::endl;
+            }
+        }
+        else if (command == "upload") {
+            std::string localPath, remotePath;
+            
+            if (!(iss >> localPath >> remotePath)) {
+                std::cerr << "Usage: upload <local_path> <remote_path>" << std::endl;
+                continue;
+            }
+            
+            std::cout << "Uploading " << localPath << " to " << remotePath << "..." << std::endl;
+            
+            if (client.uploadFile(localPath, remotePath)) {
+                std::cout << "Upload successful" << std::endl;
+            } else {
+                std::cerr << "Upload failed" << std::endl;
+            }
+        }
+        else if (command == "download") {
+            std::string remotePath, localPath;
+            
+            if (!(iss >> remotePath >> localPath)) {
+                std::cerr << "Usage: download <remote_path> <local_path>" << std::endl;
+                continue;
+            }
+            
+            std::cout << "Downloading " << remotePath << " to " << localPath << "..." << std::endl;
+            
+            if (client.downloadFile(remotePath, localPath)) {
+                std::cout << "Download successful" << std::endl;
+            } else {
+                std::cerr << "Download failed" << std::endl;
+            }
+        }
+        else if (command == "delete") {
+            std::string remotePath;
+            
+            if (!(iss >> remotePath)) {
+                std::cerr << "Usage: delete <remote_path>" << std::endl;
+                continue;
+            }
+            
+            std::cout << "Deleting " << remotePath << "..." << std::endl;
+            
+            if (client.deleteFile(remotePath)) {
+                std::cout << "Delete successful" << std::endl;
+            } else {
+                std::cerr << "Delete failed" << std::endl;
+            }
+        }
+        else {
+            std::cerr << "Unknown command: " << command << std::endl;
+            std::cerr << "Type 'help' for available commands" << std::endl;
+        }
+    }
+    
+    std::cout << "\nGoodbye!" << std::endl;
+    return 0;
+}

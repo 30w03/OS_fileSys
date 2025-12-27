@@ -1,0 +1,21 @@
+
+# Consider dependencies only in project.
+set(CMAKE_DEPENDS_IN_PROJECT_ONLY OFF)
+
+# The set of languages for which implicit dependencies are needed:
+set(CMAKE_DEPENDS_LANGUAGES
+  )
+
+# The set of dependency files which are needed:
+set(CMAKE_DEPENDS_DEPENDENCY_FILES
+  "/root/peer-review-system/tests/test_file_ops_debug.cpp" "CMakeFiles/test_file_ops_debug.dir/tests/test_file_ops_debug.cpp.o" "gcc" "CMakeFiles/test_file_ops_debug.dir/tests/test_file_ops_debug.cpp.o.d"
+  )
+
+# Targets to which this target links.
+set(CMAKE_TARGET_LINKED_INFO_FILES
+  "/root/peer-review-system/build_debug/CMakeFiles/filesystem.dir/DependInfo.cmake"
+  "/root/peer-review-system/build_debug/CMakeFiles/storage.dir/DependInfo.cmake"
+  )
+
+# Fortran module output directory.
+set(CMAKE_Fortran_TARGET_MODULE_DIR "")

@@ -1,0 +1,46 @@
+#ifndef FILESYSTEM_H
+#define FILESYSTEM_H
+
+#include <string>
+#include <memory>
+#include <vector>
+#include "filesystem/block.h"
+#include "filesystem/directory.h"
+#include "filesystem/file.h"
+
+class Filesystem {
+public:
+    Filesystem(const std::string& diskPath);
+    ~Filesystem();
+    
+    bool format();
+    bool mount();
+    void unmount();
+    
+    int32_t createFile(const std::string& path);
+    bool deleteFile(const std::string& path);
+    std::shared_ptr<File> openFile(const std::string& path);
+    
+    bool createDirectory(const std::string& path);
+    bool deleteDirectory(const std::string& path);
+    std::vector<DirectoryEntry> listDirectory(const std::string& path);
+    
+    bool exists(const std::string& path);
+    bool isDirectory(const std::string& path);
+    bool isFile(const std::string& path);
+    
+    void printStats() const;
+    
+private:
+    std::shared_ptr<Disk> disk_;
+    std::shared_ptr<BlockManager> blockManager_;
+    bool mounted_;
+    
+    int32_t resolvePath(const std::string& path);
+    int32_t lookupInDirectory(uint32_t dirInodeNum, const std::string& name);
+    bool addEntryToDirectory(uint32_t dirInodeNum, const std::string& name, uint32_t inodeNum);
+    bool removeEntryFromDirectory(uint32_t dirInodeNum, const std::string& name);
+    std::vector<std::string> splitPath(const std::string& path);
+};
+
+#endif

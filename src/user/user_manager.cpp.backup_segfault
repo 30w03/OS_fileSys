@@ -1,0 +1,256 @@
+#include "user/user_manager.h"
+#include <openssl/sha.h>
+#include <fstream>
+#include <sstream>
+#include <iomanip>
+#include <ctime>
+#include <iostream>
+#include <map>
+
+UserManager::UserManager() 
+    : nextUserId_(1), nextSessionId_(1) {
+    // 创建默认管理员账户
+    createUser("admin", "admin123", UserRole::ADMIN);
+}
+
+UserManager::~UserManager() = default;
+
+// ============================================================================
+// 密码哈希
+// ============================================================================
+std::string UserManager::hashPassword(const std::string& password) {
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256(reinterpret_cast<const unsigned char*>(password.c_str()), 
+           password.length(), hash);
+    
+    std::stringstream ss;
+    for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
+        ss << std::hex << std::setw(2) << std::setfill('0') 
+           << static_cast<int>(hash[i]);
+    }
+    
+    return ss.str();
+}
+
+// ============================================================================
+// 用户管理
+// ============================================================================
+bool UserManager::createUser(const std::string& username, const std::string& password, 
+                             UserRole role) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    
+    // 检查用户名是否已存在
+    if (usernames_.find(username) != usernames_.end()) {
+        return false;
+    }
+    
+    User user;
+    user.userId = generateUserId();
+    user.username = username;
+    user.passwordHash = hashPassword(password);
+    user.role = role;
+    user.isActive = true;
+    
+    users_[user.userId] = user;
+    usernames_[username] = user.userId;
+    
+    return true;
+}
+
+bool UserManager::authenticateUser(const std::string& username, const std::string& password, 
+                                   uint32_t& userId) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    
+    auto it = usernames_.find(username);
+    if (it == usernames_.end()) {
+        return false;
+    }
+    
+    userId = it->second;
+    const User& user = users_[userId];
+    
+    if (!user.isActive) {
+        return false;
+    }
+    
+    return user.passwordHash == hashPassword(password);
+}
+
+bool UserManager::getUserById(uint32_t userId, User& user) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    
+    auto it = users_.find(userId);
+    if (it == users_.end()) {
+        return false;
+    }
+    
+    user = it->second;
+    return true;
+}
+
+bool UserManager::updateUserRole(uint32_t userId, UserRole newRole) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    
+    auto it = users_.find(userId);
+    if (it == users_.end()) {
+        return false;
+    }
+    
+    it->second.role = newRole;
+    return true;
+}
+
+bool UserManager::deactivateUser(uint32_t userId) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    
+    auto it = users_.find(userId);
+    if (it == users_.end()) {
+        return false;
+    }
+    
+    it->second.isActive = false;
+    return true;
+}
+
+std::vector<User> UserManager::listAllUsers() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    
+    std::vector<User> result;
+    result.reserve(users_.size());
+    
+    for (const auto& pair : users_) {
+        result.push_back(pair.second);
+    }
+    
+    return result;
+}
+
+// ============================================================================
+// 会话管理
+// ============================================================================
+uint32_t UserManager::createSession(uint32_t userId) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    
+    Session session;
+    session.sessionId = generateSessionId();
+    session.userId = userId;
+    session.timestamp = static_cast<uint64_t>(std::time(nullptr));
+    session.isValid = true;
+    
+    sessions_[session.sessionId] = session;
+    
+    return session.sessionId;
+}
+
+bool UserManager::validateSession(uint32_t sessionId, uint32_t& userId) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    
+    auto it = sessions_.find(sessionId);
+    if (it == sessions_.end() || !it->second.isValid) {
+        return false;
+    }
+    
+    userId = it->second.userId;
+    return true;
+}
+
+void UserManager::invalidateSession(uint32_t sessionId) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    
+    auto it = sessions_.find(sessionId);
+    if (it != sessions_.end()) {
+        it->second.isValid = false;
+    }
+}
+
+// ============================================================================
+// 权限检查
+// ============================================================================
+bool UserManager::hasPermission(uint32_t userId, UserRole requiredRole) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    
+    auto it = users_.find(userId);
+    if (it == users_.end()) {
+        return false;
+    }
+    
+    return static_cast<uint8_t>(it->second.role) >= static_cast<uint8_t>(requiredRole);
+}
+
+// ============================================================================
+// ID 生成
+// ============================================================================
+uint32_t UserManager::generateUserId() {
+    return nextUserId_++;
+}
+
+uint32_t UserManager::generateSessionId() {
+    return nextSessionId_++;
+}
+
+// ============================================================================
+// 持久化（简化版本，仅用于演示）
+// ============================================================================
+bool UserManager::saveToFile(const std::string& filename) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    
+    std::ofstream file(filename, std::ios::binary);
+    if (!file) return false;
+    
+    // 保存用户数据
+    uint32_t userCount = users_.size();
+    file.write(reinterpret_cast<const char*>(&userCount), sizeof(userCount));
+    
+    for (const auto& pair : users_) {
+        file.write(reinterpret_cast<const char*>(&pair.second), sizeof(User));
+    }
+    
+    return file.good();
+}
+
+bool UserManager::loadFromFile(const std::string& filename) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    
+    std::ifstream file(filename, std::ios::binary);
+    if (!file) {
+        std::cout << "ℹ️  No user data file found, using defaults" << std::endl;
+        return true;  // 文件不存在是正常的，第一次运行
+    }
+    
+    // 使用 unordered_map 而不是 map
+    std::unordered_map<uint32_t, User> tempUsers;
+    std::unordered_map<std::string, uint32_t> tempUsernames;
+    
+    uint32_t userCount;
+    file.read(reinterpret_cast<char*>(&userCount), sizeof(userCount));
+    
+    if (!file.good()) {
+        std::cout << "⚠️  Failed to read user count, using defaults" << std::endl;
+        return true;
+    }
+    
+    for (uint32_t i = 0; i < userCount; i++) {
+        User user;
+        file.read(reinterpret_cast<char*>(&user), sizeof(User));
+        
+        if (!file.good()) {
+            std::cout << "⚠️  Failed to read user data, using defaults" << std::endl;
+            return true;
+        }
+        
+        tempUsers[user.userId] = user;
+        tempUsernames[user.username] = user.userId;
+        
+        if (user.userId >= nextUserId_) {
+            nextUserId_ = user.userId + 1;
+        }
+    }
+    
+    // 只有在成功读取所有数据后才替换
+    users_ = std::move(tempUsers);
+    usernames_ = std::move(tempUsernames);
+    
+    std::cout << "✅ Loaded " << users_.size() << " users from file" << std::endl;
+    
+    return true;
+}

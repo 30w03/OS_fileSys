@@ -1,0 +1,2 @@
+/usr/bin/ar qc libfilesystem.a CMakeFiles/filesystem.dir/src/filesystem/disk.cpp.o CMakeFiles/filesystem.dir/src/filesystem/block_manager.cpp.o CMakeFiles/filesystem.dir/src/filesystem/filesystem.cpp.o CMakeFiles/filesystem.dir/src/filesystem/backup.cpp.o CMakeFiles/filesystem.dir/src/filesystem/directory_ops.cpp.o CMakeFiles/filesystem.dir/src/filesystem/file_ops.cpp.o
+/usr/bin/ranlib libfilesystem.a

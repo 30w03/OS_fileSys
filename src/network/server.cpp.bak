@@ -1,0 +1,249 @@
+#include "network/server.h"
+#include "protocol/protocol.h"
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <iostream>
+#include <fstream>
+#include <cstring>
+
+Server::Server(uint16_t port, const std::string& diskImage)
+    : port_(port), diskImage_(diskImage), serverSocket_(-1), running_(false) {
+    
+    // 创建文件系统
+    filesystem_ = std::make_shared<Filesystem>(diskImage);
+}
+
+Server::~Server() {
+    stop();
+}
+
+bool Server::start() {
+    // 1. 挂载文件系统
+    std::cout << "Mounting filesystem from: " << diskImage_ << std::endl;
+    
+    if (!filesystem_->mount()) {
+        std::cerr << "❌ Failed to mount filesystem" << std::endl;
+        return false;
+    }
+    
+    std::cout << "✅ Filesystem mounted successfully" << std::endl;
+    
+    // 2. 创建 socket
+    serverSocket_ = socket(AF_INET, SOCK_STREAM, 0);
+    if (serverSocket_ < 0) {
+        std::cerr << "Failed to create socket" << std::endl;
+        return false;
+    }
+    
+    // 3. 设置 socket 选项（允许地址重用）
+    int opt = 1;
+    if (setsockopt(serverSocket_, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
+        std::cerr << "Failed to set socket options" << std::endl;
+        close(serverSocket_);
+        return false;
+    }
+    
+    // 4. 绑定地址
+    sockaddr_in serverAddr{};
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_addr.s_addr = INADDR_ANY;
+    serverAddr.sin_port = htons(port_);
+    
+    if (bind(serverSocket_, reinterpret_cast<sockaddr*>(&serverAddr), sizeof(serverAddr)) < 0) {
+        std::cerr << "Failed to bind socket to port " << port_ << std::endl;
+        close(serverSocket_);
+        return false;
+    }
+    
+    // 5. 开始监听
+    if (listen(serverSocket_, 10) < 0) {
+        std::cerr << "Failed to listen on socket" << std::endl;
+        close(serverSocket_);
+        return false;
+    }
+    
+    running_ = true;
+    
+    std::cout << "Server started successfully on port " << port_ << std::endl;
+    
+    return true;
+}
+
+void Server::stop() {
+    if (running_) {
+        running_ = false;
+        
+        // 关闭服务器 socket
+        if (serverSocket_ >= 0) {
+            close(serverSocket_);
+            serverSocket_ = -1;
+        }
+        
+        // 等待接受线程结束
+        if (acceptThread_.joinable()) {
+            acceptThread_.join();
+        }
+        
+        // 等待所有客户端线程结束
+        for (auto& thread : clientThreads_) {
+            if (thread.joinable()) {
+                thread.join();
+            }
+        }
+        clientThreads_.clear();
+        
+        // 卸载文件系统
+        if (filesystem_) {
+            filesystem_->unmount();
+        }
+        
+        std::cout << "Server stopped" << std::endl;
+    }
+}
+
+void Server::run() {
+    acceptThread_ = std::thread(&Server::acceptLoop, this);
+    acceptThread_.join();
+}
+
+void Server::acceptLoop() {
+    while (running_) {
+        sockaddr_in clientAddr{};
+        socklen_t clientLen = sizeof(clientAddr);
+        
+        int clientSocket = accept(serverSocket_, 
+                                  reinterpret_cast<sockaddr*>(&clientAddr), 
+                                  &clientLen);
+        
+        if (clientSocket < 0) {
+            if (running_) {
+                std::cerr << "Failed to accept client connection" << std::endl;
+            }
+            continue;
+        }
+        
+        std::cout << "New client connected: " 
+                  << inet_ntoa(clientAddr.sin_addr) << ":" 
+                  << ntohs(clientAddr.sin_port) << std::endl;
+        
+        // 创建新线程处理客户端
+        auto connection = std::make_unique<Connection>(clientSocket);
+        clientThreads_.emplace_back(&Server::handleClient, this, std::move(connection));
+    }
+}
+
+void Server::handleClient(std::unique_ptr<Connection> client) {
+    std::cout << "Handling client from " << client->getRemoteAddress() 
+              << ":" << client->getRemotePort() << std::endl;
+    
+    Protocol::Message request, response;
+    
+    while (client->isConnected() && running_) {
+        // 接收请求
+        if (!client->receiveMessage(request)) {
+            break;
+        }
+        
+        // 处理不同类型的请求
+        switch (request.header.type) {
+            case Protocol::MSG_PING:
+                std::cout << "Received PING" << std::endl;
+                response = Protocol::createPongMessage();
+                break;
+                
+            case Protocol::MSG_FILE_LIST_REQUEST: {
+                std::cout << "Received FILE_LIST_REQUEST" << std::endl;
+                auto files = filesystem_->listFiles();
+                std::cout << "Found " << files.size() << " files" << std::endl;
+                response = Protocol::createFileListResponse(files);
+                break;
+            }
+                
+            case Protocol::MSG_FILE_UPLOAD_REQUEST: {
+                std::string path;
+                std::vector<char> data;
+                
+                if (Protocol::parseFileUploadRequest(request, path, data)) {
+                    std::cout << "📤 Received FILE_UPLOAD_REQUEST: " << path 
+                             << " (" << data.size() << " bytes)" << std::endl;
+                    
+                    // 调试：检查文件系统状态
+                    std::cout << "Attempting to write file..." << std::endl;
+                    
+                    bool success = filesystem_->writeFile(path, data);
+                    
+                    if (success) {
+                        std::cout << "✅ File uploaded successfully: " << path << std::endl;
+                    } else {
+                        std::cerr << "❌ Failed to upload file: " << path << std::endl;
+                    }
+                    
+                    response = Protocol::createFileUploadResponse(success);
+                } else {
+                    std::cerr << "❌ Failed to parse upload request" << std::endl;
+                    response = Protocol::createFileUploadResponse(false);
+                }
+                break;
+            }
+                
+            case Protocol::MSG_FILE_DOWNLOAD_REQUEST: {
+                std::string path;
+                
+                if (Protocol::parseFileDownloadRequest(request, path)) {
+                    std::cout << "📥 Received FILE_DOWNLOAD_REQUEST: " << path << std::endl;
+                    
+                    std::vector<char> data;
+                    bool success = filesystem_->readFile(path, data);
+                    
+                    if (success) {
+                        std::cout << "✅ Sending file: " << path 
+                                 << " (" << data.size() << " bytes)" << std::endl;
+                        response = Protocol::createFileDownloadResponse(true, data);
+                    } else {
+                        std::cerr << "❌ Failed to read file: " << path << std::endl;
+                        response = Protocol::createFileDownloadResponse(false, {});
+                    }
+                } else {
+                    response = Protocol::createFileDownloadResponse(false, {});
+                }
+                break;
+            }
+                
+            case Protocol::MSG_FILE_DELETE_REQUEST: {
+                std::string path;
+                
+                if (Protocol::parseFileDeleteRequest(request, path)) {
+                    std::cout << "🗑️  Received FILE_DELETE_REQUEST: " << path << std::endl;
+                    
+                    bool success = filesystem_->deleteFile(path);
+                    response = Protocol::createFileDeleteResponse(success);
+                    
+                    if (success) {
+                        std::cout << "✅ File deleted successfully: " << path << std::endl;
+                    } else {
+                        std::cerr << "❌ Failed to delete file: " << path << std::endl;
+                    }
+                } else {
+                    response = Protocol::createFileDeleteResponse(false);
+                }
+                break;
+            }
+                
+            default:
+                std::cerr << "Unknown message type: " 
+                         << static_cast<int>(request.header.type) << std::endl;
+                continue;
+        }
+        
+        // 发送响应
+        if (!client->sendMessage(response)) {
+            std::cerr << "Failed to send response to client" << std::endl;
+            break;
+        }
+    }
+    
+    std::cout << "Client disconnected: " << client->getRemoteAddress() 
+              << ":" << client->getRemotePort() << std::endl;
+}
