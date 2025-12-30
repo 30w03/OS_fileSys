@@ -18,14 +18,33 @@ bool Connection::sendMessage(const Protocol::Message& msg) {
         return false;
     }
     
-    // 1. 发送消息头
-    if (!sendAll(reinterpret_cast<const char*>(&msg.header), sizeof(Protocol::MessageHeader))) {
+    // Serialize header
+    char headerBuf[Protocol::MessageHeader::SIZE];
+    // Manual serialization to ensure Network Byte Order
+    uint32_t n_magic = htonl(msg.header.magic);
+    uint32_t n_length = htonl(msg.header.length);
+    uint32_t n_checksum = htonl(msg.header.checksum);
+    uint32_t high = htonl(static_cast<uint32_t>(msg.header.timestamp >> 32));
+    uint32_t low = htonl(static_cast<uint32_t>(msg.header.timestamp & 0xFFFFFFFF));
+    
+    size_t offset = 0;
+    std::memcpy(headerBuf + offset, &n_magic, 4); offset += 4;
+    std::memcpy(headerBuf + offset, &msg.header.version, 1); offset += 1;
+    std::memcpy(headerBuf + offset, &msg.header.type, 1);    offset += 1;
+    std::memcpy(headerBuf + offset, &msg.header.reserved, 2); offset += 2;
+    std::memcpy(headerBuf + offset, &n_length, 4); offset += 4;
+    std::memcpy(headerBuf + offset, &high, 4); offset += 4;
+    std::memcpy(headerBuf + offset, &low, 4);  offset += 4;
+    std::memcpy(headerBuf + offset, &n_checksum, 4);
+    
+    // 1. Send header
+    if (!sendAll(headerBuf, Protocol::MessageHeader::SIZE)) {
         return false;
     }
     
-    // 2. 发送消息体
-    if (msg.header.payloadSize > 0) {
-        if (!sendAll(msg.payload.data(), msg.header.payloadSize)) {
+    // 2. Send payload
+    if (msg.header.length > 0) {
+        if (!sendAll(msg.payload.data(), msg.header.length)) {
             return false;
         }
     }
@@ -38,30 +57,56 @@ bool Connection::receiveMessage(Protocol::Message& msg) {
         return false;
     }
     
-    // 1. 接收消息头
-    if (!receiveAll(reinterpret_cast<char*>(&msg.header), sizeof(Protocol::MessageHeader))) {
+    // 1. Receive header
+    char headerBuf[Protocol::MessageHeader::SIZE];
+    if (!receiveAll(headerBuf, Protocol::MessageHeader::SIZE)) {
         return false;
     }
     
-    // 2. 验证魔数
-    if (msg.header.magic != 0x12345678) {
+    // Deserialize header
+    size_t offset = 0;
+    uint32_t n_magic;
+    std::memcpy(&n_magic, headerBuf + offset, 4); offset += 4;
+    msg.header.magic = ntohl(n_magic);
+    
+    std::memcpy(&msg.header.version, headerBuf + offset, 1); offset += 1;
+    std::memcpy(&msg.header.type, headerBuf + offset, 1);    offset += 1;
+    std::memcpy(&msg.header.reserved, headerBuf + offset, 2); offset += 2;
+    
+    uint32_t n_length;
+    std::memcpy(&n_length, headerBuf + offset, 4); offset += 4;
+    msg.header.length = ntohl(n_length);
+    
+    uint32_t high, low;
+    std::memcpy(&high, headerBuf + offset, 4); offset += 4;
+    std::memcpy(&low, headerBuf + offset, 4);  offset += 4;
+    msg.header.timestamp = (static_cast<uint64_t>(ntohl(high)) << 32) | ntohl(low);
+    
+    uint32_t n_checksum;
+    std::memcpy(&n_checksum, headerBuf + offset, 4);
+    msg.header.checksum = ntohl(n_checksum);
+    
+    // 2. Verify magic
+    if (msg.header.magic != 0x50525346) { // "PRSF"
         std::cerr << "Invalid magic number: " << std::hex << msg.header.magic << std::endl;
         return false;
     }
     
-    // 3. 接收消息体
-    if (msg.header.payloadSize > 0) {
-        msg.payload.resize(msg.header.payloadSize);
-        if (!receiveAll(msg.payload.data(), msg.header.payloadSize)) {
+    // 3. Receive payload
+    if (msg.header.length > 0) {
+        msg.payload.resize(msg.header.length);
+        if (!receiveAll(msg.payload.data(), msg.header.length)) {
             return false;
         }
         
-        // 4. 验证校验和
+        // 4. Verify checksum
         uint32_t checksum = Protocol::calculateChecksum(msg.payload);
         if (checksum != msg.header.checksum) {
             std::cerr << "Checksum mismatch" << std::endl;
             return false;
         }
+    } else {
+        msg.payload.clear();
     }
     
     return true;

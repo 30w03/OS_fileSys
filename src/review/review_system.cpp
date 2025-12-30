@@ -58,7 +58,7 @@ uint32_t ReviewSystem::submitPaper(uint32_t authorId,
     
     // 保存论文元数据
     papers_[paper.paperId] = paper;
-    //     saveMetadata();
+    // saveMetadata();  // TEMP FIX
     
     std::cout << "✅ Paper submitted successfully!" << std::endl;
     std::cout << "   Paper ID: " << paper.paperId << std::endl;
@@ -610,25 +610,64 @@ bool ReviewSystem::saveMetadata() {
     try {
         std::vector<char> data;
         
-        // 简单的二进制格式
-        // [nextPaperId][nextReviewId][paperCount][paper1][paper2]...[reviewCount][review1][review2]...
+        // Helper lambdas
+        auto writeU32 = [&](uint32_t val) {
+            const char* ptr = reinterpret_cast<const char*>(&val);
+            data.insert(data.end(), ptr, ptr + 4);
+        };
+        auto writeU64 = [&](uint64_t val) {
+            const char* ptr = reinterpret_cast<const char*>(&val);
+            data.insert(data.end(), ptr, ptr + 8);
+        };
+        auto writeString = [&](const std::string& str) {
+            writeU32(str.length());
+            data.insert(data.end(), str.begin(), str.end());
+        };
+        auto writeVecU32 = [&](const std::vector<uint32_t>& vec) {
+            writeU32(vec.size());
+            if (!vec.empty()) {
+                const char* ptr = reinterpret_cast<const char*>(vec.data());
+                data.insert(data.end(), ptr, ptr + vec.size() * 4);
+            }
+        };
+        auto writeVecString = [&](const std::vector<std::string>& vec) {
+            writeU32(vec.size());
+            for (const auto& s : vec) writeString(s);
+        };
+
+        // 1. Counters
+        writeU32(nextPaperId_);
+        writeU32(nextReviewId_);
         
-        // 写入计数器
-        uint32_t temp = nextPaperId_;
-        data.insert(data.end(), reinterpret_cast<char*>(&temp), reinterpret_cast<char*>(&temp) + 4);
+        // 2. Papers
+        writeU32(papers_.size());
+        for (const auto& pair : papers_) {
+            const Paper& p = pair.second;
+            writeU32(p.paperId);
+            writeString(p.title);
+            writeString(p.abstract);
+            writeVecU32(p.authorIds);
+            writeString(p.filepath);
+            data.push_back(static_cast<char>(p.status));
+            writeU64(static_cast<uint64_t>(p.submissionTime));
+            writeVecU32(p.assignedReviewers);
+            writeU32(p.currentVersion);
+            writeVecString(p.revisionPaths);
+        }
         
-        temp = nextReviewId_;
-        data.insert(data.end(), reinterpret_cast<char*>(&temp), reinterpret_cast<char*>(&temp) + 4);
-        
-        // 写入论文数量
-        temp = papers_.size();
-        data.insert(data.end(), reinterpret_cast<char*>(&temp), reinterpret_cast<char*>(&temp) + 4);
-        
-        // 写入评审数量
-        temp = reviews_.size();
-        data.insert(data.end(), reinterpret_cast<char*>(&temp), reinterpret_cast<char*>(&temp) + 4);
-        
-        // 简化版：暂时不保存详细数据
+        // 3. Reviews
+        writeU32(reviews_.size());
+        for (const auto& pair : reviews_) {
+            const Review& r = pair.second;
+            writeU32(r.reviewId);
+            writeU32(r.paperId);
+            writeU32(r.reviewerId);
+            data.push_back(static_cast<char>(r.decision));
+            writeString(r.comments);
+            writeU32(r.confidenceScore);
+            writeU64(static_cast<uint64_t>(r.submitTime));
+            writeString(r.filepath);
+        }
         
         std::string metaPath = generateMetadataPath();
         return filesystem_->writeFile(metaPath, data);
@@ -646,21 +685,89 @@ bool ReviewSystem::loadMetadata() {
         
         if (!filesystem_->readFile(metaPath, data)) {
             std::cout << "ℹ️  No existing metadata found, starting fresh" << std::endl;
-            return true;  // 第一次运行，没有元数据是正常的
-        }
-        
-        if (data.size() < 16) {
-            std::cout << "ℹ️  Invalid metadata, starting fresh" << std::endl;
             return true;
         }
         
-        // 读取计数器
-        const uint32_t* ptr = reinterpret_cast<const uint32_t*>(data.data());
-        nextPaperId_ = ptr[0];
-        nextReviewId_ = ptr[1];
+        const char* ptr = data.data();
+        const char* end = data.data() + data.size();
         
-        std::cout << "✅ Metadata loaded (nextPaperId=" << nextPaperId_ 
-                  << ", nextReviewId=" << nextReviewId_ << ")" << std::endl;
+        auto readU32 = [&]() -> uint32_t {
+            if (ptr + 4 > end) throw std::runtime_error("Buffer underflow");
+            uint32_t val = *reinterpret_cast<const uint32_t*>(ptr);
+            ptr += 4;
+            return val;
+        };
+        auto readU64 = [&]() -> uint64_t {
+            if (ptr + 8 > end) throw std::runtime_error("Buffer underflow");
+            uint64_t val = *reinterpret_cast<const uint64_t*>(ptr);
+            ptr += 8;
+            return val;
+        };
+        auto readString = [&]() -> std::string {
+            uint32_t len = readU32();
+            if (ptr + len > end) throw std::runtime_error("Buffer underflow");
+            std::string s(ptr, len);
+            ptr += len;
+            return s;
+        };
+        auto readVecU32 = [&]() -> std::vector<uint32_t> {
+            uint32_t size = readU32();
+            std::vector<uint32_t> vec;
+            if (size > 0) {
+                if (ptr + size * 4 > end) throw std::runtime_error("Buffer underflow");
+                vec.resize(size);
+                memcpy(vec.data(), ptr, size * 4);
+                ptr += size * 4;
+            }
+            return vec;
+        };
+        auto readVecString = [&]() -> std::vector<std::string> {
+            uint32_t size = readU32();
+            std::vector<std::string> vec;
+            for(uint32_t i=0; i<size; ++i) vec.push_back(readString());
+            return vec;
+        };
+
+        // 1. Counters
+        nextPaperId_ = readU32();
+        nextReviewId_ = readU32();
+        
+        // 2. Papers
+        uint32_t paperCount = readU32();
+        for(uint32_t i=0; i<paperCount; ++i) {
+            Paper p;
+            p.paperId = readU32();
+            p.title = readString();
+            p.abstract = readString();
+            p.authorIds = readVecU32();
+            p.filepath = readString();
+            if (ptr >= end) throw std::runtime_error("Buffer underflow");
+            p.status = static_cast<PaperStatus>(*ptr++);
+            p.submissionTime = static_cast<time_t>(readU64());
+            p.assignedReviewers = readVecU32();
+            p.currentVersion = readU32();
+            p.revisionPaths = readVecString();
+            papers_[p.paperId] = p;
+        }
+        
+        // 3. Reviews
+        uint32_t reviewCount = readU32();
+        for(uint32_t i=0; i<reviewCount; ++i) {
+            Review r;
+            r.reviewId = readU32();
+            r.paperId = readU32();
+            r.reviewerId = readU32();
+            if (ptr >= end) throw std::runtime_error("Buffer underflow");
+            r.decision = static_cast<ReviewDecision>(*ptr++);
+            r.comments = readString();
+            r.confidenceScore = readU32();
+            r.submitTime = static_cast<time_t>(readU64());
+            r.filepath = readString();
+            reviews_[r.reviewId] = r;
+        }
+        
+        std::cout << "✅ Metadata loaded (Papers: " << papers_.size() 
+                  << ", Reviews: " << reviews_.size() << ")" << std::endl;
         
         return true;
         

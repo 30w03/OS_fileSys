@@ -56,6 +56,20 @@ void printPaper(const PaperInfo& paper) {
     std::cout << "│ Version: " << paper.currentVersion << std::endl;
     std::cout << "│ Authors: " << paper.authorIds.size() << std::endl;
     std::cout << "│ Reviewers: " << paper.reviewerIds.size() << std::endl;
+    
+    // 显示评论
+    if (!paper.reviews.empty()) {
+        std::cout << "│" << std::endl;
+        std::cout << "│ 📝 Reviews (" << paper.reviews.size() << "):" << std::endl;
+        
+        for (const auto& review : paper.reviews) {
+            std::cout << "│   " << review.decision << " (Confidence: " << review.confidenceScore << "/5)" << std::endl;
+            if (!review.comments.empty()) {
+                std::cout << "│   Comments: \"" << review.comments << "\"" << std::endl;
+            }
+        }
+    }
+    
     std::cout << "└─────────────────────────────────────────\n" << std::endl;
 }
 

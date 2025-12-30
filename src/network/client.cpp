@@ -377,7 +377,7 @@ std::vector<ReviewInfo> Client::getReviewsForPaper(uint32_t paperId) {
     request.header.type = Protocol::MSG_GET_REVIEWS_REQUEST;
     request.payload.resize(4);
     memcpy(request.payload.data(), &paperId, 4);
-    request.header.payloadSize = 4;
+    request.header.length = 4;
     request.header.checksum = Protocol::calculateChecksum(request.payload);
     
     if (!connection_->sendMessage(request)) {
@@ -460,6 +460,12 @@ std::vector<PaperInfo> Client::getAllPapers() {
         result.clear();
     }
     
+    // 🔥 新增：为每篇论文获取评审详情
+    for (auto& paper : result) {
+        auto reviews = getReviewsForPaper(paper.paperId);
+        paper.reviews = reviews;
+    }
+    
     return result;
 }
 
@@ -488,6 +494,12 @@ std::vector<PaperInfo> Client::getPapersToReview() {
     if (!Protocol::parseGetPapersToReviewResponse(response, success, result)) {
         std::cerr << "❌ Failed to parse papers response" << std::endl;
         result.clear();
+    }
+    
+    // 🔥 新增：为每篇论文获取评审详情
+    for (auto& paper : result) {
+        auto reviews = getReviewsForPaper(paper.paperId);
+        paper.reviews = reviews;
     }
     
     return result;
