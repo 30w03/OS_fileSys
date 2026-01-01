@@ -1,37 +1,59 @@
 #include "protocol/protocol.h"
 #include <cstring>
 #include <sstream>
+#include <arpa/inet.h>
 
 // ============================================================================
-// 辅助函数：计算校验和
+// 辅助函数：计算校验和 (CRC32)
 // ============================================================================
-uint32_t Protocol::calculateChecksum(const std::vector<char>& data) {
-    uint32_t sum = 0;
-    for (size_t i = 0; i < data.size(); i++) {
-        sum += static_cast<uint8_t>(data[i]);
-        sum = (sum << 1) | (sum >> 31);  // 循环左移
+static uint32_t crc32(const void* data, size_t n_bytes) {
+    uint32_t crc = 0xFFFFFFFF;
+    const uint8_t* p = static_cast<const uint8_t*>(data);
+    for (size_t i = 0; i < n_bytes; i++) {
+        crc ^= p[i];
+        for (int j = 0; j < 8; j++) {
+            crc = (crc >> 1) ^ (0xEDB88320 & (-(crc & 1)));
+        }
     }
-    return sum;
+    return ~crc;
+}
+
+uint32_t Protocol::calculateChecksum(const std::vector<char>& data) {
+    return crc32(data.data(), data.size());
 }
 
 // ============================================================================
 // 序列化辅助函数
 // ============================================================================
+
+static void writeUint32(std::vector<char>& buffer, uint32_t value) {
+    size_t offset = buffer.size();
+    buffer.resize(offset + sizeof(uint32_t));
+    uint32_t n_value = htonl(value);
+    std::memcpy(buffer.data() + offset, &n_value, sizeof(uint32_t));
+}
+
+static bool readUint32(const char*& ptr, const char* end, uint32_t& value) {
+    if (ptr + sizeof(uint32_t) > end) return false;
+    uint32_t n_value;
+    std::memcpy(&n_value, ptr, sizeof(uint32_t));
+    value = ntohl(n_value);
+    ptr += sizeof(uint32_t);
+    return true;
+}
+
 static void writeString(std::vector<char>& buffer, const std::string& str) {
     uint32_t len = str.length();
-    size_t offset = buffer.size();
-    buffer.resize(offset + sizeof(uint32_t) + len);
+    writeUint32(buffer, len);
     
-    std::memcpy(buffer.data() + offset, &len, sizeof(uint32_t));
-    std::memcpy(buffer.data() + offset + sizeof(uint32_t), str.c_str(), len);
+    size_t offset = buffer.size();
+    buffer.resize(offset + len);
+    std::memcpy(buffer.data() + offset, str.c_str(), len);
 }
 
 static bool readString(const char*& ptr, const char* end, std::string& str) {
-    if (ptr + sizeof(uint32_t) > end) return false;
-    
     uint32_t len;
-    std::memcpy(&len, ptr, sizeof(uint32_t));
-    ptr += sizeof(uint32_t);
+    if (!readUint32(ptr, end, len)) return false;
     
     if (ptr + len > end) return false;
     
@@ -41,41 +63,36 @@ static bool readString(const char*& ptr, const char* end, std::string& str) {
     return true;
 }
 
-static void writeUint32(std::vector<char>& buffer, uint32_t value) {
-    size_t offset = buffer.size();
-    buffer.resize(offset + sizeof(uint32_t));
-    std::memcpy(buffer.data() + offset, &value, sizeof(uint32_t));
-}
-
-static bool readUint32(const char*& ptr, const char* end, uint32_t& value) {
-    if (ptr + sizeof(uint32_t) > end) return false;
-    std::memcpy(&value, ptr, sizeof(uint32_t));
-    ptr += sizeof(uint32_t);
-    return true;
-}
-
 static void writeInt32(std::vector<char>& buffer, int32_t value) {
-    size_t offset = buffer.size();
-    buffer.resize(offset + sizeof(int32_t));
-    std::memcpy(buffer.data() + offset, &value, sizeof(int32_t));
+    writeUint32(buffer, static_cast<uint32_t>(value));
 }
 
 static bool readInt32(const char*& ptr, const char* end, int32_t& value) {
-    if (ptr + sizeof(int32_t) > end) return false;
-    std::memcpy(&value, ptr, sizeof(int32_t));
-    ptr += sizeof(int32_t);
+    uint32_t u_val;
+    if (!readUint32(ptr, end, u_val)) return false;
+    value = static_cast<int32_t>(u_val);
     return true;
 }
 
 static void writeUint64(std::vector<char>& buffer, uint64_t value) {
     size_t offset = buffer.size();
     buffer.resize(offset + sizeof(uint64_t));
-    std::memcpy(buffer.data() + offset, &value, sizeof(uint64_t));
+    
+    uint32_t high = htonl(static_cast<uint32_t>(value >> 32));
+    uint32_t low = htonl(static_cast<uint32_t>(value & 0xFFFFFFFF));
+    
+    std::memcpy(buffer.data() + offset, &high, 4);
+    std::memcpy(buffer.data() + offset + 4, &low, 4);
 }
 
 static bool readUint64(const char*& ptr, const char* end, uint64_t& value) {
     if (ptr + sizeof(uint64_t) > end) return false;
-    std::memcpy(&value, ptr, sizeof(uint64_t));
+    
+    uint32_t high, low;
+    std::memcpy(&high, ptr, 4);
+    std::memcpy(&low, ptr + 4, 4);
+    
+    value = (static_cast<uint64_t>(ntohl(high)) << 32) | ntohl(low);
     ptr += sizeof(uint64_t);
     return true;
 }
@@ -186,7 +203,7 @@ static bool readPaperInfo(const char*& ptr, const char* end, PaperInfo& paper) {
 Protocol::Message Protocol::createPingMessage() {
     Message msg;
     msg.header.type = MSG_PING;
-    msg.header.payloadSize = 0;
+    msg.header.length = 0;
     msg.header.checksum = 0;
     return msg;
 }
@@ -194,7 +211,7 @@ Protocol::Message Protocol::createPingMessage() {
 Protocol::Message Protocol::createPongMessage() {
     Message msg;
     msg.header.type = MSG_PONG;
-    msg.header.payloadSize = 0;
+    msg.header.length = 0;
     msg.header.checksum = 0;
     return msg;
 }
@@ -205,7 +222,7 @@ Protocol::Message Protocol::createPongMessage() {
 Protocol::Message Protocol::createFileListRequest() {
     Message msg;
     msg.header.type = MSG_FILE_LIST_REQUEST;
-    msg.header.payloadSize = 0;
+    msg.header.length = 0;
     msg.header.checksum = 0;
     return msg;
 }
@@ -222,7 +239,7 @@ Protocol::Message Protocol::createFileListResponse(const std::vector<FileListEnt
         writeUint64(msg.payload, entry.timestamp);
     }
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -268,7 +285,7 @@ Protocol::Message Protocol::createFileUploadRequest(const std::string& remotePat
     msg.payload.resize(offset + data.size());
     std::memcpy(msg.payload.data() + offset, data.data(), data.size());
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -280,7 +297,7 @@ Protocol::Message Protocol::createFileUploadResponse(bool success) {
     
     writeBool(msg.payload, success);
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -314,7 +331,7 @@ Protocol::Message Protocol::createFileDownloadRequest(const std::string& remoteP
     
     writeString(msg.payload, remotePath);
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -335,7 +352,7 @@ Protocol::Message Protocol::createFileDownloadResponse(bool success,
         std::memcpy(msg.payload.data() + offset, data.data(), data.size());
     }
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -380,7 +397,7 @@ Protocol::Message Protocol::createFileDeleteRequest(const std::string& remotePat
     
     writeString(msg.payload, remotePath);
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -392,7 +409,7 @@ Protocol::Message Protocol::createFileDeleteResponse(bool success) {
     
     writeBool(msg.payload, success);
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -418,7 +435,7 @@ Protocol::Message Protocol::createLoginRequest(const std::string& username,
     writeString(msg.payload, username);
     writeString(msg.payload, password);
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -437,7 +454,7 @@ Protocol::Message Protocol::createLoginResponse(bool success, uint32_t sessionId
         writeString(msg.payload, role);
     }
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -483,7 +500,7 @@ Protocol::Message Protocol::createLogoutRequest(uint32_t sessionId) {
     
     writeUint32(msg.payload, sessionId);
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -495,7 +512,7 @@ Protocol::Message Protocol::createLogoutResponse(bool success) {
     
     writeBool(msg.payload, success);
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -514,7 +531,7 @@ Protocol::Message Protocol::createRegisterRequest(const std::string& username,
     writeString(msg.payload, password);
     writeString(msg.payload, role);
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -527,7 +544,7 @@ Protocol::Message Protocol::createRegisterResponse(bool success, const std::stri
     writeBool(msg.payload, success);
     writeString(msg.payload, message);
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -577,7 +594,7 @@ Protocol::Message Protocol::createSubmitPaperRequest(uint32_t sessionId, const s
     msg.payload.resize(offset + fileData.size());
     std::memcpy(msg.payload.data() + offset, fileData.data(), fileData.size());
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -592,7 +609,7 @@ Protocol::Message Protocol::createSubmitPaperResponse(bool success, uint32_t pap
     writeUint32(msg.payload, paperId);
     writeString(msg.payload, message);
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -650,7 +667,7 @@ Protocol::Message Protocol::createUploadRevisionRequest(uint32_t sessionId, uint
     msg.payload.resize(offset + fileData.size());
     std::memcpy(msg.payload.data() + offset, fileData.data(), fileData.size());
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -663,7 +680,7 @@ Protocol::Message Protocol::createUploadRevisionResponse(bool success, const std
     writeBool(msg.payload, success);
     writeString(msg.payload, message);
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -678,7 +695,7 @@ Protocol::Message Protocol::createGetMyPapersRequest(uint32_t sessionId) {
     
     writeUint32(msg.payload, sessionId);
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -695,7 +712,7 @@ Protocol::Message Protocol::createGetMyPapersResponse(bool success, const std::v
         writePaperInfo(msg.payload, paper);
     }
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -743,7 +760,7 @@ Protocol::Message Protocol::createGetPapersToReviewRequest(uint32_t sessionId) {
     
     writeUint32(msg.payload, sessionId);
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -761,7 +778,7 @@ Protocol::Message Protocol::createGetPapersToReviewResponse(bool success,
         writePaperInfo(msg.payload, paper);
     }
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -815,7 +832,7 @@ Protocol::Message Protocol::createSubmitReviewRequest(uint32_t sessionId, uint32
     writeInt32(msg.payload, confidence);
     writeString(msg.payload, comments);
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -830,7 +847,7 @@ Protocol::Message Protocol::createSubmitReviewResponse(bool success, uint32_t re
     writeUint32(msg.payload, reviewId);
     writeString(msg.payload, message);
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -882,7 +899,7 @@ Protocol::Message Protocol::createAssignReviewerRequest(uint32_t sessionId, uint
     writeUint32(msg.payload, paperId);
     writeUint32(msg.payload, reviewerId);
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -895,7 +912,7 @@ Protocol::Message Protocol::createAssignReviewerResponse(bool success, const std
     writeBool(msg.payload, success);
     writeString(msg.payload, message);
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -924,7 +941,7 @@ Protocol::Message Protocol::createGetAllPapersRequest(uint32_t sessionId) {
     
     writeUint32(msg.payload, sessionId);
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -942,7 +959,7 @@ Protocol::Message Protocol::createGetAllPapersResponse(bool success,
         writePaperInfo(msg.payload, paper);
     }
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -991,7 +1008,7 @@ Protocol::Message Protocol::createDownloadPaperRequest(uint32_t sessionId, uint3
     writeUint32(msg.payload, sessionId);
     writeUint32(msg.payload, paperId);
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -1011,7 +1028,7 @@ Protocol::Message Protocol::createDownloadPaperResponse(bool success, const std:
         std::memcpy(msg.payload.data() + offset, data.data(), data.size());
     }
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -1027,7 +1044,7 @@ Protocol::Message Protocol::createGetReviewsRequest(uint32_t sessionId, uint32_t
     writeUint32(msg.payload, sessionId);
     writeUint32(msg.payload, paperId);
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -1044,7 +1061,7 @@ Protocol::Message Protocol::createGetReviewsResponse(bool success, const std::ve
         writeReviewInfo(msg.payload, review);
     }
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -1062,7 +1079,7 @@ Protocol::Message Protocol::createMakeDecisionRequest(uint32_t sessionId, uint32
     writeUint32(msg.payload, paperId);
     writeString(msg.payload, decision);
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -1075,7 +1092,7 @@ Protocol::Message Protocol::createMakeDecisionResponse(bool success, const std::
     writeBool(msg.payload, success);
     writeString(msg.payload, message);
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -1090,7 +1107,7 @@ Protocol::Message Protocol::createGetStatisticsRequest(uint32_t sessionId) {
     
     writeUint32(msg.payload, sessionId);
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -1103,7 +1120,7 @@ Protocol::Message Protocol::createGetStatisticsResponse(bool success, const std:
     writeBool(msg.payload, success);
     writeString(msg.payload, stats);
     
-    msg.header.payloadSize = msg.payload.size();
+    msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
     
     return msg;
@@ -1116,83 +1133,24 @@ bool Protocol::parseGetReviewsResponse(const Message& msg, bool& success, std::v
     
     reviews.clear();
     
-    size_t offset = 0;
+    const char* ptr = msg.payload.data();
+    const char* end = ptr + msg.payload.size();
     
     // 解析 success 标志
-    success = msg.payload[offset++] != 0;
+    if (!readBool(ptr, end, success)) return false;
     
     if (!success) {
         return true;
     }
     
     // 解析评审数量
-    if (offset + 4 > msg.payload.size()) {
-        return false;
-    }
-    
     uint32_t count;
-    memcpy(&count, msg.payload.data() + offset, 4);
-    offset += 4;
+    if (!readUint32(ptr, end, count)) return false;
     
     // 解析每个评审
     for (uint32_t i = 0; i < count; i++) {
         ReviewInfo review;
-        
-        // reviewId (4 bytes)
-        if (offset + 4 > msg.payload.size()) return false;
-        memcpy(&review.reviewId, msg.payload.data() + offset, 4);
-        offset += 4;
-        
-        // paperId (4 bytes)
-        if (offset + 4 > msg.payload.size()) return false;
-        memcpy(&review.paperId, msg.payload.data() + offset, 4);
-        offset += 4;
-        
-        // reviewerId (4 bytes)
-        if (offset + 4 > msg.payload.size()) return false;
-        memcpy(&review.reviewerId, msg.payload.data() + offset, 4);
-        offset += 4;
-        
-        // reviewerName (4 bytes length + string)
-        if (offset + 4 > msg.payload.size()) return false;
-        uint32_t nameLen;
-        memcpy(&nameLen, msg.payload.data() + offset, 4);
-        offset += 4;
-        
-        if (offset + nameLen > msg.payload.size()) return false;
-        review.reviewerName = std::string(msg.payload.data() + offset, nameLen);
-        offset += nameLen;
-        
-        // decision (4 bytes length + string)
-        if (offset + 4 > msg.payload.size()) return false;
-        uint32_t decisionLen;
-        memcpy(&decisionLen, msg.payload.data() + offset, 4);
-        offset += 4;
-        
-        if (offset + decisionLen > msg.payload.size()) return false;
-        review.decision = std::string(msg.payload.data() + offset, decisionLen);
-        offset += decisionLen;
-        
-        // confidenceScore (4 bytes)
-        if (offset + 4 > msg.payload.size()) return false;
-        memcpy(&review.confidenceScore, msg.payload.data() + offset, 4);
-        offset += 4;
-        
-        // comments (4 bytes length + string)
-        if (offset + 4 > msg.payload.size()) return false;
-        uint32_t commentsLen;
-        memcpy(&commentsLen, msg.payload.data() + offset, 4);
-        offset += 4;
-        
-        if (offset + commentsLen > msg.payload.size()) return false;
-        review.comments = std::string(msg.payload.data() + offset, commentsLen);
-        offset += commentsLen;
-        
-        // submitTime (8 bytes)
-        if (offset + 8 > msg.payload.size()) return false;
-        memcpy(&review.submitTime, msg.payload.data() + offset, 8);
-        offset += 8;
-        
+        if (!readReviewInfo(ptr, end, review)) return false;
         reviews.push_back(review);
     }
     

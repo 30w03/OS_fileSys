@@ -1,0 +1,916 @@
+📊 步骤1：运行所有测试程序
+bash
+cd ~/peer-review-system/build
+
+echo "=== Test 1: Filesystem Tests ==="
+./test_filesystem
+
+echo -e "\n=== Test 2: File Operations Tests ==="
+./test_file_operations
+
+echo -e "\n=== Test 3: Network Protocol Tests ==="
+./test_network
+
+🚀 步骤2：启动服务器（在一个终端）
+cd ~/peer-review-system/build
+rm -f server_disk.img  # 清理旧数据
+./server 8888 server_disk.img
+
+bash
+cd ~/peer-review-system/build
+./server 8888 server_disk.img
+
+💻 步骤3：启动客户端（在另一个终端）
+打开新的终端窗口或标签页：
+
+bash
+cd ~/peer-review-system/build
+./client
+
+connect 127.0.0.1 8888
+ping
+list
+upload /tmp/test_upload.txt /test_file.txt
+list
+download /test_file.txt /tmp/downloaded.txt
+quit
+
+# 验证下载的文件
+cat /tmp/downloaded.txt
+
+📝 查看生成的可执行文件：
+bash
+ls -lh ~/peer-review-system/build/ | grep -E "(server|client|test_)"
+
+🎊 项目完成清单：
+✅ 存储层 - 磁盘管理、位图、缓存
+✅ 文件系统层 - 超级块、inode、文件、目录
+✅ 协议层 - 消息序列化/反序列化
+✅ 网络层 - 服务器、客户端、连接管理
+✅ 测试程序 - 文件系统测试、文件操作测试、网络协议测试
+✅ 应用程序 - 服务器和客户端主程序
+
+
+ sudo cp -r /root/peer-review-system /mnt/c/Users/Moneyhappy/Desktop/
+
+cd ~/peer-review-system/build
+make clean
+rm -f test_disk.img
+make -j$(nproc)
+
+磁盘容量:     100 MB
+单文件限制:   10 MB
+块大小:       4 KB
+总块数:       25,600
+可用块:       25,590
+最大文件数:   ~10 个 (10MB 文件)
+             ~100 个 (1MB 文件)
+             ~2500 个 (40KB 文件)
+
+
+🛠️ 第一步：准备环境
+终端 1：清理并启动服务器
+bash
+# 停止旧进程
+killall -9 server client 2>/dev/null
+
+# 清理旧数据
+cd ~/peer-review-system/build
+rm -f test_disk.img users.dat server.log *.txt *.pdf
+
+# 启动服务器
+./server -p 8080 -d test_disk.img
+
+预期输出：
+
+excel
+🚀 Starting Peer Review System Server...
+📁 Disk Image: test_disk.img
+✅ Filesystem mounted successfully
+Loading user data...
+✅ Default admin account created (username: admin, password: admin123)
+✅ Review system initialized
+🌐 Server listening on port 8080...
+
+========================================
+  Peer Review System Server Ready
+========================================
+
+Server is running. Press Ctrl+C to stop.
+
+终端 2：准备测试文件
+bash
+cd ~/peer-review-system/build
+
+# 创建测试文件
+cat > paper1.txt << 'EOF'
+This is my research paper about deep learning and neural networks.
+It presents novel CNN architectures and experimental results.
+The paper demonstrates significant improvements over existing methods.
+EOF
+
+cat > paper2.txt << 'EOF'
+This paper explores machine learning algorithms for natural language processing.
+We propose a new transformer-based model with enhanced performance.
+Experimental results show 15% improvement in accuracy.
+EOF
+
+# 验证
+ls -lh paper*.txt
+
+预期输出：
+
+apache
+-rw-r--r-- 1 root root 178 Dec 23 18:00 paper1.txt
+-rw-r--r-- 1 root root 161 Dec 23 18:00 paper2.txt
+
+终端 2：启动客户端
+bash
+./client
+
+预期输出：
+
+excel
+========================================
+   Peer Review System Client
+========================================
+Type 'help' for available commands
+peer-review>
+
+📝 第二步：测试命令序列
+阶段 1：连接和用户管理
+命令 1-1：连接服务器
+connect 127.0.0.1 8080
+
+预期输出：
+
+✅ Connected to 127.0.0.1:8080
+
+服务器端：
+
+📥 New client connected from 127.0.0.1:xxxxx
+🔧 Handling client from 127.0.0.1:xxxxx
+
+命令 1-2：管理员登录
+login admin admin123
+
+预期输出：
+
+✅ Logged in as Admin (User ID: 1, Session ID: 1)
+✅ Login successful
+
+服务器端：
+
+📨 Received message type: 50
+  → LOGIN_REQUEST
+  ✅ Login successful: admin (ID: 1, Role: Admin)
+
+命令 1-3：注册作者1
+register author1 pass123 AUTHOR
+
+预期输出：
+
+✅ User registered successfully
+User ID: 2
+Username: author1
+Role: author
+
+服务器端：
+
+📨 Received message type: 54
+  → REGISTER_REQUEST
+  ✅ User registered: author1 as AUTHOR
+
+命令 1-4：注册作者2
+register author2 pass456 AUTHOR
+
+预期输出：
+
+✅ User registered successfully
+User ID: 3
+Username: author2
+Role: author
+
+命令 1-5：注册审稿人1
+register reviewer1 rev123 REVIEWER
+
+预期输出：
+
+✅ User registered successfully
+User ID: 4
+Username: reviewer1
+Role: reviewer
+
+命令 1-6：注册审稿人2
+register reviewer2 rev456 REVIEWER
+
+预期输出：
+
+✅ User registered successfully
+User ID: 5
+Username: reviewer2
+Role: reviewer
+
+命令 1-7：注册编辑
+register editor1 edit123 EDITOR
+
+预期输出：
+
+✅ User registered successfully
+User ID: 6
+Username: editor1
+Role: editor
+
+命令 1-8：登出
+logout
+
+预期输出：
+
+✅ Logged out successfully
+
+阶段 2：作者提交论文
+命令 2-1：作者1登录
+login author1 pass123
+
+预期输出：
+
+✅ Logged in as Author (User ID: 2, Session ID: 2)
+✅ Login successful
+
+命令 2-2：提交论文1
+submit "Deep Learning for Image Recognition" "Novel CNN architecture" paper1.txt
+
+预期输出：
+
+✅ Paper submitted successfully!
+Paper ID: 1
+Title: Deep Learning for Image Recognition
+
+服务器端：
+
+📨 Received message type: 60
+  → SUBMIT_PAPER_REQUEST
+writeFile called: /papers/paper_000001.pdf (178 bytes)
+✅ Paper submitted successfully!
+   Paper ID: 1
+   Title: Deep Learning for Image Recognition
+   Author ID: 2
+
+命令 2-3：提交论文2
+submit "Neural Network Optimization" "Improved training methods" paper2.txt
+
+预期输出：
+
+✅ Paper submitted successfully!
+Paper ID: 2
+Title: Neural Network Optimization
+
+命令 2-4：查看我的论文
+mypapers
+
+预期输出：
+
+yaml
+📚 My Papers (2):
+
+┌─────────────────────────────────────────
+│ Paper ID: 1
+│ Title: Deep Learning for Image Recognition
+│ Abstract: Novel CNN architecture
+│ Status: Submitted
+│ Version: 1
+│ Authors: 1
+│ Reviewers: 0
+└─────────────────────────────────────────
+
+┌─────────────────────────────────────────
+│ Paper ID: 2
+│ Title: Neural Network Optimization
+│ Abstract: Improved training methods
+│ Status: Submitted
+│ Version: 1
+│ Authors: 1
+│ Reviewers: 0
+└─────────────────────────────────────────
+
+命令 2-5：登出
+logout
+
+命令 2-6：作者2登录
+login author2 pass456
+
+预期输出：
+
+✅ Logged in as Author (User ID: 3, Session ID: 3)
+✅ Login successful
+
+命令 2-7：提交论文3
+submit "Machine Learning Applications" "Real-world case studies" paper1.txt
+
+预期输出：
+
+✅ Paper submitted successfully!
+Paper ID: 3
+Title: Machine Learning Applications
+
+命令 2-8：查看我的论文
+mypapers
+
+预期输出：
+
+📚 My Papers (1):
+
+┌─────────────────────────────────────────
+│ Paper ID: 3
+│ Title: Machine Learning Applications
+│ Abstract: Real-world case studies
+│ Status: Submitted
+│ Version: 1
+│ Authors: 1
+│ Reviewers: 0
+└─────────────────────────────────────────
+
+命令 2-9：登出
+logout
+
+阶段 3：管理员分配审稿人
+命令 3-1：管理员登录
+login admin admin123
+
+命令 3-2：查看所有论文
+allpapers
+
+预期输出：
+
+yaml
+📋 All Papers (3):
+
+┌─────────────────────────────────────────
+│ Paper ID: 1
+│ Title: Deep Learning for Image Recognition
+│ Abstract: Novel CNN architecture
+│ Status: Submitted
+│ Version: 1
+│ Authors: 1
+│ Reviewers: 0
+└─────────────────────────────────────────
+
+┌─────────────────────────────────────────
+│ Paper ID: 2
+│ Title: Neural Network Optimization
+│ Abstract: Improved training methods
+│ Status: Submitted
+│ Version: 1
+│ Authors: 1
+│ Reviewers: 0
+└─────────────────────────────────────────
+
+┌─────────────────────────────────────────
+│ Paper ID: 3
+│ Title: Machine Learning Applications
+│ Abstract: Real-world case studies
+│ Status: Submitted
+│ Version: 1
+│ Authors: 1
+│ Reviewers: 0
+└─────────────────────────────────────────
+
+命令 3-3：分配审稿人1给论文1
+assign 1 4
+
+预期输出：
+
+✅ Reviewer 4 assigned to paper 1
+
+服务器端：
+
+📨 Received message type: 72
+  → ASSIGN_REVIEWER_REQUEST
+  ✅ Reviewer assigned: Paper 1, Reviewer 4
+
+命令 3-4：分配审稿人2给论文1
+assign 1 5
+
+预期输出：
+
+✅ Reviewer 5 assigned to paper 1
+
+命令 3-5：分配审稿人1给论文2
+assign 2 4
+
+预期输出：
+
+✅ Reviewer 4 assigned to paper 2
+
+命令 3-6：分配审稿人2给论文3
+assign 3 5
+
+预期输出：
+
+✅ Reviewer 5 assigned to paper 3
+
+命令 3-7：再次查看所有论文
+allpapers
+
+预期输出：
+
+yaml
+📋 All Papers (3):
+
+┌─────────────────────────────────────────
+│ Paper ID: 1
+│ Title: Deep Learning for Image Recognition
+│ Abstract: Novel CNN architecture
+│ Status: Under Review    👈 状态改变
+│ Version: 1
+│ Authors: 1
+│ Reviewers: 2            👈 有2个审稿人
+└─────────────────────────────────────────
+
+┌─────────────────────────────────────────
+│ Paper ID: 2
+│ Title: Neural Network Optimization
+│ Abstract: Improved training methods
+│ Status: Under Review
+│ Version: 1
+│ Authors: 1
+│ Reviewers: 1
+└─────────────────────────────────────────
+
+┌─────────────────────────────────────────
+│ Paper ID: 3
+│ Title: Machine Learning Applications
+│ Abstract: Real-world case studies
+│ Status: Under Review
+│ Version: 1
+│ Authors: 1
+│ Reviewers: 1
+└─────────────────────────────────────────
+
+命令 3-8：查看系统统计
+stats
+
+预期输出：
+
+📊 System Statistics:
+┌─────────────────────────────────────────
+│ Total Papers: 3
+│ Total Reviews: 0         👈 还没有评审
+│ Total Users: 6
+│ Pending Papers: 3        👈 3篇待处理
+│ Accepted Papers: 0
+│ Rejected Papers: 0
+└─────────────────────────────────────────
+
+命令 3-9：登出
+logout
+
+阶段 4：审稿人1提交评审
+命令 4-1：审稿人1登录
+login reviewer1 rev123
+
+预期输出：
+
+✅ Logged in as Reviewer (User ID: 4, Session ID: 4)
+✅ Login successful
+
+命令 4-2：查看待审论文 🔥
+toreview
+
+预期输出：
+
+yaml
+🔍 Papers to Review (2):
+
+┌─────────────────────────────────────────
+│ Paper ID: 1
+│ Title: Deep Learning for Image Recognition
+│ Abstract: Novel CNN architecture
+│ Status: Under Review
+│ Version: 1
+│ Authors: 1
+│ Reviewers: 2
+└─────────────────────────────────────────
+
+┌─────────────────────────────────────────
+│ Paper ID: 2
+│ Title: Neural Network Optimization
+│ Abstract: Improved training methods
+│ Status: Under Review
+│ Version: 1
+│ Authors: 1
+│ Reviewers: 1
+└─────────────────────────────────────────
+
+✅ 验证点：应该显示2篇论文（论文1和论文2）
+
+命令 4-3：审稿论文1
+review 1 accept 95 "Excellent work with novel contributions and solid methodology"
+
+预期输出：
+
+✅ Review submitted with ID: 1
+✅ Review submitted successfully
+
+服务器端：
+
+📨 Received message type: 70
+  → SUBMIT_REVIEW_REQUEST
+  ✅ Review submitted: Paper 1, Reviewer 4
+
+命令 4-4：再次查看待审 🔥🔥🔥
+toreview
+
+预期输出：
+
+🔍 Papers to Review (1):
+
+┌─────────────────────────────────────────
+│ Paper ID: 2
+│ Title: Neural Network Optimization
+│ Abstract: Improved training methods
+│ Status: Under Review
+│ Version: 1
+│ Authors: 1
+│ Reviewers: 1
+└─────────────────────────────────────────
+
+✅ 关键验证点：论文1应该消失了！只剩论文2！
+
+命令 4-5：审稿论文2
+review 2 revise 82 "Good work but needs minor improvements in the experimental section"
+
+预期输出：
+
+✅ Review submitted with ID: 2
+✅ Review submitted successfully
+
+命令 4-6：再次查看待审 🔥🔥🔥
+toreview
+
+预期输出：
+
+🔍 Papers to Review (0):
+
+No papers assigned for review.
+
+✅ 关键验证点：应该显示0篇待审！
+
+命令 4-7：登出
+logout
+
+阶段 5：审稿人2提交评审
+命令 5-1：审稿人2登录
+login reviewer2 rev456
+
+预期输出：
+
+✅ Logged in as Reviewer (User ID: 5, Session ID: 5)
+✅ Login successful
+
+命令 5-2：查看待审论文
+toreview
+
+预期输出：
+
+yaml
+🔍 Papers to Review (2):
+
+┌─────────────────────────────────────────
+│ Paper ID: 1
+│ Title: Deep Learning for Image Recognition
+│ Abstract: Novel CNN architecture
+│ Status: Under Review
+│ Version: 1
+│ Authors: 1
+│ Reviewers: 2
+└─────────────────────────────────────────
+
+┌─────────────────────────────────────────
+│ Paper ID: 3
+│ Title: Machine Learning Applications
+│ Abstract: Real-world case studies
+│ Status: Under Review
+│ Version: 1
+│ Authors: 1
+│ Reviewers: 1
+└─────────────────────────────────────────
+
+✅ 验证点：应该显示论文1和论文3（不包括论文2，因为没分配给他）
+
+命令 5-3：审稿论文1
+review 1 accept 92 "Strong theoretical foundation and well-executed experiments"
+
+预期输出：
+
+✅ Review submitted with ID: 3
+✅ Review submitted successfully
+
+命令 5-4：再次查看待审
+toreview
+
+预期输出：
+
+🔍 Papers to Review (1):
+
+┌─────────────────────────────────────────
+│ Paper ID: 3
+│ Title: Machine Learning Applications
+│ Abstract: Real-world case studies
+│ Status: Under Review
+│ Version: 1
+│ Authors: 1
+│ Reviewers: 1
+└─────────────────────────────────────────
+
+✅ 验证点：论文1消失，只剩论文3
+
+命令 5-5：审稿论文3
+review 3 reject 65 "Insufficient novelty and limited experimental validation"
+
+预期输出：
+
+✅ Review submitted with ID: 4
+✅ Review submitted successfully
+
+命令 5-6：再次查看待审
+toreview
+
+预期输出：
+
+🔍 Papers to Review (0):
+
+No papers assigned for review.
+
+✅ 验证点：全部审完，0篇待审
+
+命令 5-7：登出
+logout
+
+阶段 6：作者查看评审结果
+命令 6-1：作者1登录
+login author1 pass123
+
+命令 6-2：查看我的论文
+mypapers
+
+预期输出：
+
+yaml
+📚 My Papers (2):
+
+┌─────────────────────────────────────────
+│ Paper ID: 1
+│ Title: Deep Learning for Image Recognition
+│ Abstract: Novel CNN architecture
+│ Status: Accepted        👈 已接收
+│ Version: 1
+│ Authors: 1
+│ Reviewers: 2
+└─────────────────────────────────────────
+
+┌─────────────────────────────────────────
+│ Paper ID: 2
+│ Title: Neural Network Optimization
+│ Abstract: Improved training methods
+│ Status: Needs Revision  👈 需修改
+│ Version: 1
+│ Authors: 1
+│ Reviewers: 1
+└─────────────────────────────────────────
+
+命令 6-3：登出
+logout
+
+命令 6-4：作者2登录
+login author2 pass456
+
+命令 6-5：查看我的论文
+mypapers
+
+预期输出：
+
+📚 My Papers (1):
+
+┌─────────────────────────────────────────
+│ Paper ID: 3
+│ Title: Machine Learning Applications
+│ Abstract: Real-world case studies
+│ Status: Rejected        👈 被拒绝
+│ Version: 1
+│ Authors: 1
+│ Reviewers: 1
+└─────────────────────────────────────────
+
+命令 6-6：登出
+logout
+
+阶段 7：最终统计
+命令 7-1：管理员登录
+login admin admin123
+
+命令 7-2：查看最终统计 🔥
+stats
+
+预期输出：
+
+apache
+📊 System Statistics:
+┌─────────────────────────────────────────
+│ Total Papers: 3
+│ Total Reviews: 4         👈 4条评审
+│ Total Users: 6
+│ Pending Papers: 1        👈 1篇待处理（论文2需修改）
+│ Accepted Papers: 1       👈 1篇已接收（论文1）
+│ Rejected Papers: 1       👈 1篇被拒绝（论文3）
+└─────────────────────────────────────────
+
+✅ 关键验证点：
+
+Total Reviews = 4
+Accepted Papers = 1
+Rejected Papers = 1
+命令 7-3：查看所有论文
+allpapers
+
+预期输出：
+
+yaml
+📋 All Papers (3):
+
+┌─────────────────────────────────────────
+│ Paper ID: 1
+│ Title: Deep Learning for Image Recognition
+│ Status: Accepted
+│ Reviewers: 2
+└─────────────────────────────────────────
+
+┌─────────────────────────────────────────
+│ Paper ID: 2
+│ Title: Neural Network Optimization
+│ Status: Needs Revision
+│ Reviewers: 1
+└─────────────────────────────────────────
+
+┌─────────────────────────────────────────
+│ Paper ID: 3
+│ Title: Machine Learning Applications
+│ Status: Rejected
+│ Reviewers: 1
+└─────────────────────────────────────────
+
+阶段 8：文件操作测试
+命令 8-1：上传文件
+upload paper1.txt /uploads/my_paper.txt
+
+预期输出：
+
+✅ File uploaded successfully
+
+命令 8-2：列出文件
+list
+
+预期输出：
+
+awk
+📁 Remote Files:
+  📄 /uploads/my_paper.txt (178 bytes)
+  📄 /reviews/review_000004.txt (xx bytes)
+  📄 /reviews/review_000003.txt (xx bytes)
+  📄 /reviews/review_000002.txt (xx bytes)
+  📄 /reviews/review_000001.txt (xx bytes)
+  📄 /papers/paper_000003.pdf (178 bytes)
+  📄 /papers/paper_000002.pdf (161 bytes)
+  📄 /papers/paper_000001.pdf (178 bytes)
+
+命令 8-3：下载文件
+download /papers/paper_000001.pdf downloaded_paper1.pdf
+
+预期输出：
+
+✅ File downloaded successfully (178 bytes)
+
+命令 8-4：删除文件
+delete /uploads/my_paper.txt
+
+预期输出：
+
+✅ File deleted successfully
+
+命令 8-5：验证删除
+list
+
+预期输出：
+
+awk
+📁 Remote Files:
+  📄 /reviews/review_000004.txt (xx bytes)
+  📄 /reviews/review_000003.txt (xx bytes)
+  📄 /reviews/review_000002.txt (xx bytes)
+  📄 /reviews/review_000001.txt (xx bytes)
+  📄 /papers/paper_000003.pdf (178 bytes)
+  📄 /papers/paper_000002.pdf (161 bytes)
+  📄 /papers/paper_000001.pdf (178 bytes)
+
+✅ 验证点：/uploads/my_paper.txt 应该消失了
+
+阶段 9：其他测试
+命令 9-1：Ping测试
+ping
+
+预期输出：
+
+🏓 Server is alive (latency: X ms)
+
+命令 9-2：帮助
+help
+
+预期输出：
+
+excel
+========================================
+  Peer Review System Commands
+========================================
+（显示完整帮助信息）
+
+命令 9-3：退出
+quit
+
+预期输出：
+
+👋 Goodbye!
+
+�� > login author1 pass123
+✅ Logged in as Author (User ID: 2, Session ID: 7)
+✅ Login successful
+
+�� > mypapers
+
+📚 Your Papers (2):
+
+┌─────────────────────────────────────────
+│ Paper ID: 1
+│ Title: Deep Learning for Image Recognition
+│ Abstract: Novel CNN architecture
+│ Status: Reviewed
+│ Version: 1
+│ Authors: 1
+│ Reviewers: 2
+└─────────────────────────────────────────
+
+
+┌─────────────────────────────────────────
+│ Paper ID: 2
+│ Title: Neural Network Optimization
+│ Abstract: Improved training methods
+│ Status: Reviewed
+│ Version: 1
+│ Authors: 1
+│ Reviewers: 1
+└─────────────────────────────────────────
+�� > stats
+
+📊 System Statistics:
+┌─────────────────────────────────────────
+│ Total Papers: 3
+│ Total Reviews: 4
+│ Total Users: 6
+│ Pending Papers: 3
+│ Accepted Papers: 0
+│ Rejected Papers: 0
+└─────────────────────────────────────────
+�� > allpapers
+
+📚 All Papers (3):
+
+┌─────────────────────────────────────────
+│ Paper ID: 1
+│ Title: Deep Learning for Image Recognition
+│ Abstract: Novel CNN architecture
+│ Status: Reviewed
+│ Version: 1
+│ Authors: 1
+│ Reviewers: 2
+└─────────────────────────────────────────
+
+
+┌─────────────────────────────────────────
+│ Paper ID: 2
+│ Title: Neural Network Optimization
+│ Abstract: Improved training methods
+│ Status: Reviewed
+│ Version: 1
+│ Authors: 1
+│ Reviewers: 1
+└─────────────────────────────────────────
+
+
+┌─────────────────────────────────────────
+│ Paper ID: 3
+│ Title: Machine Learning Applications
+│ Abstract: Real-world case studies
+│ Status: Reviewed
+│ Version: 1
+│ Authors: 1
+│ Reviewers: 1
+└─────────────────────────────────────────

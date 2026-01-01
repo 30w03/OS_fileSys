@@ -579,6 +579,32 @@ void Server::handleGetPapersToReview(Connection* client, const Protocol::Message
         info.currentVersion = paper.currentVersion;
         info.authorIds = paper.authorIds;
         info.reviewerIds = paper.assignedReviewers;
+        
+        // 获取该论文的所有评审
+        auto reviews = reviewSystem_->getReviewsForPaper(paper.paperId);
+        
+        // 填充评审详情
+        for (const auto& review : reviews) {
+            ReviewInfo reviewInfo;
+            reviewInfo.reviewId = review.reviewId;
+            reviewInfo.paperId = review.paperId;
+            reviewInfo.reviewerId = review.reviewerId;
+            reviewInfo.decision = review.getDecisionName();
+            reviewInfo.confidenceScore = review.confidenceScore;
+            reviewInfo.comments = review.comments;
+            reviewInfo.submitTime = static_cast<uint64_t>(review.submitTime);
+            
+            // 获取审稿人用户名
+            User reviewer;
+            if (userManager_->getUserById(review.reviewerId, reviewer)) {
+                reviewInfo.reviewerName = reviewer.username;
+            } else {
+                reviewInfo.reviewerName = "User" + std::to_string(review.reviewerId);
+            }
+            
+            info.reviews.push_back(reviewInfo);
+        }
+        
         paperInfos.push_back(info);
     }
     
@@ -692,6 +718,32 @@ void Server::handleGetAllPapers(Connection* client, const Protocol::Message& req
         info.currentVersion = paper.currentVersion;
         info.authorIds = paper.authorIds;
         info.reviewerIds = paper.assignedReviewers;
+        
+        // 获取该论文的所有评审
+        auto reviews = reviewSystem_->getReviewsForPaper(paper.paperId);
+        
+        // 填充评审详情
+        for (const auto& review : reviews) {
+            ReviewInfo reviewInfo;
+            reviewInfo.reviewId = review.reviewId;
+            reviewInfo.paperId = review.paperId;
+            reviewInfo.reviewerId = review.reviewerId;
+            reviewInfo.decision = review.getDecisionName();
+            reviewInfo.confidenceScore = review.confidenceScore;
+            reviewInfo.comments = review.comments;
+            reviewInfo.submitTime = static_cast<uint64_t>(review.submitTime);
+            
+            // 获取审稿人用户名
+            User reviewer;
+            if (userManager_->getUserById(review.reviewerId, reviewer)) {
+                reviewInfo.reviewerName = reviewer.username;
+            } else {
+                reviewInfo.reviewerName = "User" + std::to_string(review.reviewerId);
+            }
+            
+            info.reviews.push_back(reviewInfo);
+        }
+        
         paperInfos.push_back(info);
     }
     
@@ -818,7 +870,7 @@ void Server::handleGetStatistics(Connection* client, const Protocol::Message& re
     writeUint32(response.payload, accepted_papers);
     writeUint32(response.payload, rejected_papers);
     
-    response.header.payloadSize = response.payload.size();
+    response.header.length = response.payload.size();
     response.header.checksum = Protocol::calculateChecksum(response.payload);
     
     client->sendMessage(response);

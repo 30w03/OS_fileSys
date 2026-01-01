@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <ctime>
 
 struct FileListEntry {
     std::string filename;
@@ -108,12 +109,19 @@ public:
     };
     
     struct MessageHeader {
-        uint32_t magic;
-        MessageType type;
-        uint32_t payloadSize;
-        uint32_t checksum;
+        uint32_t magic;        // 0x50525346 ("PRSF")
+        uint8_t version;       // 1
+        uint8_t type;          // MessageType
+        uint16_t reserved;     // Padding
+        uint32_t length;       // Payload length
+        uint64_t timestamp;    // Timestamp
+        uint32_t checksum;     // CRC32
         
-        MessageHeader() : magic(0x12345678), type(MSG_PING), payloadSize(0), checksum(0) {}
+        MessageHeader() 
+            : magic(0x50525346), version(1), type(0), reserved(0), 
+              length(0), timestamp(static_cast<uint64_t>(std::time(nullptr))), checksum(0) {}
+              
+        static constexpr size_t SIZE = 24;
     };
     
     struct Message {

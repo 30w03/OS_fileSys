@@ -15,6 +15,7 @@ Filesystem::~Filesystem() {
 }
 
 bool Filesystem::mount() {
+    std::lock_guard<std::mutex> lock(mutex_);
     if (mounted_) {
         return true;
     }
@@ -35,6 +36,7 @@ bool Filesystem::mount() {
 }
 
 void Filesystem::unmount() {
+    std::lock_guard<std::mutex> lock(mutex_);
     if (!mounted_) {
         return;
     }
@@ -45,6 +47,7 @@ void Filesystem::unmount() {
 }
 
 bool Filesystem::createFile(const std::string& path) {
+    std::lock_guard<std::mutex> lock(mutex_);
     if (!mounted_) {
         std::cerr << "Filesystem not mounted" << std::endl;
         return false;
@@ -78,6 +81,7 @@ bool Filesystem::createFile(const std::string& path) {
 }
 
 bool Filesystem::deleteFile(const std::string& path) {
+    std::lock_guard<std::mutex> lock(mutex_);
     if (!mounted_) {
         return false;
     }
@@ -107,6 +111,7 @@ bool Filesystem::deleteFile(const std::string& path) {
 }
 
 bool Filesystem::readFile(const std::string& path, std::vector<char>& data) {
+    std::lock_guard<std::mutex> lock(mutex_);
     if (!mounted_) {
         std::cerr << "Filesystem not mounted" << std::endl;
         return false;
@@ -155,6 +160,7 @@ bool Filesystem::readFile(const std::string& path, std::vector<char>& data) {
 }
 
 bool Filesystem::writeFile(const std::string& path, const std::vector<char>& data) {
+    std::lock_guard<std::mutex> lock(mutex_);
     if (!mounted_) {
         std::cerr << "Filesystem not mounted" << std::endl;
         return false;
@@ -165,15 +171,26 @@ bool Filesystem::writeFile(const std::string& path, const std::vector<char>& dat
     uint32_t inodeId = findInode(path);
     if (inodeId == 0) {
         std::cout << "Creating new file: " << path << std::endl;
-        if (!createFile(path)) {
-            std::cerr << "Failed to create file" << std::endl;
+        // Note: We can't call createFile() here because it would try to lock the mutex again (deadlock)
+        // So we inline the creation logic or extract it to a private helper
+        
+        uint32_t newInodeId = allocateInode();
+        if (newInodeId == 0) {
+            std::cerr << "Failed to allocate inode" << std::endl;
             return false;
         }
-        inodeId = findInode(path);
-        if (inodeId == 0) {
-            std::cerr << "Failed to find newly created file" << std::endl;
-            return false;
-        }
+        
+        Inode inode;
+        inode.id = newInodeId;
+        inode.size = 0;
+        inode.timestamp = static_cast<uint32_t>(std::time(nullptr));
+        inode.isDirectory = false;
+        
+        inodeTable_[newInodeId] = inode;
+        pathToInode_[path] = newInodeId;
+        inodeId = newInodeId;
+        
+        std::cout << "Created file: " << path << " (inode " << inodeId << ")" << std::endl;
     }
     
     Inode* inode = getInode(inodeId);
@@ -242,6 +259,7 @@ bool Filesystem::writeFile(const std::string& path, const std::vector<char>& dat
 }
 
 bool Filesystem::isFile(const std::string& path) {
+    std::lock_guard<std::mutex> lock(mutex_);
     if (!mounted_) {
         return false;
     }
@@ -256,6 +274,7 @@ bool Filesystem::isFile(const std::string& path) {
 }
 
 bool Filesystem::isDirectory(const std::string& path) {
+    std::lock_guard<std::mutex> lock(mutex_);
     if (!mounted_) {
         return false;
     }
@@ -270,6 +289,7 @@ bool Filesystem::isDirectory(const std::string& path) {
 }
 
 std::vector<FileListEntry> Filesystem::listFiles() {
+    std::lock_guard<std::mutex> lock(mutex_);
     std::vector<FileListEntry> entries;
     
     if (!mounted_) {
@@ -299,6 +319,7 @@ std::vector<FileListEntry> Filesystem::listFiles() {
 }
 
 std::vector<std::string> Filesystem::listDirectory(const std::string& path) {
+    std::lock_guard<std::mutex> lock(mutex_);
     std::vector<std::string> result;
     
     for (const auto& pair : pathToInode_) {

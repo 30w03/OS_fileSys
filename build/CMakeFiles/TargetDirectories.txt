@@ -14,6 +14,7 @@
 /home/project/peer-review-system/build/CMakeFiles/test_file_ops_debug.dir
 /home/project/peer-review-system/build/CMakeFiles/test_industrial.dir
 /home/project/peer-review-system/build/CMakeFiles/test_persistence.dir
+/home/project/peer-review-system/build/CMakeFiles/test_comments.dir
 /home/project/peer-review-system/build/CMakeFiles/edit_cache.dir
 /home/project/peer-review-system/build/CMakeFiles/rebuild_cache.dir
 /home/project/peer-review-system/build/CMakeFiles/list_install_components.dir

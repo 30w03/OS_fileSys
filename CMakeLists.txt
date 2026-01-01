@@ -125,5 +125,11 @@ target_link_libraries(test_file_ops_debug filesystem)
 add_executable(test_industrial tests/test_industrial.cpp)
 target_link_libraries(test_industrial filesystem)
 
+add_executable(test_persistence tests/test_persistence.cpp)
+target_link_libraries(test_persistence review user filesystem storage OpenSSL::Crypto)
+
+add_executable(test_comments tests/test_comments.cpp)
+target_link_libraries(test_comments review user filesystem storage OpenSSL::Crypto)
+
 # Install targets
 install(TARGETS server client review_cli DESTINATION bin)

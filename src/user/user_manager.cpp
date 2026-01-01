@@ -202,7 +202,21 @@ bool UserManager::saveToFile(const std::string& filename) {
     file.write(reinterpret_cast<const char*>(&userCount), sizeof(userCount));
     
     for (const auto& pair : users_) {
-        file.write(reinterpret_cast<const char*>(&pair.second), sizeof(User));
+        const User& user = pair.second;
+        
+        // Write POD fields
+        file.write(reinterpret_cast<const char*>(&user.userId), sizeof(user.userId));
+        file.write(reinterpret_cast<const char*>(&user.role), sizeof(user.role));
+        file.write(reinterpret_cast<const char*>(&user.isActive), sizeof(user.isActive));
+        
+        // Write strings (length + data)
+        uint32_t nameLen = user.username.length();
+        file.write(reinterpret_cast<const char*>(&nameLen), sizeof(nameLen));
+        file.write(user.username.data(), nameLen);
+        
+        uint32_t passLen = user.passwordHash.length();
+        file.write(reinterpret_cast<const char*>(&passLen), sizeof(passLen));
+        file.write(user.passwordHash.data(), passLen);
     }
     
     return file.good();
@@ -231,7 +245,22 @@ bool UserManager::loadFromFile(const std::string& filename) {
     
     for (uint32_t i = 0; i < userCount; i++) {
         User user;
-        file.read(reinterpret_cast<char*>(&user), sizeof(User));
+        
+        // Read POD fields
+        file.read(reinterpret_cast<char*>(&user.userId), sizeof(user.userId));
+        file.read(reinterpret_cast<char*>(&user.role), sizeof(user.role));
+        file.read(reinterpret_cast<char*>(&user.isActive), sizeof(user.isActive));
+        
+        // Read strings
+        uint32_t nameLen;
+        file.read(reinterpret_cast<char*>(&nameLen), sizeof(nameLen));
+        user.username.resize(nameLen);
+        file.read(&user.username[0], nameLen);
+        
+        uint32_t passLen;
+        file.read(reinterpret_cast<char*>(&passLen), sizeof(passLen));
+        user.passwordHash.resize(passLen);
+        file.read(&user.passwordHash[0], passLen);
         
         if (!file.good()) {
             std::cout << "⚠️  Failed to read user data, using defaults" << std::endl;

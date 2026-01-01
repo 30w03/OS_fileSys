@@ -369,6 +369,19 @@ test_persistence/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_persistence.dir/build.make CMakeFiles/test_persistence.dir/build
 .PHONY : test_persistence/fast
 
+#=============================================================================
+# Target rules for targets named test_comments
+
+# Build rule for target.
+test_comments: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 test_comments
+.PHONY : test_comments
+
+# fast build rule for target.
+test_comments/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_comments.dir/build.make CMakeFiles/test_comments.dir/build
+.PHONY : test_comments/fast
+
 apps/client_main.o: apps/client_main.cpp.o
 .PHONY : apps/client_main.o
 
@@ -849,6 +862,30 @@ tests/test_backup.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_backup.dir/build.make CMakeFiles/test_backup.dir/tests/test_backup.cpp.s
 .PHONY : tests/test_backup.cpp.s
 
+tests/test_comments.o: tests/test_comments.cpp.o
+.PHONY : tests/test_comments.o
+
+# target to build an object file
+tests/test_comments.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_comments.dir/build.make CMakeFiles/test_comments.dir/tests/test_comments.cpp.o
+.PHONY : tests/test_comments.cpp.o
+
+tests/test_comments.i: tests/test_comments.cpp.i
+.PHONY : tests/test_comments.i
+
+# target to preprocess a source file
+tests/test_comments.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_comments.dir/build.make CMakeFiles/test_comments.dir/tests/test_comments.cpp.i
+.PHONY : tests/test_comments.cpp.i
+
+tests/test_comments.s: tests/test_comments.cpp.s
+.PHONY : tests/test_comments.s
+
+# target to generate assembly for a file
+tests/test_comments.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_comments.dir/build.make CMakeFiles/test_comments.dir/tests/test_comments.cpp.s
+.PHONY : tests/test_comments.cpp.s
+
 tests/test_directory.o: tests/test_directory.cpp.o
 .PHONY : tests/test_directory.o
 
@@ -1014,6 +1051,7 @@ help:
 	@echo "... server"
 	@echo "... storage"
 	@echo "... test_backup"
+	@echo "... test_comments"
 	@echo "... test_directory"
 	@echo "... test_file_ops"
 	@echo "... test_file_ops_debug"
@@ -1081,6 +1119,9 @@ help:
 	@echo "... tests/test_backup.o"
 	@echo "... tests/test_backup.i"
 	@echo "... tests/test_backup.s"
+	@echo "... tests/test_comments.o"
+	@echo "... tests/test_comments.i"
+	@echo "... tests/test_comments.s"
 	@echo "... tests/test_directory.o"
 	@echo "... tests/test_directory.i"
 	@echo "... tests/test_directory.s"

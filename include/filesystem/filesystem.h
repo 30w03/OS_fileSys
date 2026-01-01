@@ -7,6 +7,7 @@
 #include <map>
 #include <unordered_map>
 #include <memory>
+#include <mutex>
 
 // 增加到 256 个块指针 (支持最大 1MB 文件)
 static constexpr size_t MAX_BLOCKS_PER_FILE = 2560;
@@ -54,6 +55,7 @@ private:
     std::map<uint32_t, Inode> inodeTable_;
     std::unordered_map<std::string, uint32_t> pathToInode_;
     bool mounted_;
+    mutable std::mutex mutex_;
     
     uint32_t allocateInode();
     uint32_t allocateBlock();
