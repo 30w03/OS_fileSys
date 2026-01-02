@@ -17,7 +17,12 @@ struct User {
     UserRole role;
     bool isActive;
     
-    User() : userId(0), role(UserRole::AUTHOR), isActive(true) {}
+    // 新增字段：利益冲突与匹配
+    std::string institution;
+    std::vector<std::string> researchInterests;
+    int maxLoad; // 最大审稿量
+    
+    User() : userId(0), role(UserRole::AUTHOR), isActive(true), maxLoad(3) {}
     
     std::string getRoleName() const {
         switch (role) {

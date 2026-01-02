@@ -1,0 +1,350 @@
+// 认证管理模块
+class AuthManager {
+    constructor() {
+        this.currentUser = null;
+        this.init();
+    }
+    
+    init() {
+        this.bindEvents();
+        this.checkAuthStatus();
+    }
+    
+    bindEvents() {
+        // 标签切换
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.switchTab(btn.dataset.tab);
+            });
+        });
+        
+        // 登录表单
+        const loginForm = document.getElementById('loginForm');
+        if (loginForm) {
+            loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleLogin();
+            });
+        }
+        
+        // 注册表单
+        const registerForm = document.getElementById('registerForm');
+        if (registerForm) {
+            registerForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleRegister();
+            });
+        }
+        
+        // 退出登录
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                this.handleLogout();
+            });
+        }
+    }
+    
+    switchTab(tab) {
+        // 更新标签按钮状态
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+        
+        // 更新表单显示
+        document.querySelectorAll('.auth-form').forEach(form => {
+            form.classList.remove('active');
+        });
+        document.getElementById(`${tab}-form`).classList.add('active');
+        
+        // 清除之前的错误信息
+        this.clearMessages();
+    }
+    
+    async handleLogin() {
+        const username = document.getElementById('login-username').value.trim();
+        const password = document.getElementById('login-password').value;
+        
+        // 验证输入
+        if (!this.validateLoginInput(username, password)) {
+            return;
+        }
+        
+        this.showLoading('登录中...');
+        
+        try {
+            const response = await api.login(username, password);
+            
+            if (response.success) {
+                this.showMessage(CONFIG.SUCCESS_MESSAGES.LOGIN_SUCCESS, 'success');
+                this.currentUser = {
+                    userId: response.userId,
+                    username: response.username,
+                    role: response.role
+                };
+                
+                // 延迟跳转到仪表板
+                setTimeout(() => {
+                    this.showDashboard();
+                }, 1000);
+            } else {
+                this.showMessage(response.message || '登录失败', 'error');
+            }
+        } catch (error) {
+            console.error('登录错误:', error);
+            this.showMessage(CONFIG.ERROR_MESSAGES.NETWORK_ERROR, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+    
+    async handleRegister() {
+        const username = document.getElementById('register-username').value.trim();
+        const password = document.getElementById('register-password').value;
+        const role = document.getElementById('register-role').value;
+        
+        // 验证输入
+        if (!this.validateRegisterInput(username, password, role)) {
+            return;
+        }
+        
+        this.showLoading('注册中...');
+        
+        try {
+            const response = await api.register(username, password, role);
+            
+            if (response.success) {
+                this.showMessage(CONFIG.SUCCESS_MESSAGES.REGISTER_SUCCESS, 'success');
+                
+                // 自动切换到登录页面
+                setTimeout(() => {
+                    this.switchTab('login');
+                    document.getElementById('login-username').value = username;
+                }, 1500);
+            } else {
+                this.showMessage(response.message || '注册失败', 'error');
+            }
+        } catch (error) {
+            console.error('注册错误:', error);
+            this.showMessage(CONFIG.ERROR_MESSAGES.NETWORK_ERROR, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+    
+    async handleLogout() {
+        this.showLoading('退出中...');
+        
+        try {
+            await api.logout();
+            this.showMessage(CONFIG.SUCCESS_MESSAGES.LOGOUT_SUCCESS, 'success');
+        } catch (error) {
+            console.error('退出错误:', error);
+        } finally {
+            this.hideLoading();
+            this.showAuth();
+        }
+    }
+    
+    validateLoginInput(username, password) {
+        if (!username || !password) {
+            this.showMessage('请输入用户名和密码', 'error');
+            return false;
+        }
+        
+        if (username.length < CONFIG.VALIDATION.USERNAME_MIN_LENGTH) {
+            this.showMessage(`用户名至少需要 ${CONFIG.VALIDATION.USERNAME_MIN_LENGTH} 个字符`, 'error');
+            return false;
+        }
+        
+        if (password.length < CONFIG.VALIDATION.PASSWORD_MIN_LENGTH) {
+            this.showMessage(`密码至少需要 ${CONFIG.VALIDATION.PASSWORD_MIN_LENGTH} 个字符`, 'error');
+            return false;
+        }
+        
+        return true;
+    }
+    
+    validateRegisterInput(username, password, role) {
+        if (!username || !password || !role) {
+            this.showMessage('请填写所有必填字段', 'error');
+            return false;
+        }
+        
+        if (username.length < CONFIG.VALIDATION.USERNAME_MIN_LENGTH || 
+            username.length > CONFIG.VALIDATION.USERNAME_MAX_LENGTH) {
+            this.showMessage(`用户名长度必须在 ${CONFIG.VALIDATION.USERNAME_MIN_LENGTH}-${CONFIG.VALIDATION.USERNAME_MAX_LENGTH} 个字符之间`, 'error');
+            return false;
+        }
+        
+        if (password.length < CONFIG.VALIDATION.PASSWORD_MIN_LENGTH || 
+            password.length > CONFIG.VALIDATION.PASSWORD_MAX_LENGTH) {
+            this.showMessage(`密码长度必须在 ${CONFIG.VALIDATION.PASSWORD_MIN_LENGTH}-${CONFIG.VALIDATION.PASSWORD_MAX_LENGTH} 个字符之间`, 'error');
+            return false;
+        }
+        
+        if (!Object.values(CONFIG.ROLES).includes(role)) {
+            this.showMessage('无效的用户角色', 'error');
+            return false;
+        }
+        
+        return true;
+    }
+    
+    checkAuthStatus() {
+        if (api.isAuthenticated()) {
+            this.showDashboard();
+        } else {
+            this.showAuth();
+        }
+    }
+    
+    showDashboard() {
+        const authContainer = document.getElementById('auth-container');
+        const dashboard = document.getElementById('dashboard');
+        
+        authContainer.style.display = 'none';
+        dashboard.style.display = 'block';
+        
+        // 更新用户信息显示
+        this.updateUserInfo();
+        
+        // 初始化仪表板
+        if (window.dashboardManager) {
+            dashboardManager.init();
+        }
+    }
+    
+    showAuth() {
+        const authContainer = document.getElementById('auth-container');
+        const dashboard = document.getElementById('dashboard');
+        
+        authContainer.style.display = 'flex';
+        dashboard.style.display = 'none';
+    }
+    
+    updateUserInfo() {
+        const userInfo = document.getElementById('user-info');
+        if (userInfo && api.isAuthenticated()) {
+            const role = api.role;
+            const roleClass = role.toLowerCase();
+            const roleName = this.getRoleName(role);
+            
+            userInfo.innerHTML = `
+                欢迎，<strong>${api.username}</strong>
+                <span class="role-badge ${roleClass}">${roleName}</span>
+            `;
+            
+            // 根据角色显示/隐藏特定功能
+            this.updateRoleBasedUI(role);
+        }
+    }
+    
+    updateRoleBasedUI(role) {
+        // 隐藏/显示管理员专用功能
+        const adminElements = document.querySelectorAll('.admin-only');
+        const isAdmin = role === 'ADMIN';
+        
+        adminElements.forEach(element => {
+            element.style.display = isAdmin ? 'block' : 'none';
+        });
+    }
+    
+    getRoleName(role) {
+        const roleNames = {
+            'AUTHOR': '作者',
+            'REVIEWER': '评审员',
+            'EDITOR': '编辑',
+            'ADMIN': '管理员'
+        };
+        return roleNames[role] || role;
+    }
+    
+    showLoading(message = '加载中...') {
+        const overlay = document.getElementById('loading-overlay');
+        if (overlay) {
+            overlay.style.display = 'flex';
+            const text = overlay.querySelector('p');
+            if (text) text.textContent = message;
+        }
+    }
+    
+    hideLoading() {
+        const overlay = document.getElementById('loading-overlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
+    }
+    
+    showMessage(message, type = 'info') {
+        const notification = document.getElementById('notification');
+        const messageElement = document.getElementById('notification-message');
+        
+        if (notification && messageElement) {
+            messageElement.textContent = message;
+            notification.className = `notification ${type}`;
+            notification.style.display = 'block';
+            
+            // 自动隐藏
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, CONFIG.UI.NOTIFICATION_DURATION);
+            
+            // 点击关闭
+            const closeBtn = document.getElementById('notification-close');
+            if (closeBtn) {
+                closeBtn.onclick = () => {
+                    notification.style.display = 'none';
+                };
+            }
+        }
+    }
+    
+    clearMessages() {
+        const notification = document.getElementById('notification');
+        if (notification) {
+            notification.style.display = 'none';
+        }
+    }
+    
+    // 获取当前用户信息
+    getCurrentUser() {
+        if (api.isAuthenticated()) {
+            return {
+                userId: api.userId,
+                username: api.username,
+                role: api.role
+            };
+        }
+        return null;
+    }
+    
+    // 检查权限
+    hasPermission(requiredRole) {
+        if (!api.isAuthenticated()) {
+            return false;
+        }
+        
+        const roleHierarchy = {
+            'AUTHOR': 0,
+            'REVIEWER': 1,
+            'EDITOR': 2,
+            'ADMIN': 3
+        };
+        
+        const userRoleLevel = roleHierarchy[api.role] || -1;
+        const requiredRoleLevel = roleHierarchy[requiredRole] || -1;
+        
+        return userRoleLevel >= requiredRoleLevel;
+    }
+}
+
+// 创建全局认证管理器实例
+const authManager = new AuthManager();
+
+// 导出认证管理器
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { AuthManager, authManager };
+}

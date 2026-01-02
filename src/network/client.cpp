@@ -3,11 +3,13 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <errno.h>
 #include <iostream>
 #include <fstream>
 #include <cstring>
 #include <map>
 #include <ctime>
+#include <chrono>
 #include <iomanip>
 #include <sstream>
 
@@ -33,13 +35,17 @@ Client::~Client() {
 
 bool Client::connect(const std::string& host, uint16_t port) {
     if (connected_) {
-        std::cerr << "Already connected" << std::endl;
+        std::cerr << "❌ Already connected to server" << std::endl;
+        std::cerr << "   Please disconnect first before connecting to a different server" << std::endl;
         return false;
     }
     
+    std::cout << "🔌 Connecting to " << host << ":" << port << "..." << std::endl;
+    
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) {
-        std::cerr << "Failed to create socket" << std::endl;
+        std::cerr << "❌ Failed to create network socket" << std::endl;
+        std::cerr << "   System error: " << strerror(errno) << std::endl;
         return false;
     }
     
@@ -48,13 +54,19 @@ bool Client::connect(const std::string& host, uint16_t port) {
     serverAddr.sin_port = htons(port);
     
     if (inet_pton(AF_INET, host.c_str(), &serverAddr.sin_addr) <= 0) {
-        std::cerr << "Invalid address: " << host << std::endl;
+        std::cerr << "❌ Invalid server address: " << host << std::endl;
+        std::cerr << "   Please check the address format (should be IPv4, e.g., 127.0.0.1)" << std::endl;
         close(sock);
         return false;
     }
     
     if (::connect(sock, reinterpret_cast<sockaddr*>(&serverAddr), sizeof(serverAddr)) < 0) {
-        std::cerr << "Connection failed to " << host << ":" << port << std::endl;
+        std::cerr << "❌ Connection failed to " << host << ":" << port << std::endl;
+        std::cerr << "   System error: " << strerror(errno) << std::endl;
+        std::cerr << "   Possible reasons:" << std::endl;
+        std::cerr << "   - Server is not running" << std::endl;
+        std::cerr << "   - Firewall is blocking the connection" << std::endl;
+        std::cerr << "   - Invalid port number" << std::endl;
         close(sock);
         return false;
     }
@@ -62,7 +74,10 @@ bool Client::connect(const std::string& host, uint16_t port) {
     connection_ = std::make_unique<Connection>(sock);
     connected_ = true;
     
-    std::cout << "Connected to " << host << ":" << port << std::endl;
+    std::cout << "✅ Connected successfully to " << host << ":" << port << std::endl;
+    std::cout << "   Connection established at " << formatTimestamp(
+        std::chrono::duration_cast<std::chrono::seconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count()) << std::endl;
     
     return true;
 }
@@ -131,55 +146,91 @@ std::vector<FileListEntry> Client::listFiles() {
 bool Client::uploadFile(const std::string& localPath, const std::string& remotePath) {
     if (!connected_) {
         std::cerr << "❌ Not connected to server" << std::endl;
+        std::cerr << "   Please connect to server first using the 'connect' command" << std::endl;
         return false;
     }
+    
+    std::cout << "📤 Uploading file from " << localPath << " to " << remotePath << "..." << std::endl;
     
     std::ifstream file(localPath, std::ios::binary);
     if (!file) {
         std::cerr << "❌ Failed to open local file: " << localPath << std::endl;
+        std::cerr << "   Please check that the file exists and you have read permissions" << std::endl;
         return false;
     }
+    
+    // 获取文件大小并显示进度
+    file.seekg(0, std::ios::end);
+    std::streamsize fileSize = file.tellg();
+    file.seekg(0, std::ios::beg);
     
     std::vector<char> data((std::istreambuf_iterator<char>(file)),
                            std::istreambuf_iterator<char>());
     file.close();
     
+    std::cout << "📄 File size: " << (fileSize / 1024.0) << " KB" << std::endl;
+    
     Protocol::Message request = Protocol::createFileUploadRequest(remotePath, data);
     
     if (!connection_->sendMessage(request)) {
-        std::cerr << "❌ Failed to send upload request" << std::endl;
+        std::cerr << "❌ Failed to send upload request to server" << std::endl;
+        std::cerr << "   Please check your network connection" << std::endl;
         return false;
     }
     
+    std::cout << "⏳ Waiting for server response..." << std::endl;
+    
     Protocol::Message response;
     if (!connection_->receiveMessage(response)) {
-        std::cerr << "❌ Failed to receive upload response" << std::endl;
+        std::cerr << "❌ Failed to receive upload response from server" << std::endl;
+        std::cerr << "   Please check your network connection" << std::endl;
         return false;
     }
     
     if (response.header.type != Protocol::MSG_FILE_UPLOAD_RESPONSE) {
-        std::cerr << "❌ Invalid response type" << std::endl;
+        std::cerr << "❌ Invalid response from server" << std::endl;
+        std::cerr << "   Expected file upload response but received type: " 
+                  << static_cast<int>(response.header.type) << std::endl;
         return false;
     }
     
     bool success = !response.payload.empty() && response.payload[0] != 0;
+    
+    if (success) {
+        std::cout << "✅ File uploaded successfully to " << remotePath << std::endl;
+        std::cout << "   Upload completed at " << formatTimestamp(
+            std::chrono::duration_cast<std::chrono::seconds>(
+                std::chrono::system_clock::now().time_since_epoch()).count()) << std::endl;
+    } else {
+        std::cerr << "❌ Server failed to process file upload" << std::endl;
+        std::cerr << "   Please check server logs for more details" << std::endl;
+    }
+    
     return success;
 }
 
 bool Client::downloadFile(const std::string& remotePath, const std::string& localPath) {
     if (!connected_) {
+        std::cerr << "❌ Not connected to server" << std::endl;
+        std::cerr << "   Please connect to server first using the 'connect' command" << std::endl;
         return false;
     }
+    
+    std::cout << "📥 Downloading file from " << remotePath << " to " << localPath << "..." << std::endl;
     
     Protocol::Message request = Protocol::createFileDownloadRequest(remotePath);
     if (!connection_->sendMessage(request)) {
-        std::cerr << "Failed to send download request" << std::endl;
+        std::cerr << "❌ Failed to send download request to server" << std::endl;
+        std::cerr << "   Please check your network connection" << std::endl;
         return false;
     }
     
+    std::cout << "⏳ Waiting for server response..." << std::endl;
+    
     Protocol::Message response;
     if (!connection_->receiveMessage(response)) {
-        std::cerr << "Failed to receive download response" << std::endl;
+        std::cerr << "❌ Failed to receive download response from server" << std::endl;
+        std::cerr << "   Please check your network connection" << std::endl;
         return false;
     }
     
@@ -187,25 +238,57 @@ bool Client::downloadFile(const std::string& remotePath, const std::string& loca
     std::vector<char> data;
     
     if (!Protocol::parseFileDownloadResponse(response, success, data)) {
-        std::cerr << "Failed to parse download response" << std::endl;
+        std::cerr << "❌ Failed to parse download response" << std::endl;
+        std::cerr << "   Server may be using a different protocol version" << std::endl;
         return false;
     }
     
     if (!success) {
-        std::cerr << "Server failed to read file: " << remotePath << std::endl;
+        std::cerr << "❌ Server failed to read file: " << remotePath << std::endl;
+        std::cerr << "   Possible reasons:" << std::endl;
+        std::cerr << "   - File doesn't exist on server" << std::endl;
+        std::cerr << "   - You don't have permission to access the file" << std::endl;
+        std::cerr << "   - Server file system error" << std::endl;
         return false;
+    }
+    
+    std::cout << "✅ File received from server, size: " << (data.size() / 1024.0) << " KB" << std::endl;
+    
+    // 确保本地目录存在
+    size_t lastSlashPos = localPath.find_last_of("/");
+    if (lastSlashPos != std::string::npos) {
+        std::string dirPath = localPath.substr(0, lastSlashPos);
+        if (!dirPath.empty()) {
+            // 尝试创建目录 (不检查是否成功，因为这可能因权限而失败)
+            system(("mkdir -p " + dirPath).c_str());
+        }
     }
     
     std::ofstream file(localPath, std::ios::binary);
     if (!file) {
-        std::cerr << "Failed to open local file for writing: " << localPath << std::endl;
+        std::cerr << "❌ Failed to create local file: " << localPath << std::endl;
+        std::cerr << "   Please check:" << std::endl;
+        std::cerr << "   - You have write permissions in the target directory" << std::endl;
+        std::cerr << "   - Disk space is available" << std::endl;
+        std::cerr << "   - File path is valid" << std::endl;
         return false;
     }
     
     file.write(data.data(), data.size());
     file.close();
     
-    return file.good();
+    if (!file.good()) {
+        std::cerr << "❌ Error occurred while writing to local file" << std::endl;
+        std::cerr << "   The downloaded file may be incomplete or corrupted" << std::endl;
+        return false;
+    }
+    
+    std::cout << "✅ File downloaded successfully to " << localPath << std::endl;
+    std::cout << "   Download completed at " << formatTimestamp(
+        std::chrono::duration_cast<std::chrono::seconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count()) << std::endl;
+    
+    return true;
 }
 
 bool Client::deleteFile(const std::string& remotePath) {
@@ -328,13 +411,13 @@ bool Client::logout() {
 
 // ===== 论文管理方法 =====
 
-bool Client::submitPaper(const std::string& title, const std::string& abstract, const std::vector<char>& content) {
+bool Client::submitPaper(const std::string& title, const std::string& abstract, const std::vector<char>& content, const std::vector<std::string>& keywords) {
     if (!connected_ || sessionId_ == 0) {
         std::cerr << "❌ Not logged in" << std::endl;
         return false;
     }
     
-    Protocol::Message request = Protocol::createSubmitPaperRequest(sessionId_, title, abstract, content);
+    Protocol::Message request = Protocol::createSubmitPaperRequest(sessionId_, title, abstract, content, keywords);
     if (!connection_->sendMessage(request)) {
         std::cerr << "❌ Failed to send submit paper request" << std::endl;
         return false;
@@ -570,6 +653,74 @@ bool Client::assignReviewer(uint32_t paperId, uint32_t reviewerId) {
     return success;
 }
 
+bool Client::autoAssignReviewers(uint32_t paperId) {
+    if (!connected_ || sessionId_ == 0) {
+        std::cerr << "❌ Not logged in" << std::endl;
+        return false;
+    }
+    
+    Protocol::Message request = Protocol::createAutoAssignRequest(sessionId_, paperId);
+    if (!connection_->sendMessage(request)) {
+        std::cerr << "❌ Failed to send auto assign request" << std::endl;
+        return false;
+    }
+    
+    Protocol::Message response;
+    if (!connection_->receiveMessage(response)) {
+        std::cerr << "❌ Failed to receive auto assign response" << std::endl;
+        return false;
+    }
+    
+    bool success;
+    std::string message;
+    if (!Protocol::parseAutoAssignResponse(response, success, message)) {
+        std::cerr << "❌ Failed to parse auto assign response" << std::endl;
+        return false;
+    }
+    
+    if (success) {
+        std::cout << "✅ " << message << std::endl;
+    } else {
+        std::cerr << "❌ " << message << std::endl;
+    }
+    
+    return success;
+}
+
+bool Client::updateProfile(const std::string& institution, const std::vector<std::string>& interests, int maxLoad) {
+    if (!connected_ || sessionId_ == 0) {
+        std::cerr << "❌ Not logged in" << std::endl;
+        return false;
+    }
+    
+    Protocol::Message request = Protocol::createUpdateProfileRequest(sessionId_, institution, interests, maxLoad);
+    if (!connection_->sendMessage(request)) {
+        std::cerr << "❌ Failed to send update profile request" << std::endl;
+        return false;
+    }
+    
+    Protocol::Message response;
+    if (!connection_->receiveMessage(response)) {
+        std::cerr << "❌ Failed to receive update profile response" << std::endl;
+        return false;
+    }
+    
+    bool success;
+    std::string message;
+    if (!Protocol::parseUpdateProfileResponse(response, success, message)) {
+        std::cerr << "❌ Failed to parse update profile response" << std::endl;
+        return false;
+    }
+    
+    if (success) {
+        std::cout << "✅ " << message << std::endl;
+    } else {
+        std::cerr << "❌ " << message << std::endl;
+    }
+    
+    return success;
+}
+
 Statistics Client::getStatistics() {
     Statistics stats = {0, 0, 0, 0, 0, 0};
     
@@ -601,6 +752,156 @@ Statistics Client::getStatistics() {
     }
     
     return stats;
+}
+
+// ============================================================================
+// 系统监控功能
+// ============================================================================
+
+Client::SystemStats Client::getSystemStats() {
+    SystemStats stats = {0, 0, 0, 0, 0, 0, 0};
+    
+    if (!connected_) {
+        std::cerr << "❌ Not connected to server" << std::endl;
+        std::cerr << "   Please connect to server first using the 'connect' command" << std::endl;
+        return stats;
+    }
+    
+    if (sessionId_ == 0) {
+        std::cerr << "❌ Not logged in" << std::endl;
+        std::cerr << "   Please login first using the 'login' command" << std::endl;
+        return stats;
+    }
+    
+    std::cout << "📊 Fetching system statistics..." << std::endl;
+    
+    Protocol::Message request = Protocol::createGetSystemStatsRequest(sessionId_);
+    if (!connection_->sendMessage(request)) {
+        std::cerr << "❌ Failed to send system stats request" << std::endl;
+        std::cerr << "   Please check your network connection" << std::endl;
+        return stats;
+    }
+    
+    std::cout << "⏳ Waiting for server response..." << std::endl;
+    
+    Protocol::Message response;
+    if (!connection_->receiveMessage(response)) {
+        std::cerr << "❌ Failed to receive system stats response" << std::endl;
+        std::cerr << "   Please check your network connection" << std::endl;
+        return stats;
+    }
+    
+    // 解析系统统计信息：1 字节 success + 32 字节数据
+    if (response.payload.size() >= 33) {
+        const char* success_ptr = response.payload.data();
+        if (success_ptr[0] != 0) { // success
+            const char* data = response.payload.data() + 1;
+            
+            // 解析 uint64_t uptime
+            uint64_t uptime;
+            std::memcpy(&uptime, data, 8);
+            stats.uptime_seconds = uptime;
+            
+            // 解析后续的 uint32_t 值
+            const uint32_t* uint32Data = reinterpret_cast<const uint32_t*>(data + 8);
+            stats.total_connections = uint32Data[0];
+            stats.active_connections = uint32Data[1];
+            stats.total_requests = uint32Data[2];
+            stats.cache_hit_rate = uint32Data[3];
+            stats.memory_usage_mb = uint32Data[4];
+            stats.disk_usage_mb = uint32Data[5];
+        } else {
+            std::cerr << "❌ Server returned error when fetching system statistics" << std::endl;
+            std::cerr << "   Please check server logs for more details" << std::endl;
+        }
+    } else {
+        std::cerr << "❌ Invalid response format from server" << std::endl;
+        std::cerr << "   Server may be using a different protocol version" << std::endl;
+    }
+    
+    return stats;
+}
+
+std::vector<std::pair<uint32_t, std::string>> Client::getOnlineUsers() {
+    std::vector<std::pair<uint32_t, std::string>> users;
+    
+    if (!connected_) {
+        std::cerr << "❌ Not connected to server" << std::endl;
+        std::cerr << "   Please connect to server first using the 'connect' command" << std::endl;
+        return users;
+    }
+    
+    if (sessionId_ == 0) {
+        std::cerr << "❌ Not logged in" << std::endl;
+        std::cerr << "   Please login first using the 'login' command" << std::endl;
+        return users;
+    }
+    
+    std::cout << "👥 Fetching online users list..." << std::endl;
+    
+    Protocol::Message request = Protocol::createListOnlineUsersRequest(sessionId_);
+    if (!connection_->sendMessage(request)) {
+        std::cerr << "❌ Failed to send online users request" << std::endl;
+        std::cerr << "   Please check your network connection" << std::endl;
+        return users;
+    }
+    
+    std::cout << "⏳ Waiting for server response..." << std::endl;
+    
+    Protocol::Message response;
+    if (!connection_->receiveMessage(response)) {
+        std::cerr << "❌ Failed to receive online users response" << std::endl;
+        std::cerr << "   Please check your network connection" << std::endl;
+        return users;
+    }
+    
+    // 解析在线用户列表：1 字节 success + 4 字节 count + 变长数据
+    if (response.payload.size() >= 5) {
+        const char* success_ptr = response.payload.data();
+        if (success_ptr[0] != 0) { // success
+            const uint32_t* countPtr = reinterpret_cast<const uint32_t*>(response.payload.data() + 1);
+            uint32_t count = countPtr[0];
+            
+            if (count == 0) {
+                std::cout << "ℹ️ No users are currently online" << std::endl;
+                return users;
+            }
+            
+            const char* data = response.payload.data() + 5;
+            size_t offset = 0;
+            
+            for (uint32_t i = 0; i < count; i++) {
+                if (offset + 8 > response.payload.size() - 5) break;
+                
+                // 解析 sessionId
+                uint32_t sessionId;
+                std::memcpy(&sessionId, data + offset, 4);
+                offset += 4;
+                
+                // 解析用户名长度
+                uint32_t nameLength;
+                std::memcpy(&nameLength, data + offset, 4);
+                offset += 4;
+                
+                // 解析用户名
+                if (offset + nameLength <= response.payload.size() - 5) {
+                    std::string username(data + offset, nameLength);
+                    offset += nameLength;
+                    users.emplace_back(sessionId, username);
+                }
+            }
+            
+            std::cout << "✅ Found " << users.size() << " online user(s)" << std::endl;
+        } else {
+            std::cerr << "❌ Server returned error when fetching online users" << std::endl;
+            std::cerr << "   Please check server logs for more details" << std::endl;
+        }
+    } else {
+        std::cerr << "❌ Invalid response format from server" << std::endl;
+        std::cerr << "   Server may be using a different protocol version" << std::endl;
+    }
+    
+    return users;
 }
 
 // ===== 🔥 显示我的论文（带评审详情）=====

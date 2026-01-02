@@ -20,9 +20,10 @@ void printUsage() {
     std::cout << "  register <user> <pass> <role> - Register (role: author/reviewer/editor)" << std::endl;
     std::cout << "  login <user> <pass>       - Login to system" << std::endl;
     std::cout << "  logout                    - Logout" << std::endl;
+    std::cout << "  profile <inst> <interests> - Update profile (institution, interests)" << std::endl;
     
     std::cout << "\n📝 Paper Management:" << std::endl;
-    std::cout << "  submit <title> <abstract> <file> - Submit a paper" << std::endl;
+    std::cout << "  submit <title> <abstract> <keywords> <file> - Submit a paper" << std::endl;
     std::cout << "  mypapers                  - View my submitted papers" << std::endl;
     std::cout << "  allpapers                 - View all papers (editor only)" << std::endl;
     
@@ -33,6 +34,7 @@ void printUsage() {
     
     std::cout << "\n👨‍💼 Editor Functions:" << std::endl;
     std::cout << "  assign <paper_id> <reviewer_id> - Assign reviewer to paper" << std::endl;
+    std::cout << "  autoassign <paper_id>     - Automatically assign reviewers" << std::endl;
     std::cout << "  stats                     - View system statistics" << std::endl;
     
     std::cout << "\n📁 File Operations:" << std::endl;
@@ -44,6 +46,13 @@ void printUsage() {
     std::cout << "\n❓ Other:" << std::endl;
     std::cout << "  help                      - Show this help" << std::endl;
     std::cout << "  quit                      - Exit client" << std::endl;
+    
+    std::cout << "\n🔒 Role Permissions:" << std::endl;
+    std::cout << "  Author: Submit papers, view own papers" << std::endl;
+    std::cout << "  Reviewer: Review assigned papers" << std::endl;
+    std::cout << "  Editor: Assign reviewers, view all papers, view stats" << std::endl;
+    std::cout << "  Admin: Manage users, monitor system" << std::endl;
+    
     std::cout << "========================================\n" << std::endl;
 }
 
@@ -184,18 +193,38 @@ int main() {
         }
         
         if (command == "submit") {
-            std::string title, abstract, filename;
+            std::string title, abstract, keywords_str, filename;
             iss >> std::ws;
             std::getline(iss, title, '"');
             std::getline(iss, title, '"');
             iss >> std::ws;
             std::getline(iss, abstract, '"');
             std::getline(iss, abstract, '"');
-            iss >> filename;
+            iss >> std::ws;
+            
+            if (iss.peek() == '"') {
+                 std::getline(iss, keywords_str, '"');
+                 std::getline(iss, keywords_str, '"');
+                 iss >> filename;
+            } else {
+                 iss >> filename;
+            }
             
             if (title.empty() || abstract.empty() || filename.empty()) {
-                std::cerr << "❌ Usage: submit \"<title>\" \"<abstract>\" <file>" << std::endl;
+                std::cerr << "❌ Usage: submit \"<title>\" \"<abstract>\" \"<keywords>\" <file>" << std::endl;
                 continue;
+            }
+            
+            std::vector<std::string> keywords;
+            if (!keywords_str.empty()) {
+                std::stringstream ks(keywords_str);
+                std::string segment;
+                while(std::getline(ks, segment, ',')) {
+                    size_t first = segment.find_first_not_of(' ');
+                    if (std::string::npos == first) continue;
+                    size_t last = segment.find_last_not_of(' ');
+                    keywords.push_back(segment.substr(first, (last - first + 1)));
+                }
             }
             
             // Read file content
@@ -208,7 +237,7 @@ int main() {
             std::vector<char> content((std::istreambuf_iterator<char>(file)),
                                      std::istreambuf_iterator<char>());
             
-            if (client.submitPaper(title, abstract, content)) {
+            if (client.submitPaper(title, abstract, content, keywords)) {
                 std::cout << "✅ Paper submitted successfully" << std::endl;
             } else {
                 std::cerr << "❌ Paper submission failed" << std::endl;
@@ -277,6 +306,66 @@ int main() {
                 std::cout << "✅ Reviewer assigned successfully" << std::endl;
             } else {
                 std::cerr << "❌ Assignment failed" << std::endl;
+            }
+            continue;
+        }
+
+        if (command == "autoassign") {
+            uint32_t paper_id;
+            iss >> paper_id;
+            
+            if (paper_id == 0) {
+                std::cerr << "❌ Usage: autoassign <paper_id>" << std::endl;
+                continue;
+            }
+            
+            if (client.autoAssignReviewers(paper_id)) {
+                std::cout << "✅ Auto-assignment triggered successfully" << std::endl;
+            } else {
+                std::cerr << "❌ Auto-assignment failed" << std::endl;
+            }
+            continue;
+        }
+
+        if (command == "profile") {
+            std::string institution, interests_str;
+            iss >> std::ws;
+            if (iss.peek() == '"') {
+                std::getline(iss, institution, '"');
+                std::getline(iss, institution, '"');
+            } else {
+                iss >> institution;
+            }
+            
+            iss >> std::ws;
+            if (iss.peek() == '"') {
+                std::getline(iss, interests_str, '"');
+                std::getline(iss, interests_str, '"');
+            } else {
+                std::getline(iss, interests_str);
+            }
+
+            if (institution.empty()) {
+                 std::cerr << "❌ Usage: profile \"<institution>\" \"<interests>\"" << std::endl;
+                 continue;
+            }
+
+            std::vector<std::string> interests;
+            if (!interests_str.empty()) {
+                std::stringstream ks(interests_str);
+                std::string segment;
+                while(std::getline(ks, segment, ',')) {
+                    size_t first = segment.find_first_not_of(' ');
+                    if (std::string::npos == first) continue;
+                    size_t last = segment.find_last_not_of(' ');
+                    interests.push_back(segment.substr(first, (last - first + 1)));
+                }
+            }
+            
+            if (client.updateProfile(institution, interests, 5)) {
+                std::cout << "✅ Profile updated successfully" << std::endl;
+            } else {
+                std::cerr << "❌ Profile update failed" << std::endl;
             }
             continue;
         }

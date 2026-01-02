@@ -4,6 +4,7 @@
 #include "filesystem/block_manager.h"
 #include "filesystem/directory.h"
 #include "filesystem/inode.h"
+#include "filesystem/wal.h"
 #include <string>
 #include <vector>
 #include <memory>
@@ -13,6 +14,8 @@ public:
     explicit DirectoryOps(BlockManager* blockManager);
     ~DirectoryOps() = default;
     
+    void setWALManager(std::shared_ptr<WALManager> wal) { walManager_ = wal; }
+
     // 初始化根目录
     bool initializeRoot();
     
@@ -33,7 +36,13 @@ public:
     
     // 在目录中删除条目
     bool removeEntry(uint32_t dirInode, const std::string& name);
+
+    // Update entry (for CoW)
+    bool updateEntry(uint32_t dirInode, const std::string& name, uint32_t newInodeId);
     
+    // Check if entry is in shared block
+    bool isEntryInSharedBlock(uint32_t dirInode, const std::string& name);
+
     // 路径解析：返回文件的 inode 编号
     uint32_t resolvePath(const std::string& path);
     
@@ -45,6 +54,7 @@ public:
     
 private:
     BlockManager* blockManager_;
+    std::shared_ptr<WALManager> walManager_;
     
     // 创建单个目录（不递归）
     bool createSingleDirectory(const std::string& path);
@@ -54,6 +64,9 @@ private:
     
     // 写入目录内容
     bool writeDirectoryBlock(uint32_t blockId, const std::vector<DirectoryEntry>& entries);
+
+    // Deep copy a directory block (copy block + copy all inodes inside)
+    uint32_t copyDirectoryBlock(uint32_t blockId);
 };
 
 #endif // DIRECTORY_OPS_H

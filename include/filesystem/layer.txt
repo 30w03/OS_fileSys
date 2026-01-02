@@ -1,0 +1,86 @@
+在这个文件系统的设计中，可以将其分为以下 三个主要层次，从底层到高层逐步抽象：
+
+1. 底层存储层（Storage Layer）
+核心组件：
+Disk（虚拟磁盘管理器）
+职责：
+模拟物理磁盘，提供块级别的读写操作。
+管理磁盘的元信息（如块大小、总块数）。
+屏蔽底层存储（如文件）的细节，为上层提供统一的块操作接口。
+抽象程度：
+最底层，直接与存储介质（虚拟磁盘文件）交互。
+示例功能：
+readBlock：读取指定块的数据。
+writeBlock：写入数据到指定块。
+create：创建虚拟磁盘文件。
+2. 资源管理层（Resource Management Layer）
+核心组件：
+BlockManager（块管理器）
+Superblock（超级块）
+Inode（索引节点）
+职责：
+BlockManager：
+管理数据块的分配和回收。
+维护数据块的使用状态（通过位图）。
+调用 Disk 的接口完成块级别的操作。
+Superblock：
+存储文件系统的全局元数据（如块大小、空闲块数、Inode 表起始位置等）。
+描述磁盘布局。
+Inode：
+存储文件或目录的元数据（如大小、时间戳、数据块指针等）。
+提供文件内容的存储位置。
+抽象程度：
+中间层，负责管理文件系统的核心资源（数据块、Inode 等）。
+示例功能：
+allocateBlock：分配一个空闲数据块。
+freeBlock：回收一个数据块。
+allocateInode：分配一个空闲 Inode。
+getInode：获取指定编号的 Inode。
+3. 高层逻辑层（High-Level Logic Layer）
+核心组件：
+Filesystem（文件系统）
+Directory（目录管理）
+File（文件操作）
+职责：
+Filesystem：
+提供文件系统的高层接口（如文件的创建、删除、读写）。
+统筹管理所有底层组件（如 BlockManager、Superblock、Inode 等）。
+维护文件系统的全局状态（如挂载状态、Inode 表等）。
+Directory：
+管理目录结构。
+提供路径解析功能。
+File：
+提供文件的高层操作（如读、写、删除）。
+通过 Inode 和 BlockManager 实现文件的内容管理。
+抽象程度：
+最顶层，直接面向用户，提供文件系统的功能接口。
+示例功能：
+createFile：创建文件。
+deleteFile：删除文件。
+readFile：读取文件内容。
+listDirectory：列出目录中的所有条目。
+层次关系总结
+底层存储层：
+直接与存储介质交互，提供块级别的操作。
+组件：Disk。
+资源管理层：
+管理文件系统的核心资源（数据块、Inode 等），为高层提供支持。
+组件：BlockManager、Superblock、Inode。
+高层逻辑层：
+提供文件系统的功能接口，面向用户操作。
+组件：Filesystem、Directory、File。
+示例流程：文件写入
+以下是一个文件写入操作在这三个层次中的执行流程：
+
+高层逻辑层：
+用户调用 Filesystem::writeFile。
+Filesystem 解析路径，找到对应的 Inode。
+资源管理层：
+BlockManager 分配空闲数据块。
+更新 Inode 的数据块指针。
+底层存储层：
+Disk 将数据写入分配的块。
+总结
+层次划分：底层存储层 → 资源管理层 → 高层逻辑层。
+职责清晰：每一层负责不同的功能，层层递进，抽象程度逐步提高。
+模块协作：高层调用低层接口，低层为高层提供支持，形成一个完整的文件系统架构。

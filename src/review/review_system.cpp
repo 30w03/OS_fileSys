@@ -5,6 +5,9 @@
 #include <algorithm>
 #include <iostream>
 #include <cstring>
+#include <random>
+#include <set>
+#include <unordered_set>
 
 ReviewSystem::ReviewSystem(std::shared_ptr<Filesystem> fs, 
                           std::shared_ptr<UserManager> userMgr)
@@ -26,7 +29,8 @@ ReviewSystem::~ReviewSystem() {
 uint32_t ReviewSystem::submitPaper(uint32_t authorId, 
                                   const std::string& title,
                                   const std::string& abstract,
-                                  const std::vector<char>& fileData) {
+                                  const std::vector<char>& fileData,
+                                  const std::vector<std::string>& keywords) {
     std::lock_guard<std::mutex> lock(mutex_);
     
     // 验证用户存在
@@ -45,14 +49,26 @@ uint32_t ReviewSystem::submitPaper(uint32_t authorId,
     paper.status = PaperStatus::SUBMITTED;
     paper.submissionTime = std::time(nullptr);
     paper.currentVersion = 1;
+    paper.keywords = keywords;
     
     // 生成文件路径
     paper.filepath = generatePaperPath(paper.paperId, 1);
     
-    // 保存文件到文件系统
-    if (!filesystem_->writeFile(paper.filepath, fileData)) {
-        std::cerr << "❌ Failed to write paper file: " << paper.filepath << std::endl;
-        nextPaperId_--;  // 回滚 ID
+    // 保存文件到文件系统 (使用 FileOps 直接操作以设置 Owner)
+    auto fileOps = filesystem_->getFileOps();
+    
+    // 1. 创建文件 (Owner = authorId)
+    // 确保父目录存在 (createFile 内部会检查，但这里我们假设目录结构已由 Admin 初始化)
+    if (!fileOps->createFile(authorId, paper.filepath)) {
+         std::cerr << "❌ Failed to create paper file: " << paper.filepath << std::endl;
+         nextPaperId_--;
+         return 0;
+    }
+    
+    // 2. 写入内容
+    if (fileOps->writeFile(authorId, paper.filepath, fileData.data(), fileData.size()) != (ssize_t)fileData.size()) {
+        std::cerr << "❌ Failed to write paper file content: " << paper.filepath << std::endl;
+        nextPaperId_--;
         return 0;
     }
     
@@ -95,9 +111,20 @@ bool ReviewSystem::uploadRevision(uint32_t paperId, uint32_t authorId,
     std::string revisionPath = generatePaperPath(paperId, paper.currentVersion);
     paper.revisionPaths.push_back(revisionPath);
     
-    // 保存新版本
-    if (!filesystem_->writeFile(revisionPath, fileData)) {
-        std::cerr << "❌ Failed to write revision: " << revisionPath << std::endl;
+    // 保存新版本 (使用 FileOps 直接操作以设置 Owner)
+    auto fileOps = filesystem_->getFileOps();
+    
+    // 1. 创建文件 (Owner = authorId)
+    if (!fileOps->createFile(authorId, revisionPath)) {
+        std::cerr << "❌ Failed to create revision file: " << revisionPath << std::endl;
+        paper.currentVersion--;
+        paper.revisionPaths.pop_back();
+        return false;
+    }
+    
+    // 2. 写入内容
+    if (fileOps->writeFile(authorId, revisionPath, fileData.data(), fileData.size()) != (ssize_t)fileData.size()) {
+        std::cerr << "❌ Failed to write revision content: " << revisionPath << std::endl;
         paper.currentVersion--;
         paper.revisionPaths.pop_back();
         return false;
@@ -199,7 +226,13 @@ bool ReviewSystem::assignReviewer(uint32_t editorId, uint32_t paperId,
     paper.assignedReviewers.push_back(reviewerId);
     if (paper.status == PaperStatus::SUBMITTED) {
         paper.status = PaperStatus::UNDER_REVIEW;
+        
+        // 锁定论文，防止作者修改 (使用 Admin 权限操作)
+        filesystem_->getFileOps()->setFileLock(1, paper.filepath, true);
     }
+    
+    // 授予审稿人 ACL 权限 (只读)
+    filesystem_->getFileOps()->grantPermission(1, paper.filepath, reviewerId);
     
     // saveMetadata();  // TEMP FIX
     
@@ -240,6 +273,141 @@ bool ReviewSystem::removeReviewer(uint32_t editorId, uint32_t paperId,
     // saveMetadata();  // TEMP FIX
     
     return true;
+}
+
+// ============================================================================
+// 自动分配审稿人
+// ============================================================================
+bool ReviewSystem::autoAssignReviewers(uint32_t paperId) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    
+    auto it = papers_.find(paperId);
+    if (it == papers_.end()) {
+        std::cerr << "❌ Paper not found: " << paperId << std::endl;
+        return false;
+    }
+    Paper& paper = it->second;
+    
+    // 1. 获取所有潜在审稿人
+    std::vector<User> allUsers = userManager_->listAllUsers();
+    std::vector<User> candidates;
+    
+    // 获取作者信息以检查利益冲突
+    std::unordered_set<std::string> authorInstitutions;
+    for (uint32_t authorId : paper.authorIds) {
+        User author;
+        if (userManager_->getUserById(authorId, author)) {
+            if (!author.institution.empty()) {
+                authorInstitutions.insert(author.institution);
+            }
+        }
+    }
+    
+    // 2. 硬约束筛选 (Hard Constraints)
+    for (const auto& user : allUsers) {
+        // 必须是审稿人
+        if (user.role != UserRole::REVIEWER) continue;
+        
+        // 不能是作者
+        bool isAuthor = false;
+        for (uint32_t aid : paper.authorIds) {
+            if (user.userId == aid) {
+                isAuthor = true;
+                break;
+            }
+        }
+        if (isAuthor) continue;
+        
+        // 利益冲突：同单位
+        if (!user.institution.empty() && authorInstitutions.count(user.institution)) {
+            continue;
+        }
+        
+        // 负载限制
+        // 计算该审稿人当前已分配的论文数
+        int currentLoad = 0;
+        for (const auto& pPair : papers_) {
+            const auto& p = pPair.second;
+            if (std::find(p.assignedReviewers.begin(), p.assignedReviewers.end(), user.userId) != p.assignedReviewers.end()) {
+                currentLoad++;
+            }
+        }
+        if (currentLoad >= user.maxLoad) {
+            continue;
+        }
+        
+        // 已经分配给该论文的不用再分
+        if (std::find(paper.assignedReviewers.begin(), paper.assignedReviewers.end(), user.userId) != paper.assignedReviewers.end()) {
+            continue;
+        }
+        
+        candidates.push_back(user);
+    }
+    
+    if (candidates.empty()) {
+        std::cerr << "⚠️  No eligible reviewers found for paper " << paperId << std::endl;
+        return false;
+    }
+    
+    // 3. 软约束评分 (Soft Constraints)
+    struct CandidateScore {
+        uint32_t userId;
+        double score;
+    };
+    std::vector<CandidateScore> scores;
+    
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> dis(0.0, 1.0); // 随机扰动 0-1 分
+    
+    for (const auto& candidate : candidates) {
+        double score = 0.0;
+        
+        // 领域匹配 (Jaccard 类似思路，这里简化为交集计数)
+        int matchCount = 0;
+        for (const auto& pKw : paper.keywords) {
+            for (const auto& uInt : candidate.researchInterests) {
+                if (pKw == uInt) { // 简单字符串匹配
+                    matchCount++;
+                }
+            }
+        }
+        score += matchCount * 10.0; // 每个匹配关键词加 10 分
+        
+        // 随机扰动
+        score += dis(gen);
+        
+        scores.push_back({candidate.userId, score});
+    }
+    
+    // 4. 排序并选择 Top N
+    std::sort(scores.begin(), scores.end(), [](const CandidateScore& a, const CandidateScore& b) {
+        return a.score > b.score;
+    });
+    
+    int needed = 3 - paper.assignedReviewers.size();
+    if (needed <= 0) return true;
+    
+    int assignedCount = 0;
+    for (int i = 0; i < std::min((int)scores.size(), needed); ++i) {
+        uint32_t reviewerId = scores[i].userId;
+        
+        // 执行分配逻辑
+        paper.assignedReviewers.push_back(reviewerId);
+        
+        // 授予权限
+        filesystem_->getFileOps()->grantPermission(1, paper.filepath, reviewerId);
+        
+        assignedCount++;
+        std::cout << "✅ Auto-assigned reviewer " << reviewerId << " to paper " << paperId << " (Score: " << scores[i].score << ")" << std::endl;
+    }
+    
+    if (assignedCount > 0 && paper.status == PaperStatus::SUBMITTED) {
+        paper.status = PaperStatus::UNDER_REVIEW;
+        filesystem_->getFileOps()->setFileLock(1, paper.filepath, true);
+    }
+    
+    return assignedCount > 0;
 }
 
 // ============================================================================
@@ -651,6 +819,7 @@ bool ReviewSystem::saveMetadata() {
             data.push_back(static_cast<char>(p.status));
             writeU64(static_cast<uint64_t>(p.submissionTime));
             writeVecU32(p.assignedReviewers);
+            writeVecString(p.keywords); // New field
             writeU32(p.currentVersion);
             writeVecString(p.revisionPaths);
         }
@@ -745,6 +914,7 @@ bool ReviewSystem::loadMetadata() {
             p.status = static_cast<PaperStatus>(*ptr++);
             p.submissionTime = static_cast<time_t>(readU64());
             p.assignedReviewers = readVecU32();
+            p.keywords = readVecString(); // New field
             p.currentVersion = readU32();
             p.revisionPaths = readVecString();
             papers_[p.paperId] = p;

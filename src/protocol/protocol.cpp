@@ -23,7 +23,7 @@ uint32_t Protocol::calculateChecksum(const std::vector<char>& data) {
 }
 
 // ============================================================================
-// 序列化辅助函数
+// 基础序列化辅助函数
 // ============================================================================
 
 static void writeUint32(std::vector<char>& buffer, uint32_t value) {
@@ -131,15 +131,18 @@ static bool readUint32Vector(const char*& ptr, const char* end, std::vector<uint
     return true;
 }
 
-// 1️⃣ 先定义 ReviewInfo 的读写函数
+// ============================================================================
+// 复杂数据结构序列化函数
+// ============================================================================
+
 static void writeReviewInfo(std::vector<char>& buffer, const ReviewInfo& review) {
     writeUint32(buffer, review.reviewId);
     writeUint32(buffer, review.paperId);
     writeUint32(buffer, review.reviewerId);
-    writeString(buffer, review.reviewerName);  // 🔥 添加
+    writeString(buffer, review.reviewerName);
     writeString(buffer, review.decision);
     writeInt32(buffer, review.confidenceScore);
-    writeString(buffer, review.comments);      // 🔥 添加
+    writeString(buffer, review.comments);
     writeUint64(buffer, review.submitTime);
 }
 
@@ -147,15 +150,14 @@ static bool readReviewInfo(const char*& ptr, const char* end, ReviewInfo& review
     if (!readUint32(ptr, end, review.reviewId)) return false;
     if (!readUint32(ptr, end, review.paperId)) return false;
     if (!readUint32(ptr, end, review.reviewerId)) return false;
-    if (!readString(ptr, end, review.reviewerName)) return false;  // 🔥 添加
+    if (!readString(ptr, end, review.reviewerName)) return false;
     if (!readString(ptr, end, review.decision)) return false;
     if (!readInt32(ptr, end, review.confidenceScore)) return false;
-    if (!readString(ptr, end, review.comments)) return false;      // 🔥 添加
+    if (!readString(ptr, end, review.comments)) return false;
     if (!readUint64(ptr, end, review.submitTime)) return false;
     return true;
 }
 
-// 2️⃣ 再定义 PaperInfo 的读写函数（现在可以调用 ReviewInfo 的函数了）
 static void writePaperInfo(std::vector<char>& buffer, const PaperInfo& paper) {
     writeUint32(buffer, paper.paperId);
     writeString(buffer, paper.title);
@@ -166,7 +168,6 @@ static void writePaperInfo(std::vector<char>& buffer, const PaperInfo& paper) {
     writeUint32Vector(buffer, paper.authorIds);
     writeUint32Vector(buffer, paper.reviewerIds);
     
-    // 🔥 添加：写入评审列表
     writeUint32(buffer, paper.reviews.size());
     for (const auto& review : paper.reviews) {
         writeReviewInfo(buffer, review);
@@ -183,7 +184,6 @@ static bool readPaperInfo(const char*& ptr, const char* end, PaperInfo& paper) {
     if (!readUint32Vector(ptr, end, paper.authorIds)) return false;
     if (!readUint32Vector(ptr, end, paper.reviewerIds)) return false;
     
-    // 🔥 添加：读取评审列表
     uint32_t reviewCount;
     if (!readUint32(ptr, end, reviewCount)) return false;
     paper.reviews.clear();
@@ -195,6 +195,59 @@ static bool readPaperInfo(const char*& ptr, const char* end, PaperInfo& paper) {
     }
     
     return true;
+}
+
+// ============================================================================
+// 系统监控消息
+// ============================================================================
+Protocol::Message Protocol::createGetSystemStatsRequest(uint32_t sessionId) {
+    Message msg;
+    msg.header.type = MSG_GET_SYSTEM_STATS_REQUEST;
+    
+    writeUint32(msg.payload, sessionId);
+    
+    msg.header.length = msg.payload.size();
+    msg.header.checksum = calculateChecksum(msg.payload);
+    
+    return msg;
+}
+
+Protocol::Message Protocol::createGetSystemStatsResponse(bool success, const std::string& stats) {
+    Message msg;
+    msg.header.type = MSG_GET_SYSTEM_STATS_RESPONSE;
+    
+    writeBool(msg.payload, success);
+    writeString(msg.payload, stats);
+    
+    msg.header.length = msg.payload.size();
+    msg.header.checksum = calculateChecksum(msg.payload);
+    
+    return msg;
+}
+
+Protocol::Message Protocol::createListOnlineUsersRequest(uint32_t sessionId) {
+    Message msg;
+    msg.header.type = MSG_LIST_ONLINE_USERS_REQUEST;
+    
+    writeUint32(msg.payload, sessionId);
+    
+    msg.header.length = msg.payload.size();
+    msg.header.checksum = calculateChecksum(msg.payload);
+    
+    return msg;
+}
+
+Protocol::Message Protocol::createListOnlineUsersResponse(bool success, const std::string& userList) {
+    Message msg;
+    msg.header.type = MSG_LIST_ONLINE_USERS_RESPONSE;
+    
+    writeBool(msg.payload, success);
+    writeString(msg.payload, userList);
+    
+    msg.header.length = msg.payload.size();
+    msg.header.checksum = calculateChecksum(msg.payload);
+    
+    return msg;
 }
 
 // ============================================================================
@@ -577,17 +630,25 @@ bool Protocol::parseRegisterResponse(const Message& msg, bool& success, std::str
 }
 
 // ============================================================================
-// 论文提交消息
+// 论文提交相关函数
 // ============================================================================
-Protocol::Message Protocol::createSubmitPaperRequest(uint32_t sessionId, const std::string& title,
-                                                     const std::string& abstract,
-                                                     const std::vector<char>& fileData) {
+
+Protocol::Message Protocol::createSubmitPaperRequest(uint32_t sessionId, const std::string& title, 
+                                                     const std::string& abstract, const std::vector<char>& fileData,
+                                                     const std::vector<std::string>& keywords) {
     Message msg;
     msg.header.type = MSG_SUBMIT_PAPER_REQUEST;
     
     writeUint32(msg.payload, sessionId);
     writeString(msg.payload, title);
     writeString(msg.payload, abstract);
+    
+    // Write keywords
+    writeUint32(msg.payload, keywords.size());
+    for (const auto& kw : keywords) {
+        writeString(msg.payload, kw);
+    }
+
     writeUint32(msg.payload, fileData.size());
     
     size_t offset = msg.payload.size();
@@ -600,8 +661,7 @@ Protocol::Message Protocol::createSubmitPaperRequest(uint32_t sessionId, const s
     return msg;
 }
 
-Protocol::Message Protocol::createSubmitPaperResponse(bool success, uint32_t paperId, 
-                                                      const std::string& message) {
+Protocol::Message Protocol::createSubmitPaperResponse(bool success, uint32_t paperId, const std::string& message) {
     Message msg;
     msg.header.type = MSG_SUBMIT_PAPER_RESPONSE;
     
@@ -615,9 +675,9 @@ Protocol::Message Protocol::createSubmitPaperResponse(bool success, uint32_t pap
     return msg;
 }
 
-bool Protocol::parseSubmitPaperRequest(const Message& msg, uint32_t& sessionId,
-                                       std::string& title, std::string& abstract,
-                                       std::vector<char>& fileData) {
+bool Protocol::parseSubmitPaperRequest(const Message& msg, uint32_t& sessionId, std::string& title, 
+                                       std::string& abstract, std::vector<char>& fileData,
+                                       std::vector<std::string>& keywords) {
     if (msg.header.type != MSG_SUBMIT_PAPER_REQUEST) return false;
     
     const char* ptr = msg.payload.data();
@@ -627,18 +687,27 @@ bool Protocol::parseSubmitPaperRequest(const Message& msg, uint32_t& sessionId,
     if (!readString(ptr, end, title)) return false;
     if (!readString(ptr, end, abstract)) return false;
     
-    uint32_t dataSize;
-    if (!readUint32(ptr, end, dataSize)) return false;
+    // Read keywords
+    uint32_t kwCount;
+    if (!readUint32(ptr, end, kwCount)) return false;
+    keywords.clear();
+    for (uint32_t i = 0; i < kwCount; ++i) {
+        std::string kw;
+        if (!readString(ptr, end, kw)) return false;
+        keywords.push_back(kw);
+    }
+
+    uint32_t fileSize;
+    if (!readUint32(ptr, end, fileSize)) return false;
     
-    if (ptr + dataSize > end) return false;
+    if (ptr + fileSize > end) return false;
     
-    fileData.assign(ptr, ptr + dataSize);
+    fileData.assign(ptr, ptr + fileSize);
     
     return true;
 }
 
-bool Protocol::parseSubmitPaperResponse(const Message& msg, bool& success, 
-                                        uint32_t& paperId, std::string& message) {
+bool Protocol::parseSubmitPaperResponse(const Message& msg, bool& success, uint32_t& paperId, std::string& message) {
     if (msg.header.type != MSG_SUBMIT_PAPER_RESPONSE) return false;
     
     const char* ptr = msg.payload.data();
@@ -652,43 +721,9 @@ bool Protocol::parseSubmitPaperResponse(const Message& msg, bool& success,
 }
 
 // ============================================================================
-// 上传修订版本
+// 我的论文相关函数
 // ============================================================================
-Protocol::Message Protocol::createUploadRevisionRequest(uint32_t sessionId, uint32_t paperId,
-                                                        const std::vector<char>& fileData) {
-    Message msg;
-    msg.header.type = MSG_UPLOAD_REVISION_REQUEST;
-    
-    writeUint32(msg.payload, sessionId);
-    writeUint32(msg.payload, paperId);
-    writeUint32(msg.payload, fileData.size());
-    
-    size_t offset = msg.payload.size();
-    msg.payload.resize(offset + fileData.size());
-    std::memcpy(msg.payload.data() + offset, fileData.data(), fileData.size());
-    
-    msg.header.length = msg.payload.size();
-    msg.header.checksum = calculateChecksum(msg.payload);
-    
-    return msg;
-}
 
-Protocol::Message Protocol::createUploadRevisionResponse(bool success, const std::string& message) {
-    Message msg;
-    msg.header.type = MSG_UPLOAD_REVISION_RESPONSE;
-    
-    writeBool(msg.payload, success);
-    writeString(msg.payload, message);
-    
-    msg.header.length = msg.payload.size();
-    msg.header.checksum = calculateChecksum(msg.payload);
-    
-    return msg;
-}
-
-// ============================================================================
-// 获取我的论文
-// ============================================================================
 Protocol::Message Protocol::createGetMyPapersRequest(uint32_t sessionId) {
     Message msg;
     msg.header.type = MSG_GET_MY_PAPERS_REQUEST;
@@ -709,7 +744,11 @@ Protocol::Message Protocol::createGetMyPapersResponse(bool success, const std::v
     writeUint32(msg.payload, papers.size());
     
     for (const auto& paper : papers) {
-        writePaperInfo(msg.payload, paper);
+        writeUint32(msg.payload, paper.paperId);
+        writeString(msg.payload, paper.title);
+        writeString(msg.payload, paper.abstract);
+        writeString(msg.payload, paper.status);
+        writeUint32(msg.payload, paper.submissionTime);
     }
     
     msg.header.length = msg.payload.size();
@@ -727,8 +766,7 @@ bool Protocol::parseGetMyPapersRequest(const Message& msg, uint32_t& sessionId) 
     return readUint32(ptr, end, sessionId);
 }
 
-bool Protocol::parseGetMyPapersResponse(const Message& msg, bool& success, 
-                                        std::vector<PaperInfo>& papers) {
+bool Protocol::parseGetMyPapersResponse(const Message& msg, bool& success, std::vector<PaperInfo>& papers) {
     if (msg.header.type != MSG_GET_MY_PAPERS_RESPONSE) return false;
     
     const char* ptr = msg.payload.data();
@@ -744,7 +782,12 @@ bool Protocol::parseGetMyPapersResponse(const Message& msg, bool& success,
     
     for (uint32_t i = 0; i < count; i++) {
         PaperInfo paper;
-        if (!readPaperInfo(ptr, end, paper)) return false;
+        if (!readUint32(ptr, end, paper.paperId)) return false;
+        if (!readString(ptr, end, paper.title)) return false;
+        if (!readString(ptr, end, paper.abstract)) return false;
+        if (!readString(ptr, end, paper.status)) return false;
+        if (!readUint64(ptr, end, paper.submissionTime)) return false;
+        
         papers.push_back(paper);
     }
     
@@ -752,146 +795,10 @@ bool Protocol::parseGetMyPapersResponse(const Message& msg, bool& success,
 }
 
 // ============================================================================
-// 获取待审论文
+// 分配评审员相关函数
 // ============================================================================
-Protocol::Message Protocol::createGetPapersToReviewRequest(uint32_t sessionId) {
-    Message msg;
-    msg.header.type = MSG_GET_PAPERS_TO_REVIEW_REQUEST;
-    
-    writeUint32(msg.payload, sessionId);
-    
-    msg.header.length = msg.payload.size();
-    msg.header.checksum = calculateChecksum(msg.payload);
-    
-    return msg;
-}
 
-Protocol::Message Protocol::createGetPapersToReviewResponse(bool success, 
-                                                            const std::vector<PaperInfo>& papers) {
-    Message msg;
-    msg.header.type = MSG_GET_PAPERS_TO_REVIEW_RESPONSE;
-    
-    writeBool(msg.payload, success);
-    writeUint32(msg.payload, papers.size());
-    
-    for (const auto& paper : papers) {
-        writePaperInfo(msg.payload, paper);
-    }
-    
-    msg.header.length = msg.payload.size();
-    msg.header.checksum = calculateChecksum(msg.payload);
-    
-    return msg;
-}
-
-bool Protocol::parseGetPapersToReviewRequest(const Message& msg, uint32_t& sessionId) {
-    if (msg.header.type != MSG_GET_PAPERS_TO_REVIEW_REQUEST) return false;
-    
-    const char* ptr = msg.payload.data();
-    const char* end = ptr + msg.payload.size();
-    
-    return readUint32(ptr, end, sessionId);
-}
-
-bool Protocol::parseGetPapersToReviewResponse(const Message& msg, bool& success,
-                                              std::vector<PaperInfo>& papers) {
-    if (msg.header.type != MSG_GET_PAPERS_TO_REVIEW_RESPONSE) return false;
-    
-    const char* ptr = msg.payload.data();
-    const char* end = ptr + msg.payload.size();
-    
-    if (!readBool(ptr, end, success)) return false;
-    
-    uint32_t count;
-    if (!readUint32(ptr, end, count)) return false;
-    
-    papers.clear();
-    papers.reserve(count);
-    
-    for (uint32_t i = 0; i < count; i++) {
-        PaperInfo paper;
-        if (!readPaperInfo(ptr, end, paper)) return false;
-        papers.push_back(paper);
-    }
-    
-    return true;
-}
-
-// ============================================================================
-// 提交评审
-// ============================================================================
-Protocol::Message Protocol::createSubmitReviewRequest(uint32_t sessionId, uint32_t paperId,
-                                                      const std::string& decision, int confidence,
-                                                      const std::string& comments) {
-    Message msg;
-    msg.header.type = MSG_SUBMIT_REVIEW_REQUEST;
-    
-    writeUint32(msg.payload, sessionId);
-    writeUint32(msg.payload, paperId);
-    writeString(msg.payload, decision);
-    writeInt32(msg.payload, confidence);
-    writeString(msg.payload, comments);
-    
-    msg.header.length = msg.payload.size();
-    msg.header.checksum = calculateChecksum(msg.payload);
-    
-    return msg;
-}
-
-Protocol::Message Protocol::createSubmitReviewResponse(bool success, uint32_t reviewId,
-                                                       const std::string& message) {
-    Message msg;
-    msg.header.type = MSG_SUBMIT_REVIEW_RESPONSE;
-    
-    writeBool(msg.payload, success);
-    writeUint32(msg.payload, reviewId);
-    writeString(msg.payload, message);
-    
-    msg.header.length = msg.payload.size();
-    msg.header.checksum = calculateChecksum(msg.payload);
-    
-    return msg;
-}
-
-bool Protocol::parseSubmitReviewRequest(const Message& msg, uint32_t& sessionId, uint32_t& paperId,
-                                        std::string& decision, int& confidence, std::string& comments) {
-    if (msg.header.type != MSG_SUBMIT_REVIEW_REQUEST) return false;
-    
-    const char* ptr = msg.payload.data();
-    const char* end = ptr + msg.payload.size();
-    
-    if (!readUint32(ptr, end, sessionId)) return false;
-    if (!readUint32(ptr, end, paperId)) return false;
-    if (!readString(ptr, end, decision)) return false;
-    
-    int32_t conf;
-    if (!readInt32(ptr, end, conf)) return false;
-    confidence = conf;
-    
-    if (!readString(ptr, end, comments)) return false;
-    
-    return true;
-}
-
-bool Protocol::parseSubmitReviewResponse(const Message& msg, bool& success, 
-                                         uint32_t& reviewId, std::string& message) {
-    if (msg.header.type != MSG_SUBMIT_REVIEW_RESPONSE) return false;
-    
-    const char* ptr = msg.payload.data();
-    const char* end = ptr + msg.payload.size();
-    
-    if (!readBool(ptr, end, success)) return false;
-    if (!readUint32(ptr, end, reviewId)) return false;
-    if (!readString(ptr, end, message)) return false;
-    
-    return true;
-}
-
-// ============================================================================
-// 分配审稿人
-// ============================================================================
-Protocol::Message Protocol::createAssignReviewerRequest(uint32_t sessionId, uint32_t paperId,
-                                                        uint32_t reviewerId) {
+Protocol::Message Protocol::createAssignReviewerRequest(uint32_t sessionId, uint32_t paperId, uint32_t reviewerId) {
     Message msg;
     msg.header.type = MSG_ASSIGN_REVIEWER_REQUEST;
     
@@ -918,8 +825,7 @@ Protocol::Message Protocol::createAssignReviewerResponse(bool success, const std
     return msg;
 }
 
-bool Protocol::parseAssignReviewerRequest(const Message& msg, uint32_t& sessionId,
-                                          uint32_t& paperId, uint32_t& reviewerId) {
+bool Protocol::parseAssignReviewerRequest(const Message& msg, uint32_t& sessionId, uint32_t& paperId, uint32_t& reviewerId) {
     if (msg.header.type != MSG_ASSIGN_REVIEWER_REQUEST) return false;
     
     const char* ptr = msg.payload.data();
@@ -933,8 +839,148 @@ bool Protocol::parseAssignReviewerRequest(const Message& msg, uint32_t& sessionI
 }
 
 // ============================================================================
-// 获取所有论文 (编辑)
+// 待评审论文相关函数
 // ============================================================================
+
+Protocol::Message Protocol::createGetPapersToReviewRequest(uint32_t sessionId) {
+    Message msg;
+    msg.header.type = MSG_GET_PAPERS_TO_REVIEW_REQUEST;
+    
+    writeUint32(msg.payload, sessionId);
+    
+    msg.header.length = msg.payload.size();
+    msg.header.checksum = calculateChecksum(msg.payload);
+    
+    return msg;
+}
+
+Protocol::Message Protocol::createGetPapersToReviewResponse(bool success, const std::vector<PaperInfo>& papers) {
+    Message msg;
+    msg.header.type = MSG_GET_PAPERS_TO_REVIEW_RESPONSE;
+    
+    writeBool(msg.payload, success);
+    writeUint32(msg.payload, papers.size());
+    
+    for (const auto& paper : papers) {
+        writeUint32(msg.payload, paper.paperId);
+        writeString(msg.payload, paper.title);
+        writeString(msg.payload, paper.abstract);
+        writeString(msg.payload, paper.status);
+        writeUint32(msg.payload, paper.submissionTime);
+    }
+    
+    msg.header.length = msg.payload.size();
+    msg.header.checksum = calculateChecksum(msg.payload);
+    
+    return msg;
+}
+
+bool Protocol::parseGetPapersToReviewRequest(const Message& msg, uint32_t& sessionId) {
+    if (msg.header.type != MSG_GET_PAPERS_TO_REVIEW_REQUEST) return false;
+    
+    const char* ptr = msg.payload.data();
+    const char* end = ptr + msg.payload.size();
+    
+    return readUint32(ptr, end, sessionId);
+}
+
+bool Protocol::parseGetPapersToReviewResponse(const Message& msg, bool& success, std::vector<PaperInfo>& papers) {
+    if (msg.header.type != MSG_GET_PAPERS_TO_REVIEW_RESPONSE) return false;
+    
+    const char* ptr = msg.payload.data();
+    const char* end = ptr + msg.payload.size();
+    
+    if (!readBool(ptr, end, success)) return false;
+    
+    uint32_t count;
+    if (!readUint32(ptr, end, count)) return false;
+    
+    papers.clear();
+    papers.reserve(count);
+    
+    for (uint32_t i = 0; i < count; i++) {
+        PaperInfo paper;
+        if (!readUint32(ptr, end, paper.paperId)) return false;
+        if (!readString(ptr, end, paper.title)) return false;
+        if (!readString(ptr, end, paper.abstract)) return false;
+        if (!readString(ptr, end, paper.status)) return false;
+        if (!readUint64(ptr, end, paper.submissionTime)) return false;
+        
+        papers.push_back(paper);
+    }
+    
+    return true;
+}
+
+// ============================================================================
+// 提交评审相关函数
+// ============================================================================
+
+Protocol::Message Protocol::createSubmitReviewRequest(uint32_t sessionId, uint32_t paperId, 
+                                                      const std::string& decision, int confidence, 
+                                                      const std::string& comments) {
+    Message msg;
+    msg.header.type = MSG_SUBMIT_REVIEW_REQUEST;
+    
+    writeUint32(msg.payload, sessionId);
+    writeUint32(msg.payload, paperId);
+    writeString(msg.payload, decision);
+    writeUint32(msg.payload, confidence);
+    writeString(msg.payload, comments);
+    
+    msg.header.length = msg.payload.size();
+    msg.header.checksum = calculateChecksum(msg.payload);
+    
+    return msg;
+}
+
+Protocol::Message Protocol::createSubmitReviewResponse(bool success, uint32_t reviewId, const std::string& message) {
+    Message msg;
+    msg.header.type = MSG_SUBMIT_REVIEW_RESPONSE;
+    
+    writeBool(msg.payload, success);
+    writeUint32(msg.payload, reviewId);
+    writeString(msg.payload, message);
+    
+    msg.header.length = msg.payload.size();
+    msg.header.checksum = calculateChecksum(msg.payload);
+    
+    return msg;
+}
+
+bool Protocol::parseSubmitReviewRequest(const Message& msg, uint32_t& sessionId, uint32_t& paperId,
+                                        std::string& decision, int& confidence, std::string& comments) {
+    if (msg.header.type != MSG_SUBMIT_REVIEW_REQUEST) return false;
+    
+    const char* ptr = msg.payload.data();
+    const char* end = ptr + msg.payload.size();
+    
+    if (!readUint32(ptr, end, sessionId)) return false;
+    if (!readUint32(ptr, end, paperId)) return false;
+    if (!readString(ptr, end, decision)) return false;
+    if (!readInt32(ptr, end, confidence)) return false;
+    if (!readString(ptr, end, comments)) return false;
+    
+    return true;
+}
+
+bool Protocol::parseSubmitReviewResponse(const Message& msg, bool& success, uint32_t& reviewId, std::string& message) {
+    if (msg.header.type != MSG_SUBMIT_REVIEW_RESPONSE) return false;
+    
+    const char* ptr = msg.payload.data();
+    const char* end = ptr + msg.payload.size();
+    
+    if (!readBool(ptr, end, success)) return false;
+    if (!readUint32(ptr, end, reviewId)) return false;
+    if (!readString(ptr, end, message)) return false;
+    
+    return true;
+}
+
+// ============================================================================
+// 所有论文相关函数
+// ============================================================================
+
 Protocol::Message Protocol::createGetAllPapersRequest(uint32_t sessionId) {
     Message msg;
     msg.header.type = MSG_GET_ALL_PAPERS_REQUEST;
@@ -947,8 +993,7 @@ Protocol::Message Protocol::createGetAllPapersRequest(uint32_t sessionId) {
     return msg;
 }
 
-Protocol::Message Protocol::createGetAllPapersResponse(bool success, 
-                                                       const std::vector<PaperInfo>& papers) {
+Protocol::Message Protocol::createGetAllPapersResponse(bool success, const std::vector<PaperInfo>& papers) {
     Message msg;
     msg.header.type = MSG_GET_ALL_PAPERS_RESPONSE;
     
@@ -956,7 +1001,11 @@ Protocol::Message Protocol::createGetAllPapersResponse(bool success,
     writeUint32(msg.payload, papers.size());
     
     for (const auto& paper : papers) {
-        writePaperInfo(msg.payload, paper);
+        writeUint32(msg.payload, paper.paperId);
+        writeString(msg.payload, paper.title);
+        writeString(msg.payload, paper.abstract);
+        writeString(msg.payload, paper.status);
+        writeUint32(msg.payload, paper.submissionTime);
     }
     
     msg.header.length = msg.payload.size();
@@ -974,8 +1023,7 @@ bool Protocol::parseGetAllPapersRequest(const Message& msg, uint32_t& sessionId)
     return readUint32(ptr, end, sessionId);
 }
 
-bool Protocol::parseGetAllPapersResponse(const Message& msg, bool& success,
-                                         std::vector<PaperInfo>& papers) {
+bool Protocol::parseGetAllPapersResponse(const Message& msg, bool& success, std::vector<PaperInfo>& papers) {
     if (msg.header.type != MSG_GET_ALL_PAPERS_RESPONSE) return false;
     
     const char* ptr = msg.payload.data();
@@ -991,7 +1039,12 @@ bool Protocol::parseGetAllPapersResponse(const Message& msg, bool& success,
     
     for (uint32_t i = 0; i < count; i++) {
         PaperInfo paper;
-        if (!readPaperInfo(ptr, end, paper)) return false;
+        if (!readUint32(ptr, end, paper.paperId)) return false;
+        if (!readString(ptr, end, paper.title)) return false;
+        if (!readString(ptr, end, paper.abstract)) return false;
+        if (!readString(ptr, end, paper.status)) return false;
+        if (!readUint64(ptr, end, paper.submissionTime)) return false;
+        
         papers.push_back(paper);
     }
     
@@ -999,8 +1052,9 @@ bool Protocol::parseGetAllPapersResponse(const Message& msg, bool& success,
 }
 
 // ============================================================================
-// 下载论文
+// 下载论文相关函数
 // ============================================================================
+
 Protocol::Message Protocol::createDownloadPaperRequest(uint32_t sessionId, uint32_t paperId) {
     Message msg;
     msg.header.type = MSG_DOWNLOAD_PAPER_REQUEST;
@@ -1026,6 +1080,8 @@ Protocol::Message Protocol::createDownloadPaperResponse(bool success, const std:
         size_t offset = msg.payload.size();
         msg.payload.resize(offset + data.size());
         std::memcpy(msg.payload.data() + offset, data.data(), data.size());
+    } else {
+        writeUint32(msg.payload, 0);
     }
     
     msg.header.length = msg.payload.size();
@@ -1035,8 +1091,9 @@ Protocol::Message Protocol::createDownloadPaperResponse(bool success, const std:
 }
 
 // ============================================================================
-// 获取评审
+// 获取评审相关函数
 // ============================================================================
+
 Protocol::Message Protocol::createGetReviewsRequest(uint32_t sessionId, uint32_t paperId) {
     Message msg;
     msg.header.type = MSG_GET_REVIEWS_REQUEST;
@@ -1058,7 +1115,14 @@ Protocol::Message Protocol::createGetReviewsResponse(bool success, const std::ve
     writeUint32(msg.payload, reviews.size());
     
     for (const auto& review : reviews) {
-        writeReviewInfo(msg.payload, review);
+        writeUint32(msg.payload, review.reviewId);
+        writeUint32(msg.payload, review.paperId);
+        writeUint32(msg.payload, review.reviewerId);
+        writeString(msg.payload, review.reviewerName);
+        writeUint32(msg.payload, review.confidenceScore);
+        writeString(msg.payload, review.comments);
+        writeString(msg.payload, review.decision);
+        writeUint32(msg.payload, review.submitTime);
     }
     
     msg.header.length = msg.payload.size();
@@ -1067,17 +1131,46 @@ Protocol::Message Protocol::createGetReviewsResponse(bool success, const std::ve
     return msg;
 }
 
+bool Protocol::parseGetReviewsResponse(const Message& msg, bool& success, std::vector<ReviewInfo>& reviews) {
+    if (msg.header.type != MSG_GET_REVIEWS_RESPONSE) return false;
+    
+    const char* ptr = msg.payload.data();
+    const char* end = ptr + msg.payload.size();
+    
+    if (!readBool(ptr, end, success)) return false;
+    
+    uint32_t count;
+    if (!readUint32(ptr, end, count)) return false;
+    
+    reviews.clear();
+    reviews.reserve(count);
+    
+    for (uint32_t i = 0; i < count; i++) {
+        ReviewInfo review;
+        if (!readUint32(ptr, end, review.reviewId)) return false;
+        if (!readUint32(ptr, end, review.paperId)) return false;
+        if (!readUint32(ptr, end, review.reviewerId)) return false;
+        if (!readString(ptr, end, review.reviewerName)) return false;
+        if (!readInt32(ptr, end, review.confidenceScore)) return false;
+        if (!readString(ptr, end, review.comments)) return false;
+        if (!readString(ptr, end, review.decision)) return false;
+        if (!readUint64(ptr, end, review.submitTime)) return false;
+        
+        reviews.push_back(review);
+    }
+    
+    return true;
+}
+
 // ============================================================================
-// 编辑决定
+// 自动分配
 // ============================================================================
-Protocol::Message Protocol::createMakeDecisionRequest(uint32_t sessionId, uint32_t paperId,
-                                                      const std::string& decision) {
+Protocol::Message Protocol::createAutoAssignRequest(uint32_t sessionId, uint32_t paperId) {
     Message msg;
-    msg.header.type = MSG_MAKE_DECISION_REQUEST;
+    msg.header.type = MSG_AUTO_ASSIGN_REQUEST;
     
     writeUint32(msg.payload, sessionId);
     writeUint32(msg.payload, paperId);
-    writeString(msg.payload, decision);
     
     msg.header.length = msg.payload.size();
     msg.header.checksum = calculateChecksum(msg.payload);
@@ -1085,9 +1178,21 @@ Protocol::Message Protocol::createMakeDecisionRequest(uint32_t sessionId, uint32
     return msg;
 }
 
-Protocol::Message Protocol::createMakeDecisionResponse(bool success, const std::string& message) {
+bool Protocol::parseAutoAssignRequest(const Message& msg, uint32_t& sessionId, uint32_t& paperId) {
+    if (msg.header.type != MSG_AUTO_ASSIGN_REQUEST) return false;
+    
+    const char* ptr = msg.payload.data();
+    const char* end = ptr + msg.payload.size();
+    
+    if (!readUint32(ptr, end, sessionId)) return false;
+    if (!readUint32(ptr, end, paperId)) return false;
+    
+    return true;
+}
+
+Protocol::Message Protocol::createAutoAssignResponse(bool success, const std::string& message) {
     Message msg;
-    msg.header.type = MSG_MAKE_DECISION_RESPONSE;
+    msg.header.type = MSG_AUTO_ASSIGN_RESPONSE;
     
     writeBool(msg.payload, success);
     writeString(msg.payload, message);
@@ -1098,9 +1203,93 @@ Protocol::Message Protocol::createMakeDecisionResponse(bool success, const std::
     return msg;
 }
 
+bool Protocol::parseAutoAssignResponse(const Message& msg, bool& success, std::string& message) {
+    if (msg.header.type != MSG_AUTO_ASSIGN_RESPONSE) return false;
+    
+    const char* ptr = msg.payload.data();
+    const char* end = ptr + msg.payload.size();
+    
+    if (!readBool(ptr, end, success)) return false;
+    if (!readString(ptr, end, message)) return false;
+    
+    return true;
+}
+
 // ============================================================================
-// 统计信息
+// 更新资料
 // ============================================================================
+Protocol::Message Protocol::createUpdateProfileRequest(uint32_t sessionId, const std::string& institution, 
+                                                     const std::vector<std::string>& interests, int maxLoad) {
+    Message msg;
+    msg.header.type = MSG_UPDATE_PROFILE_REQUEST;
+    
+    writeUint32(msg.payload, sessionId);
+    writeString(msg.payload, institution);
+    
+    writeUint32(msg.payload, interests.size());
+    for (const auto& interest : interests) {
+        writeString(msg.payload, interest);
+    }
+    
+    writeInt32(msg.payload, maxLoad);
+    
+    msg.header.length = msg.payload.size();
+    msg.header.checksum = calculateChecksum(msg.payload);
+    
+    return msg;
+}
+
+bool Protocol::parseUpdateProfileRequest(const Message& msg, uint32_t& sessionId, 
+                                         std::string& institution, std::vector<std::string>& interests, int& maxLoad) {
+    if (msg.header.type != MSG_UPDATE_PROFILE_REQUEST) return false;
+    
+    const char* ptr = msg.payload.data();
+    const char* end = ptr + msg.payload.size();
+    
+    if (!readUint32(ptr, end, sessionId)) return false;
+    if (!readString(ptr, end, institution)) return false;
+    
+    uint32_t count;
+    if (!readUint32(ptr, end, count)) return false;
+    
+    interests.clear();
+    for (uint32_t i = 0; i < count; i++) {
+        std::string interest;
+        if (!readString(ptr, end, interest)) return false;
+        interests.push_back(interest);
+    }
+    
+    if (!readInt32(ptr, end, maxLoad)) return false;
+    
+    return true;
+}
+
+Protocol::Message Protocol::createUpdateProfileResponse(bool success, const std::string& message) {
+    Message msg;
+    msg.header.type = MSG_UPDATE_PROFILE_RESPONSE;
+    
+    writeBool(msg.payload, success);
+    writeString(msg.payload, message);
+    
+    msg.header.length = msg.payload.size();
+    msg.header.checksum = calculateChecksum(msg.payload);
+    
+    return msg;
+}
+
+bool Protocol::parseUpdateProfileResponse(const Message& msg, bool& success, std::string& message) {
+    if (msg.header.type != MSG_UPDATE_PROFILE_RESPONSE) return false;
+    
+    const char* ptr = msg.payload.data();
+    const char* end = ptr + msg.payload.size();
+    
+    if (!readBool(ptr, end, success)) return false;
+    if (!readString(ptr, end, message)) return false;
+    
+    return true;
+}
+
+// ============ 统计信息 ============
 Protocol::Message Protocol::createGetStatisticsRequest(uint32_t sessionId) {
     Message msg;
     msg.header.type = MSG_GET_STATISTICS_REQUEST;
@@ -1126,33 +1315,33 @@ Protocol::Message Protocol::createGetStatisticsResponse(bool success, const std:
     return msg;
 }
 
-bool Protocol::parseGetReviewsResponse(const Message& msg, bool& success, std::vector<ReviewInfo>& reviews) {
-    if (msg.payload.empty()) {
-        return false;
-    }
+// ============================================================================
+// 决策相关函数
+// ============================================================================
+
+Protocol::Message Protocol::createMakeDecisionRequest(uint32_t sessionId, uint32_t paperId, const std::string& decision) {
+    Message msg;
+    msg.header.type = MSG_MAKE_DECISION_REQUEST;
     
-    reviews.clear();
+    writeUint32(msg.payload, sessionId);
+    writeUint32(msg.payload, paperId);
+    writeString(msg.payload, decision);
     
-    const char* ptr = msg.payload.data();
-    const char* end = ptr + msg.payload.size();
+    msg.header.length = msg.payload.size();
+    msg.header.checksum = calculateChecksum(msg.payload);
     
-    // 解析 success 标志
-    if (!readBool(ptr, end, success)) return false;
+    return msg;
+}
+
+Protocol::Message Protocol::createMakeDecisionResponse(bool success, const std::string& message) {
+    Message msg;
+    msg.header.type = MSG_MAKE_DECISION_RESPONSE;
     
-    if (!success) {
-        return true;
-    }
+    writeBool(msg.payload, success);
+    writeString(msg.payload, message);
     
-    // 解析评审数量
-    uint32_t count;
-    if (!readUint32(ptr, end, count)) return false;
+    msg.header.length = msg.payload.size();
+    msg.header.checksum = calculateChecksum(msg.payload);
     
-    // 解析每个评审
-    for (uint32_t i = 0; i < count; i++) {
-        ReviewInfo review;
-        if (!readReviewInfo(ptr, end, review)) return false;
-        reviews.push_back(review);
-    }
-    
-    return true;
+    return msg;
 }

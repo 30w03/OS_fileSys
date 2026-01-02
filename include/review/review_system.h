@@ -17,7 +17,8 @@ public:
     // 论文操作
     uint32_t submitPaper(uint32_t authorId, const std::string& title,
                         const std::string& abstract, 
-                        const std::vector<char>& fileData);
+                        const std::vector<char>& fileData,
+                        const std::vector<std::string>& keywords = {});
     bool uploadRevision(uint32_t paperId, uint32_t authorId,
                        const std::vector<char>& fileData);
     std::vector<Paper> getPapersByAuthor(uint32_t authorId);
@@ -29,6 +30,10 @@ public:
                        uint32_t reviewerId);
     bool removeReviewer(uint32_t editorId, uint32_t paperId, 
                        uint32_t reviewerId);
+    
+    // 自动分配审稿人
+    bool autoAssignReviewers(uint32_t paperId);
+
     std::vector<uint32_t> getAssignedReviewers(uint32_t paperId);
     std::vector<Paper> getPapersForReviewer(uint32_t reviewerId);
     // 获取待审论文（只返回未审的）

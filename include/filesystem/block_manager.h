@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 #include <cstdint>
+#include <map>
 
 // 定义常量
 constexpr uint32_t SUPERBLOCK_MAGIC = 0x53465350; // Magic: "SFS0"
@@ -34,6 +35,7 @@ public:
     // --- 资源分配 ---
     // 返回 INVALID_INODE 表示失败
     uint32_t allocateInode();
+    bool forceAllocateInode(uint32_t inodeId); // 用于 WAL 恢复
     bool freeInode(uint32_t inodeId);
 
     // 返回 INVALID_BLOCK 表示失败
@@ -51,6 +53,17 @@ public:
     // 清零一个块 (用于分配新块时清除旧数据)
     bool clearBlock(uint32_t blockId);
 
+    // --- Reference Counting for CoW ---
+    void incRef(uint32_t blockId);
+    void decRef(uint32_t blockId);
+    uint32_t getRef(uint32_t blockId) const;
+    bool isShared(uint32_t blockId) const;
+    
+    // Helper to handle CoW logic
+    // If blockId is shared, allocates new block, copies data, decRefs old, returns new blockId.
+    // If not shared, returns original blockId.
+    uint32_t copyOnWrite(uint32_t blockId);
+
     // --- 信息查询 ---
     const Superblock& getSuperblock() const { return superblock_; }
     void printStats() const;
@@ -66,6 +79,11 @@ private:
 
     std::unique_ptr<LRUCache> cache_;
     bool isMounted_;
+    
+    // Reference counts for blocks (CoW support)
+    std::map<uint32_t, uint32_t> refCounts_;
+    void loadRefCounts();
+    void saveRefCounts();
 
     // --- 内部辅助函数 ---
     // 计算 Inode 在磁盘上的具体位置

@@ -26,6 +26,8 @@ private:
     void handleMyPapers();
     void handleReview();
     void handleAssignReviewer();
+    void handleAutoAssign();
+    void handleUpdateProfile();
     void handleAllPapers();
     void handleStats();
     

@@ -14,6 +14,16 @@ public:
     bool sendMessage(const Protocol::Message& msg);
     bool receiveMessage(Protocol::Message& msg);
     
+    // 原始数据读取（用于HTTP请求检测）
+    bool receiveRawData(char* buffer, size_t size);
+    bool peekFirstBytes(char* buffer, size_t size);
+    
+    // HTTP响应发送
+    bool sendHttpResponse(const std::string& response);
+    
+    // 获取socket描述符
+    int getSocket() const { return socket_; }
+    
     // 连接信息
     std::string getRemoteAddress() const;
     uint16_t getRemotePort() const;

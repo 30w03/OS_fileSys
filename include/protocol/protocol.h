@@ -90,6 +90,8 @@ public:
         MSG_ASSIGN_REVIEWER_RESPONSE = 73,
         MSG_REMOVE_REVIEWER_REQUEST = 74,
         MSG_REMOVE_REVIEWER_RESPONSE = 75,
+        MSG_AUTO_ASSIGN_REQUEST = 76,
+        MSG_AUTO_ASSIGN_RESPONSE = 77,
         
         // 评审操作
         MSG_GET_PAPERS_TO_REVIEW_REQUEST = 80,
@@ -98,14 +100,25 @@ public:
         MSG_SUBMIT_REVIEW_RESPONSE = 83,
         MSG_GET_REVIEWS_REQUEST = 84,
         MSG_GET_REVIEWS_RESPONSE = 85,
+
+        // 用户资料
+        MSG_UPDATE_PROFILE_REQUEST = 90,
+        MSG_UPDATE_PROFILE_RESPONSE = 91,
+
         
         // 编辑决定
-        MSG_MAKE_DECISION_REQUEST = 90,
-        MSG_MAKE_DECISION_RESPONSE = 91,
+        MSG_MAKE_DECISION_REQUEST = 95,
+        MSG_MAKE_DECISION_RESPONSE = 96,
         
         // 统计信息
         MSG_GET_STATISTICS_REQUEST = 100,
-        MSG_GET_STATISTICS_RESPONSE = 101
+        MSG_GET_STATISTICS_RESPONSE = 101,
+        
+        // 系统监控
+        MSG_GET_SYSTEM_STATS_REQUEST = 102,
+        MSG_GET_SYSTEM_STATS_RESPONSE = 103,
+        MSG_LIST_ONLINE_USERS_REQUEST = 104,
+        MSG_LIST_ONLINE_USERS_RESPONSE = 105
     };
     
     struct MessageHeader {
@@ -163,7 +176,8 @@ public:
     
     // ============ 论文提交 ============
     static Message createSubmitPaperRequest(uint32_t sessionId, const std::string& title, 
-                                           const std::string& abstract, const std::vector<char>& fileData);
+                                           const std::string& abstract, const std::vector<char>& fileData,
+                                           const std::vector<std::string>& keywords = {});
     static Message createSubmitPaperResponse(bool success, uint32_t paperId, const std::string& message);
     
     static Message createUploadRevisionRequest(uint32_t sessionId, uint32_t paperId, const std::vector<char>& fileData);
@@ -205,6 +219,12 @@ public:
     static Message createGetStatisticsRequest(uint32_t sessionId);
     static Message createGetStatisticsResponse(bool success, const std::string& stats);
     
+    // ============ 系统监控 ============
+    static Message createGetSystemStatsRequest(uint32_t sessionId);
+    static Message createGetSystemStatsResponse(bool success, const std::string& stats);
+    static Message createListOnlineUsersRequest(uint32_t sessionId);
+    static Message createListOnlineUsersResponse(bool success, const std::string& userList);
+    
     // ============ 解析函数 ============
     static bool parseFileListResponse(const Message& msg, std::vector<FileListEntry>& entries);
     static bool parseFileUploadRequest(const Message& msg, std::string& path, std::vector<char>& data);
@@ -219,7 +239,8 @@ public:
     static bool parseRegisterResponse(const Message& msg, bool& success, std::string& message);
     
     static bool parseSubmitPaperRequest(const Message& msg, uint32_t& sessionId, std::string& title, 
-                                       std::string& abstract, std::vector<char>& fileData);
+                                       std::string& abstract, std::vector<char>& fileData,
+                                       std::vector<std::string>& keywords);
     static bool parseSubmitPaperResponse(const Message& msg, bool& success, uint32_t& paperId, std::string& message);
     
     static bool parseGetMyPapersRequest(const Message& msg, uint32_t& sessionId);
@@ -234,6 +255,20 @@ public:
     
     static bool parseAssignReviewerRequest(const Message& msg, uint32_t& sessionId, uint32_t& paperId, uint32_t& reviewerId);
     
+    // 自动分配
+    static Message createAutoAssignRequest(uint32_t sessionId, uint32_t paperId);
+    static bool parseAutoAssignRequest(const Message& msg, uint32_t& sessionId, uint32_t& paperId);
+    static Message createAutoAssignResponse(bool success, const std::string& message);
+    static bool parseAutoAssignResponse(const Message& msg, bool& success, std::string& message);
+
+    // 更新资料
+    static Message createUpdateProfileRequest(uint32_t sessionId, const std::string& institution, 
+                                            const std::vector<std::string>& interests, int maxLoad);
+    static bool parseUpdateProfileRequest(const Message& msg, uint32_t& sessionId, 
+                                        std::string& institution, std::vector<std::string>& interests, int& maxLoad);
+    static Message createUpdateProfileResponse(bool success, const std::string& message);
+    static bool parseUpdateProfileResponse(const Message& msg, bool& success, std::string& message);
+
     static bool parseGetAllPapersRequest(const Message& msg, uint32_t& sessionId);
     static bool parseGetAllPapersResponse(const Message& msg, bool& success, std::vector<PaperInfo>& papers);
     

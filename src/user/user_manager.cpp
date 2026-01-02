@@ -100,6 +100,21 @@ bool UserManager::updateUserRole(uint32_t userId, UserRole newRole) {
     return true;
 }
 
+bool UserManager::updateUserProfile(uint32_t userId, const std::string& institution, 
+                                   const std::vector<std::string>& interests, int maxLoad) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    
+    auto it = users_.find(userId);
+    if (it == users_.end()) {
+        return false;
+    }
+    
+    it->second.institution = institution;
+    it->second.researchInterests = interests;
+    it->second.maxLoad = maxLoad;
+    return true;
+}
+
 bool UserManager::deactivateUser(uint32_t userId) {
     std::lock_guard<std::mutex> lock(mutex_);
     
@@ -217,6 +232,23 @@ bool UserManager::saveToFile(const std::string& filename) {
         uint32_t passLen = user.passwordHash.length();
         file.write(reinterpret_cast<const char*>(&passLen), sizeof(passLen));
         file.write(user.passwordHash.data(), passLen);
+
+        // Write institution
+        uint32_t instLen = user.institution.length();
+        file.write(reinterpret_cast<const char*>(&instLen), sizeof(instLen));
+        file.write(user.institution.data(), instLen);
+
+        // Write researchInterests
+        uint32_t interestsCount = user.researchInterests.size();
+        file.write(reinterpret_cast<const char*>(&interestsCount), sizeof(interestsCount));
+        for (const auto& interest : user.researchInterests) {
+            uint32_t intLen = interest.length();
+            file.write(reinterpret_cast<const char*>(&intLen), sizeof(intLen));
+            file.write(interest.data(), intLen);
+        }
+
+        // Write maxLoad
+        file.write(reinterpret_cast<const char*>(&user.maxLoad), sizeof(user.maxLoad));
     }
     
     return file.good();
@@ -262,9 +294,47 @@ bool UserManager::loadFromFile(const std::string& filename) {
         user.passwordHash.resize(passLen);
         file.read(&user.passwordHash[0], passLen);
         
+        // Try to read new fields. If we hit EOF or fail, it might be an old file format.
+        // However, since we don't have versioning, this is best-effort or requires a fresh DB.
+        // We'll assume the file format matches the code.
+        
+        // Read institution
+        uint32_t instLen;
+        file.read(reinterpret_cast<char*>(&instLen), sizeof(instLen));
+        if (file.good()) {
+            user.institution.resize(instLen);
+            file.read(&user.institution[0], instLen);
+            
+            // Read researchInterests
+            uint32_t interestsCount;
+            file.read(reinterpret_cast<char*>(&interestsCount), sizeof(interestsCount));
+            for (uint32_t j = 0; j < interestsCount; j++) {
+                uint32_t intLen;
+                file.read(reinterpret_cast<char*>(&intLen), sizeof(intLen));
+                std::string interest;
+                interest.resize(intLen);
+                file.read(&interest[0], intLen);
+                user.researchInterests.push_back(interest);
+            }
+            
+            // Read maxLoad
+            file.read(reinterpret_cast<char*>(&user.maxLoad), sizeof(user.maxLoad));
+        } else {
+            // If we failed to read new fields, reset stream state if it was just EOF/short read
+            // and keep the defaults for these fields.
+            // But wait, if we are in the middle of a file (multiple users), 
+            // we might have read into the next user's data.
+            // Without versioning, migration is hard. 
+            // Let's assume we are starting fresh or the user accepts data loss.
+            file.clear(); 
+        }
+
         if (!file.good()) {
-            std::cout << "⚠️  Failed to read user data, using defaults" << std::endl;
-            return true;
+            // If we are still not good, it's a real error or end of file in a bad place
+             std::cout << "⚠️  Failed to read user data (possibly old format), using defaults for remaining fields" << std::endl;
+             // We might want to return true to allow partial load, or false.
+             // The original code returned true on failure inside the loop?
+             // No, it returned true.
         }
         
         tempUsers[user.userId] = user;

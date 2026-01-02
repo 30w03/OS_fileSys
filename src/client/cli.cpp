@@ -48,6 +48,10 @@ void CLI::run() {
             handleReview();
         } else if (command == "assign") {
             handleAssignReviewer();
+        } else if (command == "autoassign") {
+            handleAutoAssign();
+        } else if (command == "profile") {
+            handleUpdateProfile();
         } else if (command == "papers") {
             handleAllPapers();
         } else if (command == "stats") {
@@ -64,33 +68,46 @@ void CLI::run() {
 
 void CLI::printWelcome() {
     std::cout << "\n";
-    std::cout << "╔════════════════════════════════════════════════════════╗\n";
-    std::cout << "║                                                        ║\n";
-    std::cout << "║        📚 PEER REVIEW MANAGEMENT SYSTEM 📚            ║\n";
-    std::cout << "║                                                        ║\n";
-    std::cout << "╚════════════════════════════════════════════════════════╝\n";
+    std::cout << "╔══════════════════════════════════════════════════════════════════════════════╗\n";
+    std::cout << "║                                                                              ║\n";
+    std::cout << "║              📚 PEER REVIEW MANAGEMENT SYSTEM 📚                             ║\n";
+    std::cout << "║                                                                              ║\n";
+    std::cout << "║     A collaborative platform for academic paper submission and review       ║\n";
+    std::cout << "║                                                                              ║\n";
+    std::cout << "╚══════════════════════════════════════════════════════════════════════════════╝\n";
     std::cout << "\n";
-    std::cout << "Type 'help' to see available commands.\n" << std::endl;
+    std::cout << "Welcome! Please type 'help' to see available commands.\n" << std::endl;
 }
 
 void CLI::printHelp() {
     std::cout << "\n📖 Available Commands:\n" << std::endl;
-    std::cout << "  Authentication:" << std::endl;
-    std::cout << "    register       - Register a new user" << std::endl;
-    std::cout << "    login          - Login to system" << std::endl;
-    std::cout << "    logout         - Logout from system" << std::endl;
-    std::cout << "\n  Author Commands:" << std::endl;
-    std::cout << "    submit         - Submit a new paper" << std::endl;
-    std::cout << "    mypapers       - View your submitted papers" << std::endl;
-    std::cout << "\n  Reviewer Commands:" << std::endl;
-    std::cout << "    review         - Review assigned papers" << std::endl;
-    std::cout << "\n  Editor Commands:" << std::endl;
-    std::cout << "    papers         - View all papers" << std::endl;
-    std::cout << "    assign         - Assign reviewer to paper" << std::endl;
-    std::cout << "    stats          - View system statistics" << std::endl;
-    std::cout << "\n  System:" << std::endl;
+    
+    std::cout << "  🔐 Authentication:" << std::endl;
+    std::cout << "    register       - Register a new user account" << std::endl;
+    std::cout << "    login          - Login to the system" << std::endl;
+    std::cout << "    logout         - Logout from the system" << std::endl;
+    std::cout << "    profile        - Update your profile (institution, interests)" << std::endl;
+    std::cout << "\n  📝 Author Commands:" << std::endl;
+    std::cout << "    submit         - Submit a new paper for review" << std::endl;
+    std::cout << "    mypapers       - View your submitted papers and their status" << std::endl;
+    std::cout << "\n  👀 Reviewer Commands:" << std::endl;
+    std::cout << "    review         - Review papers assigned to you" << std::endl;
+    std::cout << "\n  📊 Editor Commands:" << std::endl;
+    std::cout << "    papers         - View all papers in the system" << std::endl;
+    std::cout << "    assign         - Assign reviewers to papers" << std::endl;
+    std::cout << "    autoassign     - Automatically assign reviewers to a paper" << std::endl;
+    std::cout << "    stats          - View system statistics and online users" << std::endl;
+    std::cout << "\n  💾 File Operations:" << std::endl;
+    std::cout << "    upload         - Upload a file to the server" << std::endl;
+    std::cout << "    download       - Download a file from the server" << std::endl;
+    std::cout << "    files          - List files on the server" << std::endl;
+    std::cout << "    connect        - Connect to the server" << std::endl;
+    std::cout << "    disconnect     - Disconnect from the server" << std::endl;
+    std::cout << "\n  ℹ️ System:" << std::endl;
     std::cout << "    help           - Show this help message" << std::endl;
     std::cout << "    quit/exit      - Exit the system\n" << std::endl;
+    
+    std::cout << "Tip: You need to connect to the server and login before you can use most commands.\n" << std::endl;
 }
 
 void CLI::printPrompt() {
@@ -193,6 +210,22 @@ void CLI::handleSubmitPaper() {
     std::cout << "Abstract: ";
     std::getline(std::cin, abstract);
     
+    std::string keywordsStr;
+    std::cout << "Keywords (comma separated): ";
+    std::getline(std::cin, keywordsStr);
+    
+    std::vector<std::string> keywords;
+    std::stringstream ss(keywordsStr);
+    std::string kw;
+    while (std::getline(ss, kw, ',')) {
+        // Trim whitespace
+        kw.erase(0, kw.find_first_not_of(" \t"));
+        kw.erase(kw.find_last_not_of(" \t") + 1);
+        if (!kw.empty()) {
+            keywords.push_back(kw);
+        }
+    }
+
     std::cout << "File Path: ";
     std::getline(std::cin, filepath);
     
@@ -207,12 +240,101 @@ void CLI::handleSubmitPaper() {
                            std::istreambuf_iterator<char>());
     file.close();
     
-    uint32_t paperId = reviewSystem_->submitPaper(currentUser_->userId, title, abstract, data);
+    uint32_t paperId = reviewSystem_->submitPaper(currentUser_->userId, title, abstract, data, keywords);
     
     if (paperId > 0) {
         std::cout << "✅ Paper submitted! Paper ID: " << paperId << std::endl;
     } else {
         std::cout << "❌ Failed to submit paper" << std::endl;
+    }
+}
+
+void CLI::handleUpdateProfile() {
+    if (!currentUser_) {
+        std::cout << "❌ Please login first" << std::endl;
+        return;
+    }
+    
+    std::string institution;
+    std::cout << "Institution: ";
+    std::getline(std::cin, institution);
+    
+    std::string interestsStr;
+    std::cout << "Research Interests (comma separated): ";
+    std::getline(std::cin, interestsStr);
+    
+    std::vector<std::string> interests;
+    std::stringstream ss(interestsStr);
+    std::string interest;
+    while (std::getline(ss, interest, ',')) {
+        // Trim whitespace
+        interest.erase(0, interest.find_first_not_of(" \t"));
+        interest.erase(interest.find_last_not_of(" \t") + 1);
+        if (!interest.empty()) {
+            interests.push_back(interest);
+        }
+    }
+    
+    int maxLoad;
+    std::cout << "Max Review Load (default 3): ";
+    std::string loadStr;
+    std::getline(std::cin, loadStr);
+    if (loadStr.empty()) {
+        maxLoad = 3;
+    } else {
+        try {
+            maxLoad = std::stoi(loadStr);
+        } catch (...) {
+            maxLoad = 3;
+        }
+    }
+    
+    if (userManager_->updateUserProfile(currentUser_->userId, institution, interests, maxLoad)) {
+        std::cout << "✅ Profile updated successfully!" << std::endl;
+        // Update local cache
+        currentUser_->institution = institution;
+        currentUser_->researchInterests = interests;
+        currentUser_->maxLoad = maxLoad;
+    } else {
+        std::cout << "❌ Failed to update profile" << std::endl;
+    }
+}
+
+void CLI::handleAutoAssign() {
+    if (!currentUser_) {
+        std::cout << "❌ Please login first" << std::endl;
+        return;
+    }
+    
+    if (currentUser_->role != UserRole::ADMIN && currentUser_->role != UserRole::EDITOR) {
+        std::cout << "❌ Permission denied. Only Editors and Admins can assign reviewers." << std::endl;
+        return;
+    }
+    
+    std::string paperIdStr;
+    std::cout << "Paper ID to auto-assign: ";
+    std::getline(std::cin, paperIdStr);
+    
+    uint32_t paperId;
+    try {
+        paperId = std::stoi(paperIdStr);
+    } catch (...) {
+        std::cout << "❌ Invalid Paper ID" << std::endl;
+        return;
+    }
+    
+    if (reviewSystem_->autoAssignReviewers(paperId)) {
+        std::cout << "✅ Auto-assignment completed successfully!" << std::endl;
+        
+        // Show assigned reviewers
+        auto reviewers = reviewSystem_->getAssignedReviewers(paperId);
+        std::cout << "   Assigned " << reviewers.size() << " reviewers: ";
+        for (size_t i = 0; i < reviewers.size(); ++i) {
+            std::cout << reviewers[i] << (i < reviewers.size() - 1 ? ", " : "");
+        }
+        std::cout << std::endl;
+    } else {
+        std::cout << "❌ Failed to auto-assign reviewers (maybe no suitable candidates found)" << std::endl;
     }
 }
 

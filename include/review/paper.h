@@ -22,6 +22,9 @@ struct Paper {
     time_t submissionTime;
     std::vector<uint32_t> assignedReviewers;  // 分配的审稿人ID
     
+    // 新增字段：匹配
+    std::vector<std::string> keywords;
+
     // 版本控制
     uint32_t currentVersion;
     std::vector<std::string> revisionPaths;   // 修订版本路径列表

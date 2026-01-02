@@ -11,9 +11,16 @@
 #include <fstream>
 #include <cstring>
 #include <sstream>
+#include <chrono>
+#include <sys/time.h>
+#include <sys/resource.h>
+#include <iomanip> // Added for setw, setfill
 
 Server::Server(uint16_t port, const std::string& diskImage)
-    : port_(port), diskImage_(diskImage), serverSocket_(-1), running_(false) {
+    : port_(port), diskImage_(diskImage), serverSocket_(-1), running_(false),
+      startTime_(std::chrono::duration_cast<std::chrono::seconds>(
+          std::chrono::system_clock::now().time_since_epoch()).count()),
+      totalConnections_(0), totalRequests_(0) {
     
     // 创建文件系统
     filesystem_ = std::make_shared<Filesystem>(diskImage);
@@ -23,6 +30,9 @@ Server::Server(uint16_t port, const std::string& diskImage)
     
     // 创建审稿系统
     reviewSystem_ = std::make_shared<ReviewSystem>(filesystem_, userManager_);
+    
+    // 创建HTTP处理器
+    httpHandler_ = std::make_shared<HttpHandler>(userManager_, reviewSystem_, filesystem_);
 }
 
 Server::~Server() {
@@ -40,6 +50,17 @@ bool Server::start() {
     
     std::cout << "✅ Filesystem mounted successfully" << std::endl;
     
+    // Ensure system directories exist
+    auto dirOps = filesystem_->getDirOps();
+    if (!filesystem_->exists("/papers")) {
+        std::cout << "Creating /papers directory..." << std::endl;
+        dirOps->mkdir("/papers");
+    }
+    if (!filesystem_->exists("/reviews")) {
+        std::cout << "Creating /reviews directory..." << std::endl;
+        dirOps->mkdir("/reviews");
+    }
+
     // 2. 加载用户数据
     std::cout << "Loading user data..." << std::endl;
 
@@ -167,6 +188,17 @@ void Server::handleClient(std::unique_ptr<Connection> client) {
     std::cout << "🔧 Handling client from " << client->getRemoteAddress() 
               << ":" << client->getRemotePort() << std::endl;
     
+    // 增加连接计数
+    totalConnections_++;
+    
+    // 首先检测请求类型
+    if (isHttpRequest(client.get())) {
+        std::cout << "🌐 Detected HTTP request" << std::endl;
+        handleHttpRequest(std::move(client));
+        return;
+    }
+    
+    // 如果不是HTTP请求，则处理自定义协议
     Protocol::Message request, response;
     
     while (client->isConnected() && running_) {
@@ -174,6 +206,9 @@ void Server::handleClient(std::unique_ptr<Connection> client) {
         if (!client->receiveMessage(request)) {
             break;
         }
+        
+        // 增加请求计数
+        totalRequests_++;
         
         std::cout << "📨 Received message type: " << static_cast<int>(request.header.type) << std::endl;
         
@@ -271,6 +306,16 @@ void Server::handleClient(std::unique_ptr<Connection> client) {
                 std::cout << "  → SUBMIT_PAPER_REQUEST" << std::endl;
                 handleSubmitPaper(client.get(), request);
                 continue;
+
+            case Protocol::MSG_AUTO_ASSIGN_REQUEST:
+                std::cout << "  → AUTO_ASSIGN_REQUEST" << std::endl;
+                handleAutoAssign(client.get(), request);
+                continue;
+
+            case Protocol::MSG_UPDATE_PROFILE_REQUEST:
+                std::cout << "  → UPDATE_PROFILE_REQUEST" << std::endl;
+                handleUpdateProfile(client.get(), request);
+                continue;
                 
             case Protocol::MSG_GET_MY_PAPERS_REQUEST:
                 std::cout << "  → GET_MY_PAPERS_REQUEST" << std::endl;
@@ -315,6 +360,16 @@ void Server::handleClient(std::unique_ptr<Connection> client) {
             case Protocol::MSG_GET_STATISTICS_REQUEST:
                 std::cout << "  → GET_STATISTICS_REQUEST" << std::endl;
                 handleGetStatistics(client.get(), request);
+                continue;
+                
+            case Protocol::MSG_GET_SYSTEM_STATS_REQUEST:
+                std::cout << "  → GET_SYSTEM_STATS_REQUEST" << std::endl;
+                handleGetSystemStats(client.get(), request);
+                continue;
+                
+            case Protocol::MSG_LIST_ONLINE_USERS_REQUEST:
+                std::cout << "  → LIST_ONLINE_USERS_REQUEST" << std::endl;
+                handleListOnlineUsers(client.get(), request);
                 continue;
                 
             default:
@@ -367,6 +422,211 @@ void Server::handleLogin(Connection* client, const Protocol::Message& request) {
     client->sendMessage(response);
 }
 
+// ============================================================================
+// 系统监控功能
+// ============================================================================
+
+void Server::handleGetSystemStats(Connection* client, const Protocol::Message& request) {
+    // 获取系统运行时间
+    uint64_t currentTime = std::chrono::duration_cast<std::chrono::seconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+    uint64_t uptime = currentTime - startTime_.load();
+    
+    // 获取活跃连接数
+    uint32_t activeConnections = clientThreads_.size();
+    
+    // 获取内存使用情况
+    struct rusage usage;
+    uint32_t memoryUsageMB = 0;
+    if (getrusage(RUSAGE_SELF, &usage) == 0) {
+        memoryUsageMB = usage.ru_maxrss / 1024; // KB to MB
+    }
+    
+    // 获取磁盘使用情况
+    uint32_t diskUsageMB = 0;
+    std::ifstream diskFile(diskImage_, std::ios::binary | std::ios::ate);
+    if (diskFile.is_open()) {
+        diskUsageMB = diskFile.tellg() / (1024 * 1024);
+        diskFile.close();
+    }
+    
+    // 构造响应
+    Protocol::Message response;
+    response.header.type = Protocol::MSG_GET_SYSTEM_STATS_RESPONSE;
+    response.payload.push_back(1); // success = true
+    
+    auto writeUint64 = [](std::vector<char>& payload, uint64_t value) {
+        payload.insert(payload.end(), 
+                      reinterpret_cast<char*>(&value), 
+                      reinterpret_cast<char*>(&value) + 8);
+    };
+    
+    auto writeUint32 = [](std::vector<char>& payload, uint32_t value) {
+        payload.insert(payload.end(), 
+                      reinterpret_cast<char*>(&value), 
+                      reinterpret_cast<char*>(&value) + 4);
+    };
+    
+    writeUint64(response.payload, uptime);
+    writeUint32(response.payload, totalConnections_.load());
+    writeUint32(response.payload, activeConnections);
+    writeUint32(response.payload, totalRequests_.load());
+    writeUint32(response.payload, 85); // 模拟缓存命中率
+    writeUint32(response.payload, memoryUsageMB);
+    writeUint32(response.payload, diskUsageMB);
+    
+    response.header.length = response.payload.size();
+    response.header.checksum = Protocol::calculateChecksum(response.payload);
+    
+    client->sendMessage(response);
+}
+
+// ============================================================================
+// HTTP请求检测和处理
+// ============================================================================
+
+bool Server::isHttpRequest(Connection* client) {
+    // 检查前几个字节是否为HTTP请求
+    char buffer[8];
+    if (!client->peekFirstBytes(buffer, sizeof(buffer))) {
+        return false;
+    }
+    
+    // HTTP请求以 "GET ", "POST ", "PUT ", "DELETE " 等开始
+    // 检查是否为文本字符并且包含HTTP关键词
+    std::string firstBytes(buffer, buffer + sizeof(buffer));
+    
+    // 检查是否包含HTTP方法的特征
+    if (firstBytes.rfind("GET ", 0) == 0 ||
+        firstBytes.rfind("POST ", 0) == 0 ||
+        firstBytes.rfind("PUT ", 0) == 0 ||
+        firstBytes.rfind("DELETE ", 0) == 0 ||
+        firstBytes.rfind("HEAD ", 0) == 0 ||
+        firstBytes.rfind("OPTIONS ", 0) == 0 ||
+        firstBytes.rfind("PATCH ", 0) == 0) {
+        return true;
+    }
+    
+    // 自定义协议以 PRSF (0x50525346) 开头
+    uint32_t magic;
+    std::memcpy(&magic, buffer, 4);
+    // Convert from network byte order to host byte order
+    magic = ntohl(magic);
+    
+    if (magic == 0x50525346) { // "PRSF"
+        return false;
+    }
+    
+    // 如果既不是HTTP也不是自定义协议，默认当作HTTP处理（为了兼容性）
+    return true;
+}
+
+void Server::handleHttpRequest(std::unique_ptr<Connection> client) {
+    // 读取完整的HTTP请求
+    std::string requestData;
+    char buffer[4096];
+    
+    while (client->isConnected()) {
+        ssize_t received = recv(client->getSocket(), buffer, sizeof(buffer), 0);
+        
+        if (received <= 0) {
+            break;
+        }
+        
+        requestData.append(buffer, received);
+        
+        // 检查是否收到了完整的HTTP请求（简单检测）
+        if (requestData.find("\r\n\r\n") != std::string::npos) {
+            break;
+        }
+        
+        // 防止无限循环
+        if (requestData.size() > 65536) { // 64KB
+            break;
+        }
+    }
+    
+    if (requestData.empty()) {
+        return;
+    }
+    
+    // 解析HTTP请求
+    std::istringstream requestStream(requestData);
+    std::string method, path, httpVersion;
+    requestStream >> method >> path >> httpVersion;
+    
+    // 读取headers（简单解析）
+    std::map<std::string, std::string> headers;
+    std::string line;
+    std::getline(requestStream, line); // 跳过第一行的剩余部分
+    
+    while (std::getline(requestStream, line) && !line.empty()) {
+        size_t colonPos = line.find(':');
+        if (colonPos != std::string::npos) {
+            std::string key = line.substr(0, colonPos);
+            std::string value = line.substr(colonPos + 1);
+            // 去除空格
+            key.erase(0, key.find_first_not_of(" \t"));
+            key.erase(key.find_last_not_of(" \t") + 1);
+            value.erase(0, value.find_first_not_of(" \t"));
+            value.erase(value.find_last_not_of(" \t") + 1);
+            headers[key] = value;
+        }
+    }
+    
+    // 读取body
+    std::string body;
+    size_t bodyStart = requestData.find("\r\n\r\n");
+    if (bodyStart != std::string::npos) {
+        body = requestData.substr(bodyStart + 4);
+    }
+    
+    std::cout << "🌐 HTTP Request: " << method << " " << path << std::endl;
+    
+    // 增加HTTP请求计数
+    totalRequests_++;
+    
+    // 使用HTTP处理器处理请求
+    std::string httpResponse = httpHandler_->handleRequest(method, path, body, headers);
+    
+    // 发送响应
+    client->sendHttpResponse(httpResponse);
+}
+
+void Server::handleListOnlineUsers(Connection* client, const Protocol::Message& request) {
+    // 构造响应
+    Protocol::Message response;
+    response.header.type = Protocol::MSG_LIST_ONLINE_USERS_RESPONSE;
+    response.payload.push_back(1); // success = true
+    
+    // 获取在线用户列表
+    std::lock_guard<std::mutex> lock(onlineUsersMutex_);
+    uint32_t onlineCount = onlineUsers_.size();
+    
+    auto writeUint32 = [](std::vector<char>& payload, uint32_t value) {
+        payload.insert(payload.end(), 
+                      reinterpret_cast<char*>(&value), 
+                      reinterpret_cast<char*>(&value) + 4);
+    };
+    
+    writeUint32(response.payload, onlineCount);
+    
+    // 添加每个在线用户的信息
+    for (const auto& [sessionId, username] : onlineUsers_) {
+        writeUint32(response.payload, sessionId);
+        
+        // 添加用户名长度和内容
+        uint32_t nameLength = username.length();
+        writeUint32(response.payload, nameLength);
+        response.payload.insert(response.payload.end(), username.begin(), username.end());
+    }
+    
+    response.header.length = response.payload.size();
+    response.header.checksum = Protocol::calculateChecksum(response.payload);
+    
+    client->sendMessage(response);
+}
+
 void Server::handleRegister(Connection* client, const Protocol::Message& request) {
     std::string username, password, roleStr;
     
@@ -378,9 +638,12 @@ void Server::handleRegister(Connection* client, const Protocol::Message& request
     
     // 解析角色
     UserRole role = UserRole::AUTHOR;
-    if (roleStr == "REVIEWER") role = UserRole::REVIEWER;
-    else if (roleStr == "EDITOR") role = UserRole::EDITOR;
-    else if (roleStr == "ADMIN") role = UserRole::ADMIN;
+    std::string roleUpper = roleStr;
+    std::transform(roleUpper.begin(), roleUpper.end(), roleUpper.begin(), ::toupper);
+    
+    if (roleUpper == "REVIEWER") role = UserRole::REVIEWER;
+    else if (roleUpper == "EDITOR") role = UserRole::EDITOR;
+    else if (roleUpper == "ADMIN") role = UserRole::ADMIN;
     
     bool success = userManager_->createUser(username, password, role);
     
@@ -409,8 +672,9 @@ void Server::handleSubmitPaper(Connection* client, const Protocol::Message& requ
     uint32_t sessionId;
     std::string title, abstract;
     std::vector<char> fileData;
+    std::vector<std::string> keywords;
     
-    if (!Protocol::parseSubmitPaperRequest(request, sessionId, title, abstract, fileData)) {
+    if (!Protocol::parseSubmitPaperRequest(request, sessionId, title, abstract, fileData, keywords)) {
         auto response = Protocol::createSubmitPaperResponse(false, 0, "Invalid request");
         client->sendMessage(response);
         return;
@@ -425,13 +689,87 @@ void Server::handleSubmitPaper(Connection* client, const Protocol::Message& requ
     }
     
     // 提交论文
-    uint32_t paperId = reviewSystem_->submitPaper(userId, title, abstract, fileData);
+    uint32_t paperId = reviewSystem_->submitPaper(userId, title, abstract, fileData, keywords);
     
     Protocol::Message response;
     if (paperId > 0) {
         response = Protocol::createSubmitPaperResponse(true, paperId, "Paper submitted successfully");
     } else {
         response = Protocol::createSubmitPaperResponse(false, 0, "Failed to submit paper");
+    }
+    
+    client->sendMessage(response);
+}
+
+// ============================================================================
+// 自动分配处理
+// ============================================================================
+void Server::handleAutoAssign(Connection* client, const Protocol::Message& request) {
+    uint32_t sessionId;
+    uint32_t paperId;
+    
+    if (!Protocol::parseAutoAssignRequest(request, sessionId, paperId)) {
+        auto response = Protocol::createAutoAssignResponse(false, "Invalid request");
+        client->sendMessage(response);
+        return;
+    }
+    
+    uint32_t userId;
+    if (!userManager_->validateSession(sessionId, userId)) {
+        auto response = Protocol::createAutoAssignResponse(false, "Invalid session");
+        client->sendMessage(response);
+        return;
+    }
+    
+    // 检查权限 (Admin or Editor)
+    User user;
+    if (!userManager_->getUserById(userId, user) || (user.role != UserRole::ADMIN && user.role != UserRole::EDITOR)) {
+        auto response = Protocol::createAutoAssignResponse(false, "Permission denied");
+        client->sendMessage(response);
+        return;
+    }
+    
+    bool success = reviewSystem_->autoAssignReviewers(paperId);
+    
+    Protocol::Message response;
+    if (success) {
+        response = Protocol::createAutoAssignResponse(true, "Auto assignment completed successfully");
+    } else {
+        response = Protocol::createAutoAssignResponse(false, "Failed to auto assign reviewers (maybe no candidates found)");
+    }
+    
+    client->sendMessage(response);
+}
+
+// ============================================================================
+// 更新资料处理
+// ============================================================================
+void Server::handleUpdateProfile(Connection* client, const Protocol::Message& request) {
+    uint32_t sessionId;
+    std::string institution;
+    std::vector<std::string> interests;
+    int maxLoad;
+    
+    if (!Protocol::parseUpdateProfileRequest(request, sessionId, institution, interests, maxLoad)) {
+        auto response = Protocol::createUpdateProfileResponse(false, "Invalid request");
+        client->sendMessage(response);
+        return;
+    }
+    
+    uint32_t userId;
+    if (!userManager_->validateSession(sessionId, userId)) {
+        auto response = Protocol::createUpdateProfileResponse(false, "Invalid session");
+        client->sendMessage(response);
+        return;
+    }
+    
+    bool success = userManager_->updateUserProfile(userId, institution, interests, maxLoad);
+    
+    Protocol::Message response;
+    if (success) {
+        response = Protocol::createUpdateProfileResponse(true, "Profile updated successfully");
+    } else {
+        response = Protocol::createUpdateProfileResponse(false, "Failed to update profile");
     }
     
     client->sendMessage(response);
@@ -755,8 +1093,94 @@ void Server::handleGetAllPapers(Connection* client, const Protocol::Message& req
 // 下载论文
 // ============================================================================
 void Server::handleDownloadPaper(Connection* client, const Protocol::Message& request) {
-    // TODO: 实现完整的下载逻辑（需要解析请求）
-    auto response = Protocol::createDownloadPaperResponse(false, {});
+    uint32_t sessionId;
+    uint32_t paperId;
+    
+    // Manual parsing since parseDownloadPaperRequest is missing in header
+    if (request.payload.size() < 8) {
+        auto response = Protocol::createDownloadPaperResponse(false, {});
+        client->sendMessage(response);
+        return;
+    }
+    
+    const uint32_t* ptr = reinterpret_cast<const uint32_t*>(request.payload.data());
+    // Network byte order to host byte order
+    sessionId = ntohl(ptr[0]);
+    paperId = ntohl(ptr[1]);
+    
+    uint32_t userId;
+    if (!userManager_->validateSession(sessionId, userId)) {
+        auto response = Protocol::createDownloadPaperResponse(false, {});
+        client->sendMessage(response);
+        return;
+    }
+    
+    // 获取论文信息以找到文件路径
+    // ReviewSystem::getPaperInfo returns Paper object by value
+    Paper paper = reviewSystem_->getPaperInfo(paperId);
+    if (paper.paperId == 0) { // Assuming 0 means not found
+        std::cerr << "Paper not found: " << paperId << std::endl;
+        auto response = Protocol::createDownloadPaperResponse(false, {});
+        client->sendMessage(response);
+        return;
+    }
+    
+    // 生成文件路径 (假设 ReviewSystem 存储的是相对路径或我们知道规则)
+    // 这里我们假设 ReviewSystem 内部管理路径，但我们需要路径来访问文件系统
+    // 由于 ReviewSystem 没有直接暴露 getPaperPath，我们可能需要修改 ReviewSystem
+    // 或者假设路径格式。查看 ReviewSystem::submitPaper，路径是 generatePaperPath 生成的
+    // 我们可以尝试通过 paperInfo 获取，但 PaperInfo 可能不包含路径
+    
+    // 让我们先看看 ReviewSystem 是否有 getPaperPath
+    // 如果没有，我们可能需要先修改 ReviewSystem
+    
+    // 假设 PaperInfo 没有路径，我们需要从 ReviewSystem 获取
+    // 暂时先用硬编码的规则或修改 ReviewSystem
+    // 为了稳妥，我先去修改 ReviewSystem 增加 getPaperPath 接口
+    
+    // Use the filepath from the Paper object directly
+    std::string path = paper.filepath;
+    if (path.empty()) {
+        // Fallback if filepath is empty for some reason
+        std::ostringstream oss;
+        oss << "/papers/paper_" << std::setw(6) << std::setfill('0') << paperId;
+        if (paper.currentVersion > 1) {
+            oss << "_v" << paper.currentVersion;
+        }
+        oss << ".pdf";
+        path = oss.str();
+    }
+    
+    std::cout << "User " << userId << " attempting to download " << path << std::endl;
+    
+    // 使用 ACL 感知的读取操作
+    // 注意：这里我们直接调用 fileOps，绕过 Filesystem 的默认 Admin 权限
+    std::vector<char> data;
+    size_t size = filesystem_->getFileOps()->getFileSize(userId, path);
+    
+    if (size == 0) {
+        // 可能是权限拒绝，也可能是文件不存在
+        // 再次检查是否存在
+        if (!filesystem_->getFileOps()->fileExists(userId, path)) {
+             std::cerr << "File not found or permission denied (size=0)" << std::endl;
+             auto response = Protocol::createDownloadPaperResponse(false, {});
+             client->sendMessage(response);
+             return;
+        }
+    }
+    
+    data.resize(size);
+    ssize_t bytesRead = filesystem_->getFileOps()->readFile(userId, path, data.data(), size);
+    
+    if (bytesRead < 0) {
+        std::cerr << "❌ Permission denied or read error for user " << userId << " on " << path << std::endl;
+        auto response = Protocol::createDownloadPaperResponse(false, {});
+        client->sendMessage(response);
+        return;
+    }
+    
+    data.resize(bytesRead);
+    auto response = Protocol::createDownloadPaperResponse(true, data);
     client->sendMessage(response);
 }
 

@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/review_cli.dir/src/client/main.cpp.o CMakeFiles/review_cli.dir/src/client/cli.cpp.o -o review_cli  libreview.a libuser.a libfilesystem.a libstorage.a /usr/lib/x86_64-linux-gnu/libcrypto.so 

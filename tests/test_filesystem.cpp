@@ -102,15 +102,16 @@ void testPersistence() {
     std::cout << "✓ Mounted successfully" << std::endl;
     
     // 读取之前写入的 inode（会产生缓存未命中）
+    // Note: testBlockManager allocated inode 1 (inode 0 is ROOT_INODE)
     Inode readInode;
-    assert(bm.readInode(0, readInode));
+    assert(bm.readInode(1, readInode));
     assert(readInode.type == FileType::REGULAR);
     assert(readInode.size == 1024);
     std::cout << "✓ Persistence verified" << std::endl;
     
     // 再次读取同一个 inode（会产生缓存命中）
     Inode readInode2;
-    assert(bm.readInode(0, readInode2));
+    assert(bm.readInode(1, readInode2));
     std::cout << "✓ Cache hit on second read" << std::endl;
     
     // 读取数据块

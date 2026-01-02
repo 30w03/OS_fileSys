@@ -1,373 +1,133 @@
 #include "filesystem/filesystem.h"
-#include <cstring>
-#include <ctime>
 #include <iostream>
+#include <cstring>
 
 Filesystem::Filesystem(const std::string& diskImage)
-    : mounted_(false) {
-    storage_ = std::make_unique<Storage>(diskImage, 1024 * 1024 * 100);
+    : diskImage_(diskImage), mounted_(false) {
+    disk_ = std::make_shared<Disk>(diskImage);
+    blockManager_ = std::make_shared<BlockManager>(disk_, 1024);
+    dirOps_ = std::make_shared<DirectoryOps>(blockManager_.get());
+    fileOps_ = std::make_shared<FileOps>(blockManager_.get(), dirOps_.get());
+    snapshotManager_ = std::make_shared<SnapshotManager>(blockManager_);
 }
 
 Filesystem::~Filesystem() {
-    if (mounted_) {
-        unmount();
+    unmount();
+}
+
+bool Filesystem::format(uint32_t blockSize, uint32_t totalInodes) {
+    // 默认 100MB
+    uint32_t totalBlocks = (100 * 1024 * 1024) / blockSize;
+    if (!disk_->create(totalBlocks, blockSize)) {
+        return false;
     }
+    if (!disk_->open()) return false;
+
+    return blockManager_->format(blockSize, totalInodes);
 }
 
 bool Filesystem::mount() {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (mounted_) {
-        return true;
+    if (mounted_) return true;
+    
+    if (!disk_->open()) {
+        // 如果打开失败，尝试格式化
+        std::cout << "Disk not found, formatting..." << std::endl;
+        if (!format()) return false;
     }
     
-    if (!storage_->mount()) {
-        std::cerr << "Storage mount failed" << std::endl;
+    if (!blockManager_->mount()) {
         return false;
     }
     
-    if (!loadInodeTable()) {
-        inodeTable_.clear();
-        pathToInode_.clear();
-        std::cout << "Initialized empty inode table" << std::endl;
-    }
+    // 初始化 WAL
+    walManager_ = std::make_shared<WALManager>(blockManager_, 
+                                             blockManager_->getSuperblock().logStartBlock, 
+                                             blockManager_->getSuperblock().logSizeBlocks);
+    walManager_->init();
     
+    // 恢复日志
+    walManager_->recover(fileOps_, dirOps_);
+
+    // 注入 WAL 到 FileOps 和 DirectoryOps (需要修改 FileOps/DirOps 接口)
+    fileOps_->setWALManager(walManager_);
+    dirOps_->setWALManager(walManager_);
+
     mounted_ = true;
     return true;
 }
 
 void Filesystem::unmount() {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (!mounted_) {
-        return;
-    }
-    
-    saveInodeTable();
-    storage_->unmount();
+    if (!mounted_) return;
+    blockManager_->unmount();
+    disk_->close();
     mounted_ = false;
 }
 
+// --- 兼容接口 ---
+
 bool Filesystem::createFile(const std::string& path) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (!mounted_) {
-        std::cerr << "Filesystem not mounted" << std::endl;
-        return false;
-    }
-    
-    if (pathToInode_.find(path) != pathToInode_.end()) {
-        std::cout << "File already exists: " << path << std::endl;
-        return true;
-    }
-    
-    uint32_t inodeId = allocateInode();
-    if (inodeId == 0) {
-        std::cerr << "Failed to allocate inode" << std::endl;
-        return false;
-    }
-    
-    Inode inode;
-    inode.id = inodeId;
-    inode.size = 0;
-    inode.timestamp = static_cast<uint32_t>(std::time(nullptr));
-    inode.isDirectory = false;
-    
-    inodeTable_[inodeId] = inode;
-    pathToInode_[path] = inodeId;
-    
-    std::cout << "Created file: " << path << " (inode " << inodeId << ")" << std::endl;
-    
-    saveInodeTable();
-    
-    return true;
+    // 默认使用 Admin (uid=1)
+    return fileOps_->createFile(1, path);
 }
 
 bool Filesystem::deleteFile(const std::string& path) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (!mounted_) {
-        return false;
-    }
-    
-    uint32_t inodeId = findInode(path);
-    if (inodeId == 0) {
-        return false;
-    }
-    
-    Inode* inode = getInode(inodeId);
-    if (!inode || inode->isDirectory) {
-        return false;
-    }
-    
-    // Free all blocks
-    for (size_t i = 0; i < MAX_BLOCKS_PER_FILE; i++) {
-        if (inode->blockPointers[i] != 0) {
-            freeBlock(inode->blockPointers[i]);
-        }
-    }
-    
-    freeInode(inodeId);
-    pathToInode_.erase(path);
-    saveInodeTable();
-    
-    return true;
+    return fileOps_->deleteFile(1, path);
+}
+
+bool Filesystem::exists(const std::string& path) {
+    return fileOps_->fileExists(1, path);
 }
 
 bool Filesystem::readFile(const std::string& path, std::vector<char>& data) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (!mounted_) {
-        std::cerr << "Filesystem not mounted" << std::endl;
-        return false;
+    size_t size = fileOps_->getFileSize(1, path);
+    if (size == 0) {
+        // 可能是空文件，也可能是不存在
+        if (!fileOps_->fileExists(1, path)) return false;
+        data.clear();
+        return true;
     }
     
-    uint32_t inodeId = findInode(path);
-    if (inodeId == 0) {
-        std::cerr << "File not found: " << path << std::endl;
-        return false;
-    }
+    data.resize(size);
+    ssize_t bytesRead = fileOps_->readFile(1, path, data.data(), size);
+    if (bytesRead < 0) return false;
     
-    Inode* inode = getInode(inodeId);
-    if (!inode || inode->isDirectory) {
-        std::cerr << "Not a file: " << path << std::endl;
-        return false;
-    }
-    
-    data.clear();
-    data.reserve(inode->size);
-    
-    size_t remaining = inode->size;
-    
-    // 修改：读取所有块，而不是只读 10 个
-    for (size_t i = 0; i < MAX_BLOCKS_PER_FILE && remaining > 0; i++) {
-        if (inode->blockPointers[i] == 0) {
-            break;
-        }
-        
-        std::vector<char> blockData;
-        if (!storage_->readBlock(inode->blockPointers[i], blockData)) {
-            std::cerr << "Failed to read block " << inode->blockPointers[i] << std::endl;
-            return false;
-        }
-        
-        size_t toCopy = std::min(remaining, blockData.size());
-        data.insert(data.end(), blockData.begin(), blockData.begin() + toCopy);
-        remaining -= toCopy;
-        
-        std::cout << "Read block " << i << " (blockId " << inode->blockPointers[i] 
-                  << ", " << toCopy << " bytes, total: " << data.size() << "/" << inode->size << ")" << std::endl;
-    }
-    
-    std::cout << "Successfully read file: " << path << " (" << data.size() << " bytes)" << std::endl;
-    
+    data.resize(bytesRead);
     return true;
 }
 
 bool Filesystem::writeFile(const std::string& path, const std::vector<char>& data) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (!mounted_) {
-        std::cerr << "Filesystem not mounted" << std::endl;
-        return false;
+    // 如果文件不存在，先创建
+    if (!fileOps_->fileExists(1, path)) {
+        if (!fileOps_->createFile(1, path)) return false;
     }
     
-    std::cout << "writeFile called: " << path << " (" << data.size() << " bytes)" << std::endl;
+    // 覆盖写入：先截断
+    fileOps_->truncate(1, path, 0);
     
-    uint32_t inodeId = findInode(path);
-    if (inodeId == 0) {
-        std::cout << "Creating new file: " << path << std::endl;
-        // Note: We can't call createFile() here because it would try to lock the mutex again (deadlock)
-        // So we inline the creation logic or extract it to a private helper
-        
-        uint32_t newInodeId = allocateInode();
-        if (newInodeId == 0) {
-            std::cerr << "Failed to allocate inode" << std::endl;
-            return false;
-        }
-        
-        Inode inode;
-        inode.id = newInodeId;
-        inode.size = 0;
-        inode.timestamp = static_cast<uint32_t>(std::time(nullptr));
-        inode.isDirectory = false;
-        
-        inodeTable_[newInodeId] = inode;
-        pathToInode_[path] = newInodeId;
-        inodeId = newInodeId;
-        
-        std::cout << "Created file: " << path << " (inode " << inodeId << ")" << std::endl;
-    }
-    
-    Inode* inode = getInode(inodeId);
-    if (!inode) {
-        std::cerr << "Failed to get inode" << std::endl;
-        return false;
-    }
-    
-    if (inode->isDirectory) {
-        std::cerr << "Cannot write to directory" << std::endl;
-        return false;
-    }
-    
-    // Free old blocks
-    for (size_t i = 0; i < MAX_BLOCKS_PER_FILE; i++) {
-        if (inode->blockPointers[i] != 0) {
-            freeBlock(inode->blockPointers[i]);
-            inode->blockPointers[i] = 0;
-        }
-    }
-    
-    // Write data to new blocks
-    size_t remaining = data.size();
-    size_t offset = 0;
-    size_t blockIndex = 0;
-    
-    while (remaining > 0 && blockIndex < MAX_BLOCKS_PER_FILE) {
-        uint32_t blockId = allocateBlock();
-        if (blockId == 0) {
-            std::cerr << "Failed to allocate block" << std::endl;
-            return false;
-        }
-        
-        size_t toWrite = std::min(remaining, storage_->getBlockSize());
-        std::vector<char> blockData(storage_->getBlockSize(), 0);
-        std::memcpy(blockData.data(), data.data() + offset, toWrite);
-        
-        if (!storage_->writeBlock(blockId, blockData)) {
-            std::cerr << "Failed to write block " << blockId << std::endl;
-            freeBlock(blockId);
-            return false;
-        }
-        
-        inode->blockPointers[blockIndex++] = blockId;
-        offset += toWrite;
-        remaining -= toWrite;
-        
-        std::cout << "Wrote block " << (blockIndex-1) << " (blockId " << blockId 
-                  << ", " << toWrite << " bytes)" << std::endl;
-    }
-    
-    if (remaining > 0) {
-        std::cerr << "File too large! Maximum size: " 
-                  << (MAX_BLOCKS_PER_FILE * storage_->getBlockSize()) << " bytes" << std::endl;
-        return false;
-    }
-    
-    inode->size = data.size();
-    inode->timestamp = static_cast<uint32_t>(std::time(nullptr));
-    
-    saveInodeTable();
-    
-    std::cout << "Successfully wrote file: " << path << " (" << data.size() << " bytes)" << std::endl;
-    
-    return true;
-}
-
-bool Filesystem::isFile(const std::string& path) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (!mounted_) {
-        return false;
-    }
-    
-    uint32_t inodeId = findInode(path);
-    if (inodeId == 0) {
-        return false;
-    }
-    
-    Inode* inode = getInode(inodeId);
-    return inode && !inode->isDirectory;
-}
-
-bool Filesystem::isDirectory(const std::string& path) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (!mounted_) {
-        return false;
-    }
-    
-    uint32_t inodeId = findInode(path);
-    if (inodeId == 0) {
-        return false;
-    }
-    
-    Inode* inode = getInode(inodeId);
-    return inode && inode->isDirectory;
+    ssize_t bytesWritten = fileOps_->writeFile(1, path, data.data(), data.size());
+    return bytesWritten == (ssize_t)data.size();
 }
 
 std::vector<FileListEntry> Filesystem::listFiles() {
-    std::lock_guard<std::mutex> lock(mutex_);
+    // 这是一个简化实现，只列出根目录下的文件
     std::vector<FileListEntry> entries;
+    auto dirEntries = dirOps_->listDirectory(ROOT_INODE);
     
-    if (!mounted_) {
-        return entries;
-    }
-    
-    for (const auto& pair : pathToInode_) {
-        const std::string& path = pair.first;
-        uint32_t inodeId = pair.second;
+    for (const auto& dirEntry : dirEntries) {
+        std::string name(dirEntry.name);
+        if (name == "." || name == "..") continue;
         
-        Inode* inode = getInode(inodeId);
-        if (!inode || inode->isDirectory) {
-            continue;
+        std::string path = "/" + name;
+        Inode inode;
+        if (fileOps_->getFileInfo(1, path, inode)) {
+            if (inode.type == FileType::REGULAR) {
+                FileListEntry entry;
+                entry.filename = path;
+                entry.size = inode.size;
+                entry.timestamp = inode.mtime;
+                entries.push_back(entry);
+            }
         }
-        
-        FileListEntry entry;
-        entry.filename = path;
-        entry.size = inode->size;
-        entry.timestamp = inode->timestamp;
-        
-        entries.push_back(entry);
     }
-    
-    std::cout << "listFiles: returning " << entries.size() << " files" << std::endl;
-    
     return entries;
-}
-
-std::vector<std::string> Filesystem::listDirectory(const std::string& path) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    std::vector<std::string> result;
-    
-    for (const auto& pair : pathToInode_) {
-        result.push_back(pair.first);
-    }
-    
-    return result;
-}
-
-uint32_t Filesystem::allocateInode() {
-    static uint32_t nextId = 1;
-    return nextId++;
-}
-
-uint32_t Filesystem::allocateBlock() {
-    return storage_->allocateBlock();
-}
-
-void Filesystem::freeInode(uint32_t id) {
-    inodeTable_.erase(id);
-}
-
-void Filesystem::freeBlock(uint32_t blockId) {
-    storage_->freeBlock(blockId);
-}
-
-bool Filesystem::loadInodeTable() {
-    inodeTable_.clear();
-    pathToInode_.clear();
-    return true;
-}
-
-bool Filesystem::saveInodeTable() {
-    return true;
-}
-
-Inode* Filesystem::getInode(uint32_t id) {
-    auto it = inodeTable_.find(id);
-    if (it == inodeTable_.end()) {
-        return nullptr;
-    }
-    return &it->second;
-}
-
-uint32_t Filesystem::findInode(const std::string& path) {
-    auto it = pathToInode_.find(path);
-    if (it != pathToInode_.end()) {
-        return it->second;
-    }
-    return 0;
 }

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>同行评审管理系统</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/auth.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+    <div id="app">
+        <div id="auth-container" class="auth-container">
+            <div class="auth-header">
+                <h1>📚 同行评审管理系统</h1>
+                <p>学术论文提交与评审平台</p>
+            </div>
+            
+            <div class="auth-tabs">
+                <button class="tab-btn active" data-tab="login">登录</button>
+                <button class="tab-btn" data-tab="register">注册</button>
+            </div>
+            
+            <div class="auth-content">
+                <div id="login-form" class="auth-form active">
+                    <form id="loginForm">
+                        <div class="form-group">
+                            <label for="login-username">用户名</label>
+                            <input type="text" id="login-username" name="username" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="login-password">密码</label>
+                            <input type="password" id="login-password" name="password" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">登录</button>
+                    </form>
+                </div>
+                
+                <div id="register-form" class="auth-form">
+                    <form id="registerForm">
+                        <div class="form-group">
+                            <label for="register-username">用户名</label>
+                            <input type="text" id="register-username" name="username" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="register-password">密码</label>
+                            <input type="password" id="register-password" name="password" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="register-role">用户角色</label>
+                            <select id="register-role" name="role" required>
+                                <option value="AUTHOR">作者 (Author)</option>
+                                <option value="REVIEWER">评审员 (Reviewer)</option>
+                                <option value="EDITOR">编辑 (Editor)</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">注册</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div id="dashboard" class="dashboard" style="display: none;">
+            <header class="dashboard-header">
+                <div class="header-left">
+                    <h1>📚 同行评审管理系统</h1>
+                    <span id="user-info" class="user-info"></span>
+                </div>
+                <div class="header-right">
+                    <button id="logout-btn" class="btn btn-secondary">退出登录</button>
+                </div>
+            </header>
+            
+            <nav class="dashboard-nav">
+                <ul>
+                    <li><a href="#" data-page="overview" class="nav-link active">概览</a></li>
+                    <li><a href="#" data-page="files" class="nav-link">文件管理</a></li>
+                    <li><a href="#" data-page="reviews" class="nav-link">评审系统</a></li>
+                    <li class="admin-only" style="display: none;"><a href="#" data-page="monitoring" class="nav-link">系统监控</a></li>
+                    <li class="admin-only" style="display: none;"><a href="#" data-page="users" class="nav-link">用户管理</a></li>
+                </ul>
+            </nav>
+            
+            <main class="dashboard-content">
+                <div id="overview-page" class="page active">
+                    <div class="page-header">
+                        <h2>系统概览</h2>
+                        <div class="quick-stats" id="quick-stats">
+                            <!-- 动态加载统计信息 -->
+                        </div>
+                    </div>
+                    <div class="overview-content">
+                        <div class="welcome-card">
+                            <h3>欢迎使用同行评审管理系统</h3>
+                            <p>请从左侧导航菜单选择功能模块开始工作。</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="files-page" class="page">
+                    <div class="page-header">
+                        <h2>文件管理</h2>
+                        <button class="btn btn-primary" id="upload-file-btn">上传文件</button>
+                    </div>
+                    <div class="files-content">
+                        <div class="file-list" id="file-list">
+                            <!-- 动态加载文件列表 -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="reviews-page" class="page">
+                    <div class="page-header">
+                        <h2>评审系统</h2>
+                        <div class="review-tabs">
+                            <button class="tab-btn active" data-review-tab="pending">待评审</button>
+                            <button class="tab-btn" data-review-tab="completed">已完成</button>
+                        </div>
+                    </div>
+                    <div class="reviews-content">
+                        <div id="pending-reviews" class="review-section active">
+                            <!-- 待评审论文列表 -->
+                        </div>
+                        <div id="completed-reviews" class="review-section">
+                            <!-- 已完成评审列表 -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="monitoring-page" class="page">
+                    <div class="page-header">
+                        <h2>系统监控</h2>
+                        <div class="header-controls">
+                            <select id="monitoring-time-range">
+                                <option value="1h">过去1小时</option>
+                                <option value="6h">过去6小时</option>
+                                <option value="24h" selected>过去24小时</option>
+                                <option value="7d">过去7天</option>
+                                <option value="30d">过去30天</option>
+                            </select>
+                            <button class="btn btn-outline" id="monitoring-refresh">刷新</button>
+                        </div>
+                    </div>
+                    <div class="monitoring-content">
+                        <div class="stats-section">
+                            <h3>系统统计</h3>
+                            <div class="stats-container" id="stats-container">
+                                <!-- 动态加载统计卡片 -->
+                            </div>
+                        </div>
+                        
+                        <div class="charts-section">
+                            <div class="chart-container">
+                                <div id="review-status-chart">
+                                    <!-- 评审状态分布图 -->
+                                </div>
+                            </div>
+                            <div class="chart-container">
+                                <div id="user-activity-chart">
+                                    <!-- 用户活动趋势图 -->
+                                </div>
+                            </div>
+                            <div class="chart-container">
+                                <div id="file-upload-chart">
+                                    <!-- 文件上传趋势图 -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="online-users-section">
+                            <h3>在线用户</h3>
+                            <div class="online-users-container" id="online-users-container">
+                                <!-- 在线用户列表 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="users-page" class="page">
+                    <div class="page-header">
+                        <h2>用户管理</h2>
+                        <div class="header-controls">
+                            <div class="search-controls">
+                                <input type="text" id="user-search" placeholder="搜索用户名或邮箱...">
+                                <select id="user-role-filter">
+                                    <option value="">所有角色</option>
+                                    <option value="AUTHOR">作者</option>
+                                    <option value="REVIEWER">评审员</option>
+                                    <option value="EDITOR">编辑</option>
+                                    <option value="ADMIN">管理员</option>
+                                </select>
+                            </div>
+                            <div class="batch-controls">
+                                <select id="batch-action">
+                                    <option value="">批量操作</option>
+                                    <option value="activate">激活</option>
+                                    <option value="deactivate">停用</option>
+                                    <option value="suspend">暂停</option>
+                                    <option value="delete">删除</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-primary" id="add-user-btn">添加用户</button>
+                        </div>
+                    </div>
+                    <div class="users-content">
+                        <div class="user-list" id="user-list">
+                            <!-- 用户列表 -->
+                        </div>
+                        <div class="pagination-container" id="user-pagination">
+                            <!-- 分页控件 -->
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+        
+        <div id="loading-overlay" class="loading-overlay">
+            <div class="loading-spinner"></div>
+            <p>加载中...</p>
+        </div>
+        
+        <div id="notification" class="notification">
+            <span id="notification-message"></span>
+            <button id="notification-close">&times;</button>
+        </div>
+    </div>
+    
+    <!-- 模态框 -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">标题</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <!-- 动态内容 -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary modal-cancel">取消</button>
+                <button class="btn btn-primary modal-confirm">确定</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="js/config.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script src="js/files.js"></script>
+    <script src="js/reviews.js"></script>
+    <script src="js/monitoring.js"></script>
+    <script src="js/users.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

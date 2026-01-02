@@ -25,6 +25,8 @@ add_library(filesystem
     src/filesystem/backup.cpp
     src/filesystem/directory_ops.cpp
     src/filesystem/file_ops.cpp
+    src/filesystem/wal.cpp
+    src/filesystem/snapshot.cpp
 )
 
 target_link_libraries(filesystem storage)
@@ -58,6 +60,7 @@ add_library(network
     src/network/connection.cpp
     src/network/server.cpp
     src/network/client.cpp
+    src/network/http_handler.cpp
 )
 
 target_link_libraries(network 
@@ -69,6 +72,18 @@ target_link_libraries(network
     OpenSSL::Crypto 
     Threads::Threads
 )
+
+# Test ACL and Locking
+add_executable(test_acl_lock tests/test_acl_lock.cpp)
+target_link_libraries(test_acl_lock filesystem storage)
+
+# Test WAL
+add_executable(test_wal tests/test_wal.cpp)
+target_link_libraries(test_wal filesystem storage)
+
+# Test Snapshot
+add_executable(test_snapshot tests/test_snapshot.cpp)
+target_link_libraries(test_snapshot filesystem storage)
 
 # Server executable
 add_executable(server apps/server_main.cpp)
@@ -133,3 +148,8 @@ target_link_libraries(test_comments review user filesystem storage OpenSSL::Cryp
 
 # Install targets
 install(TARGETS server client review_cli DESTINATION bin)
+
+# Test Auto Assign
+add_executable(test_auto_assign tests/test_auto_assign.cpp)
+target_link_libraries(test_auto_assign review user filesystem storage OpenSSL::Crypto)
+

@@ -5,7 +5,7 @@
 #include <sstream>
 
 DirectoryOps::DirectoryOps(BlockManager* blockManager)
-    : blockManager_(blockManager) {}
+    : blockManager_(blockManager), walManager_(nullptr) {}
 
 bool DirectoryOps::initializeRoot() {
     // 检查根目录是否已经存在
@@ -129,6 +129,11 @@ bool DirectoryOps::createSingleDirectory(const std::string& path) {
         return false;
     }
     
+    // WAL: 记录创建目录操作
+    if (walManager_) {
+        walManager_->log(LogOp::MKDIR, newInodeNum, parentInode, dirName);
+    }
+
     Inode dirInode;
     dirInode.type = FileType::DIRECTORY;
     dirInode.size = 0;
@@ -190,6 +195,11 @@ bool DirectoryOps::rmdir(const std::string& path) {
         return false;
     }
     
+    // WAL: 记录删除目录操作
+    if (walManager_) {
+        walManager_->log(LogOp::RMDIR, inodeId, parentInode, dirName);
+    }
+
     // 从父目录中移除条目
     if (!removeEntry(parentInode, dirName)) {
         return false;
@@ -267,6 +277,17 @@ bool DirectoryOps::addEntry(uint32_t dirInode, const std::string& name, uint32_t
             
             if (!entry.isValid()) {
                 // Found free slot
+                
+                // Check CoW
+                if (blockManager_->isShared(blockId)) {
+                    uint32_t newBlock = blockManager_->copyOnWrite(blockId);
+                    if (newBlock == INVALID_BLOCK) return false;
+                    inode.directBlocks[i] = newBlock;
+                    blockId = newBlock;
+                    // Re-read buffer from new block
+                    if (!blockManager_->readBlock(blockId, buffer)) return false;
+                }
+
                 DirectoryEntry newEntry(inodeId, name);
                 newEntry.serialize(buffer + offset);
                 
@@ -336,6 +357,17 @@ bool DirectoryOps::removeEntry(uint32_t dirInode, const std::string& name) {
             
             if (entry.isValid() && entry.getName() == name) {
                 // Found it! Mark as invalid (delete)
+                
+                // CoW check
+                if (blockManager_->isShared(blockId)) {
+                    uint32_t newBlock = blockManager_->copyOnWrite(blockId);
+                    if (newBlock == INVALID_BLOCK) return false;
+                    inode.directBlocks[i] = newBlock;
+                    blockId = newBlock;
+                    // Re-read buffer
+                    if (!blockManager_->readBlock(blockId, buffer)) return false;
+                }
+
                 // We just zero out the inodeNum to mark it as free
                 DirectoryEntry emptyEntry; // Default constructor sets INVALID_INODE
                 emptyEntry.serialize(buffer + offset);
@@ -354,6 +386,82 @@ bool DirectoryOps::removeEntry(uint32_t dirInode, const std::string& name) {
         }
     }
     
+    return false;
+}
+
+bool DirectoryOps::updateEntry(uint32_t dirInode, const std::string& name, uint32_t newInodeId) {
+    Inode inode;
+    if (!blockManager_->readInode(dirInode, inode)) {
+        return false;
+    }
+    
+    if (inode.type != FileType::DIRECTORY) {
+        return false;
+    }
+    
+    for (uint32_t i = 0; i < inode.blocks && i < MAX_DIRECT_BLOCKS; i++) {
+        uint32_t blockId = inode.directBlocks[i];
+        char buffer[4096];
+        if (!blockManager_->readBlock(blockId, buffer)) {
+            continue;
+        }
+        
+        bool found = false;
+        for (size_t offset = 0; offset < 4096; offset += sizeof(DirectoryEntry)) {
+            DirectoryEntry entry;
+            entry.deserialize(buffer + offset);
+            
+            if (entry.isValid() && entry.getName() == name) {
+                entry.inodeNum = newInodeId;
+                entry.serialize(buffer + offset);
+                found = true;
+                break;
+            }
+        }
+        
+        if (found) {
+            // Check CoW
+            if (blockManager_->isShared(blockId)) {
+                uint32_t newBlock = blockManager_->copyOnWrite(blockId);
+                if (newBlock == INVALID_BLOCK) return false;
+                inode.directBlocks[i] = newBlock;
+                blockId = newBlock;
+            }
+
+            if (blockManager_->writeBlock(blockId, buffer)) {
+                inode.mtime = std::time(nullptr);
+                blockManager_->writeInode(dirInode, inode);
+                return true;
+            }
+            return false;
+        }
+    }
+    
+    return false;
+}
+
+bool DirectoryOps::isEntryInSharedBlock(uint32_t dirInode, const std::string& name) {
+    Inode inode;
+    if (!blockManager_->readInode(dirInode, inode)) return false;
+    
+    for (uint32_t i = 0; i < inode.blocks && i < MAX_DIRECT_BLOCKS; i++) {
+        uint32_t blockId = inode.directBlocks[i];
+        if (blockId == 0) continue;
+        
+        // Optimization: if block is not shared, entry is not in shared block
+        if (!blockManager_->isShared(blockId)) continue;
+        
+        char buffer[4096];
+        if (!blockManager_->readBlock(blockId, buffer)) continue;
+        
+        for (size_t offset = 0; offset < 4096; offset += sizeof(DirectoryEntry)) {
+            DirectoryEntry entry;
+            entry.deserialize(buffer + offset);
+            if (entry.isValid() && entry.getName() == name) {
+                return true;
+            }
+        }
+    }
     return false;
 }
 
@@ -429,3 +537,58 @@ bool DirectoryOps::writeDirectoryBlock(uint32_t blockId, const std::vector<Direc
     
     return blockManager_->writeBlock(blockId, buffer);
 }
+
+uint32_t DirectoryOps::copyDirectoryBlock(uint32_t blockId) {
+    // 1. Allocate new block
+    uint32_t newBlockId = blockManager_->allocateBlock();
+    if (newBlockId == INVALID_BLOCK) return INVALID_BLOCK;
+    
+    // 2. Read old block
+    char buffer[4096];
+    if (!blockManager_->readBlock(blockId, buffer)) {
+        blockManager_->freeBlock(newBlockId);
+        return INVALID_BLOCK;
+    }
+    
+    // 3. Iterate and Deep Copy Inodes
+    for (size_t offset = 0; offset < 4096; offset += sizeof(DirectoryEntry)) {
+        DirectoryEntry entry;
+        entry.deserialize(buffer + offset);
+        if (entry.isValid()) {
+            // Allocate new Inode
+            uint32_t newInodeId = blockManager_->allocateInode();
+            if (newInodeId != INVALID_INODE) {
+                Inode inode;
+                if (blockManager_->readInode(entry.inodeNum, inode)) {
+                    // Copy Inode
+                    blockManager_->writeInode(newInodeId, inode);
+                    
+                    // IncRef Data Blocks
+                    for (int i = 0; i < MAX_DIRECT_BLOCKS; i++) {
+                        if (inode.directBlocks[i]) blockManager_->incRef(inode.directBlocks[i]);
+                    }
+                    if (inode.indirectBlock) blockManager_->incRef(inode.indirectBlock);
+                    if (inode.doubleIndirectBlock) blockManager_->incRef(inode.doubleIndirectBlock);
+                    if (inode.tripleIndirectBlock) blockManager_->incRef(inode.tripleIndirectBlock);
+                    
+                    // Update Entry
+                    entry.inodeNum = newInodeId;
+                    entry.serialize(buffer + offset);
+                }
+            }
+        }
+    }
+    
+    // 4. Write new block
+    blockManager_->writeBlock(newBlockId, buffer);
+    
+    // 5. DecRef old block
+    blockManager_->decRef(blockId);
+    
+    return newBlockId;
+}
+
+
+
+
+

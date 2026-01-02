@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/test_comments.dir/tests/test_comments.cpp.o -o test_comments  libreview.a libuser.a libfilesystem.a libstorage.a /usr/lib/x86_64-linux-gnu/libcrypto.so 

@@ -36,13 +36,17 @@ struct Superblock {
     uint32_t inodeTableStart;
     uint32_t dataBlocksStart;
 
-    // (目前已用: 16 + 44 = 60 字节)
+    // 日志区域 (WAL)
+    uint32_t logStartBlock;
+    uint32_t logSizeBlocks;
+
+    // (目前已用: 16 + 44 + 8 = 68 字节)
 
     // =========================================================
-    // 3. 填充字段 (68 字节)
-    // 128 - 60 = 68
+    // 3. 填充字段 (60 字节)
+    // 128 - 68 = 60
     // =========================================================
-    uint8_t padding[SUPERBLOCK_STRUCT_SIZE - 60];
+    uint8_t padding[SUPERBLOCK_STRUCT_SIZE - 68];
 
     // 构造函数：只做清零，不负责初始化逻辑
     Superblock() {
@@ -92,7 +96,12 @@ struct Superblock {
         uint32_t inodeTableBlocks = (sb.totalInodes + Config::INODES_PER_BLOCK - 1) / Config::INODES_PER_BLOCK;
         currentBlock += inodeTableBlocks;
 
-        // 4. Data Blocks
+        // 4. Log Area (WAL)
+        sb.logStartBlock = currentBlock;
+        sb.logSizeBlocks = 64; // 256KB Log Area
+        currentBlock += sb.logSizeBlocks;
+
+        // 5. Data Blocks
         sb.dataBlocksStart = currentBlock;
         
         // --- 剩余空间计算 ---

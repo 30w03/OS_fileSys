@@ -3,6 +3,7 @@
 
 #include "filesystem/block_manager.h"
 #include "filesystem/directory_ops.h"
+#include "filesystem/wal.h"
 #include <string>
 #include <vector>
 
@@ -10,6 +11,8 @@ class FileOps {
 public:
     FileOps(BlockManager* blockManager, DirectoryOps* dirOps);
     
+    void setWALManager(std::shared_ptr<WALManager> wal) { walManager_ = wal; }
+
     // 文件基础操作
     bool createFile(uint32_t userId, const std::string& path, mode_t mode = 0644);
     bool deleteFile(uint32_t userId, const std::string& path);
@@ -27,10 +30,20 @@ public:
     bool getFileInfo(uint32_t userId, const std::string& path, Inode& inode);
     bool setPermissions(uint32_t userId, const std::string& path, mode_t mode);
     
+    // ACL 与 权限控制
+    bool grantPermission(uint32_t userId, const std::string& path, uint32_t targetUid);
+    bool revokePermission(uint32_t userId, const std::string& path, uint32_t targetUid);
+    bool setFileLock(uint32_t userId, const std::string& path, bool locked);
+
 private:
     BlockManager* blockManager_;
     DirectoryOps* dirOps_;
+    std::shared_ptr<WALManager> walManager_;
     
+    // 权限检查辅助函数
+    enum class AccessMode { READ, WRITE, EXECUTE };
+    bool checkPermission(uint32_t userId, const Inode& inode, AccessMode mode);
+
     // 辅助函数
     bool allocateBlocks(Inode& inode, size_t requiredBlocks);
     bool freeFileBlocks(Inode& inode);

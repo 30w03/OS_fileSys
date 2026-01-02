@@ -31,9 +31,10 @@ public:
     bool registerUser(const std::string& username, const std::string& password, const std::string& role);
     bool login(const std::string& username, const std::string& password);
     bool logout();
+    bool updateProfile(const std::string& institution, const std::vector<std::string>& interests, int maxLoad);
     
     // 论文管理
-    bool submitPaper(const std::string& title, const std::string& abstract, const std::vector<char>& content);
+    bool submitPaper(const std::string& title, const std::string& abstract, const std::vector<char>& content, const std::vector<std::string>& keywords = {});
     std::vector<PaperInfo> getMyPapers();
     std::vector<PaperInfo> getAllPapers();
     
@@ -43,9 +44,24 @@ public:
     
     // 编辑操作
     bool assignReviewer(uint32_t paperId, uint32_t reviewerId);
+    bool autoAssignReviewers(uint32_t paperId);
     
     // 统计信息
     Statistics getStatistics();
+
+    // 系统监控
+    struct SystemStats {
+        uint64_t uptime_seconds;
+        uint32_t total_connections;
+        uint32_t active_connections;
+        uint32_t total_requests;
+        uint32_t cache_hit_rate;
+        uint32_t memory_usage_mb;
+        uint32_t disk_usage_mb;
+    };
+    
+    SystemStats getSystemStats();
+    std::vector<std::pair<uint32_t, std::string>> getOnlineUsers();
 
     // 显示我的论文（带评审详情）
     void viewMyPapers();

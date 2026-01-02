@@ -178,3 +178,30 @@ bool Connection::receiveAll(char* buffer, size_t size) {
     
     return true;
 }
+
+bool Connection::receiveRawData(char* buffer, size_t size) {
+    return receiveAll(buffer, size);
+}
+
+bool Connection::peekFirstBytes(char* buffer, size_t size) {
+    if (!connected_) {
+        return false;
+    }
+    
+    ssize_t received = recv(socket_, buffer, size, MSG_PEEK);
+    
+    if (received <= 0) {
+        connected_ = false;
+        return false;
+    }
+    
+    return true;
+}
+
+bool Connection::sendHttpResponse(const std::string& response) {
+    if (!connected_) {
+        return false;
+    }
+    
+    return sendAll(response.c_str(), response.size());
+}

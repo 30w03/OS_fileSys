@@ -15,6 +15,8 @@ public:
     bool authenticateUser(const std::string& username, const std::string& password, uint32_t& userId);
     bool getUserById(uint32_t userId, User& user);
     bool updateUserRole(uint32_t userId, UserRole newRole);
+    bool updateUserProfile(uint32_t userId, const std::string& institution, 
+                          const std::vector<std::string>& interests, int maxLoad);
     bool deactivateUser(uint32_t userId);
     std::vector<User> listAllUsers();
     

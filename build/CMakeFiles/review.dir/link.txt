@@ -1,2 +1,0 @@
-/usr/bin/ar qc libreview.a CMakeFiles/review.dir/src/review/review_system.cpp.o
-/usr/bin/ranlib libreview.a
