@@ -190,44 +190,24 @@ CMakeFiles/server.dir/apps/server_main.cpp.o: ../apps/server_main.cpp \
   /usr/include/c++/11/backward/auto_ptr.h \
   /usr/include/c++/11/pstl/glue_memory_defs.h \
   /usr/include/c++/11/pstl/execution_defs.h \
-  ../include/filesystem/filesystem.h \
-  ../include/storage/storage.h \
+  ../include/network/http_handler.h \
   /usr/include/c++/11/map \
   /usr/include/c++/11/bits/stl_tree.h \
   /usr/include/c++/11/bits/node_handle.h \
   /usr/include/c++/11/bits/stl_map.h \
   /usr/include/c++/11/bits/stl_multimap.h \
   /usr/include/c++/11/bits/erase_if.h \
-  /usr/include/c++/11/unordered_map \
-  /usr/include/c++/11/bits/hashtable.h \
-  /usr/include/c++/11/bits/hashtable_policy.h \
-  /usr/include/c++/11/bits/enable_special_members.h \
-  /usr/include/c++/11/bits/unordered_map.h \
-  /usr/include/c++/11/mutex \
-  /usr/include/c++/11/chrono \
-  /usr/include/c++/11/ratio \
-  /usr/include/c++/11/limits \
-  /usr/include/c++/11/bits/parse_numbers.h \
-  /usr/include/c++/11/system_error \
-  /usr/include/x86_64-linux-gnu/c++/11/bits/error_constants.h \
-  /usr/include/c++/11/stdexcept \
-  /usr/include/c++/11/bits/std_mutex.h \
-  /usr/include/c++/11/bits/unique_lock.h \
-  ../include/user/user_manager.h \
-  ../include/user/user.h \
-  ../include/review/review_system.h \
-  ../include/review/paper.h \
-  ../include/review/review.h \
-  /usr/include/c++/11/thread \
-  /usr/include/c++/11/bits/std_thread.h \
-  /usr/include/c++/11/bits/this_thread_sleep.h \
-  /usr/include/c++/11/atomic \
-  /usr/include/c++/11/iostream \
-  /usr/include/c++/11/ostream \
+  ../include/filesystem/filesystem.h \
+  ../include/filesystem/disk.h \
+  /usr/include/c++/11/fstream \
+  /usr/include/c++/11/istream \
   /usr/include/c++/11/ios \
   /usr/include/c++/11/bits/ios_base.h \
   /usr/include/c++/11/bits/locale_classes.h \
   /usr/include/c++/11/bits/locale_classes.tcc \
+  /usr/include/c++/11/system_error \
+  /usr/include/x86_64-linux-gnu/c++/11/bits/error_constants.h \
+  /usr/include/c++/11/stdexcept \
   /usr/include/c++/11/streambuf \
   /usr/include/c++/11/bits/streambuf.tcc \
   /usr/include/c++/11/bits/basic_ios.h \
@@ -240,9 +220,58 @@ CMakeFiles/server.dir/apps/server_main.cpp.o: ../apps/server_main.cpp \
   /usr/include/x86_64-linux-gnu/c++/11/bits/ctype_inline.h \
   /usr/include/c++/11/bits/locale_facets.tcc \
   /usr/include/c++/11/bits/basic_ios.tcc \
+  /usr/include/c++/11/ostream \
   /usr/include/c++/11/bits/ostream.tcc \
-  /usr/include/c++/11/istream \
   /usr/include/c++/11/bits/istream.tcc \
+  /usr/include/c++/11/bits/codecvt.h \
+  /usr/include/x86_64-linux-gnu/c++/11/bits/basic_file.h \
+  /usr/include/x86_64-linux-gnu/c++/11/bits/c++io.h \
+  /usr/include/c++/11/bits/fstream.tcc \
+  ../include/filesystem/block_manager.h \
+  ../include/filesystem/inode.h \
+  ../include/filesystem/superblock.h \
+  /usr/include/c++/11/cstring \
+  /usr/include/string.h \
+  /usr/include/strings.h \
+  /usr/include/c++/11/iostream \
+  /usr/include/c++/11/algorithm \
+  /usr/include/c++/11/bits/stl_algo.h \
+  /usr/include/c++/11/bits/algorithmfwd.h \
+  /usr/include/c++/11/bits/stl_heap.h \
+  /usr/include/c++/11/bits/uniform_int_dist.h \
+  /usr/include/c++/11/pstl/glue_algorithm_defs.h \
+  /usr/include/c++/11/functional \
+  /usr/include/c++/11/bits/std_function.h \
+  /usr/include/c++/11/unordered_map \
+  /usr/include/c++/11/bits/hashtable.h \
+  /usr/include/c++/11/bits/hashtable_policy.h \
+  /usr/include/c++/11/bits/enable_special_members.h \
+  /usr/include/c++/11/bits/unordered_map.h \
+  ../include/common/config.h \
+  ../include/storage/cache.h \
+  /usr/include/c++/11/list \
+  /usr/include/c++/11/bits/stl_list.h \
+  /usr/include/c++/11/bits/list.tcc \
+  ../include/filesystem/file_ops.h \
+  ../include/filesystem/directory_ops.h \
+  ../include/filesystem/directory.h \
+  ../include/user/user_manager.h \
+  ../include/user/user.h \
+  /usr/include/c++/11/mutex \
+  /usr/include/c++/11/chrono \
+  /usr/include/c++/11/ratio \
+  /usr/include/c++/11/limits \
+  /usr/include/c++/11/bits/parse_numbers.h \
+  /usr/include/c++/11/bits/std_mutex.h \
+  /usr/include/c++/11/bits/unique_lock.h \
+  ../include/review/review_system.h \
+  ../include/review/paper.h \
+  ../include/review/review.h \
+  ../include/filesystem/filesystem.h \
+  /usr/include/c++/11/thread \
+  /usr/include/c++/11/bits/std_thread.h \
+  /usr/include/c++/11/bits/this_thread_sleep.h \
+  /usr/include/c++/11/atomic \
   /usr/include/c++/11/csignal \
   /usr/include/signal.h \
   /usr/include/x86_64-linux-gnu/bits/signum-generic.h \
@@ -278,8 +307,6 @@ CMakeFiles/server.dir/apps/server_main.cpp.o: ../apps/server_main.cpp \
 
 /usr/include/x86_64-linux-gnu/bits/signal_ext.h:
 
-/usr/include/x86_64-linux-gnu/bits/sigthread.h:
-
 /usr/include/linux/close_range.h:
 
 /usr/include/x86_64-linux-gnu/bits/unistd_ext.h:
@@ -296,6 +323,38 @@ CMakeFiles/server.dir/apps/server_main.cpp.o: ../apps/server_main.cpp \
 
 /usr/include/x86_64-linux-gnu/bits/types/stack_t.h:
 
+/usr/include/x86_64-linux-gnu/bits/sigcontext.h:
+
+/usr/include/x86_64-linux-gnu/bits/sigaction.h:
+
+/usr/include/x86_64-linux-gnu/bits/sigevent-consts.h:
+
+/usr/include/x86_64-linux-gnu/bits/types/sigevent_t.h:
+
+/usr/include/x86_64-linux-gnu/bits/types/sigval_t.h:
+
+/usr/include/x86_64-linux-gnu/bits/siginfo-consts-arch.h:
+
+/usr/include/x86_64-linux-gnu/bits/siginfo-consts.h:
+
+/usr/include/x86_64-linux-gnu/bits/siginfo-arch.h:
+
+/usr/include/x86_64-linux-gnu/bits/signum-generic.h:
+
+/usr/include/c++/11/atomic:
+
+../include/review/paper.h:
+
+/usr/include/c++/11/bits/std_mutex.h:
+
+/usr/include/c++/11/bits/parse_numbers.h:
+
+/usr/include/c++/11/limits:
+
+/usr/include/c++/11/thread:
+
+/usr/include/c++/11/ratio:
+
 /usr/include/stdlib.h:
 
 /usr/include/c++/11/bits/string_view.tcc:
@@ -304,9 +363,19 @@ CMakeFiles/server.dir/apps/server_main.cpp.o: ../apps/server_main.cpp \
 
 /usr/include/c++/11/bits/cxxabi_forced.h:
 
+../include/review/review_system.h:
+
+/usr/include/c++/11/fstream:
+
 /usr/include/x86_64-linux-gnu/bits/types/__fpos64_t.h:
 
+../include/network/http_handler.h:
+
 /usr/include/x86_64-linux-gnu/bits/struct_rwlock.h:
+
+/usr/include/signal.h:
+
+/usr/include/strings.h:
 
 /usr/include/c++/11/cstdlib:
 
@@ -318,15 +387,11 @@ CMakeFiles/server.dir/apps/server_main.cpp.o: ../apps/server_main.cpp \
 
 /usr/include/c++/11/ext/new_allocator.h:
 
-/usr/include/x86_64-linux-gnu/bits/sigcontext.h:
-
 /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h:
 
 /usr/include/c++/11/bits/allocated_ptr.h:
 
 /usr/include/x86_64-linux-gnu/bits/types/timer_t.h:
-
-/usr/include/x86_64-linux-gnu/bits/signum-generic.h:
 
 /usr/include/c++/11/mutex:
 
@@ -362,6 +427,8 @@ CMakeFiles/server.dir/apps/server_main.cpp.o: ../apps/server_main.cpp \
 
 /usr/include/x86_64-linux-gnu/bits/select.h:
 
+/usr/include/c++/11/algorithm:
+
 /usr/include/x86_64-linux-gnu/bits/endianness.h:
 
 /usr/include/x86_64-linux-gnu/bits/locale.h:
@@ -372,13 +439,7 @@ CMakeFiles/server.dir/apps/server_main.cpp.o: ../apps/server_main.cpp \
 
 /usr/include/x86_64-linux-gnu/bits/waitflags.h:
 
-/usr/include/c++/11/bits/localefwd.h:
-
 /usr/include/x86_64-linux-gnu/c++/11/bits/c++allocator.h:
-
-/usr/include/x86_64-linux-gnu/bits/types/struct_sigstack.h:
-
-/usr/include/x86_64-linux-gnu/bits/types/__locale_t.h:
 
 /usr/include/x86_64-linux-gnu/bits/types/locale_t.h:
 
@@ -388,13 +449,7 @@ CMakeFiles/server.dir/apps/server_main.cpp.o: ../apps/server_main.cpp \
 
 /usr/include/x86_64-linux-gnu/bits/types/FILE.h:
 
-/usr/include/signal.h:
-
 /usr/include/x86_64-linux-gnu/sys/select.h:
-
-../include/review/paper.h:
-
-/usr/include/x86_64-linux-gnu/bits/siginfo-arch.h:
 
 /usr/include/x86_64-linux-gnu/gnu/stubs-64.h:
 
@@ -440,6 +495,12 @@ CMakeFiles/server.dir/apps/server_main.cpp.o: ../apps/server_main.cpp \
 
 /usr/include/x86_64-linux-gnu/c++/11/bits/ctype_inline.h:
 
+/usr/include/x86_64-linux-gnu/bits/ss_flags.h:
+
+/usr/include/x86_64-linux-gnu/bits/types/sig_atomic_t.h:
+
+/usr/include/c++/11/bits/list.tcc:
+
 /usr/include/c++/11/bits/memoryfwd.h:
 
 /usr/include/c++/11/bits/stl_function.h:
@@ -450,11 +511,11 @@ CMakeFiles/server.dir/apps/server_main.cpp.o: ../apps/server_main.cpp \
 
 /usr/include/c++/11/new:
 
-/usr/include/x86_64-linux-gnu/bits/sigevent-consts.h:
-
 /usr/include/stdc-predef.h:
 
 /usr/include/c++/11/bits/alloc_traits.h:
+
+../include/filesystem/directory.h:
 
 /usr/include/c++/11/bits/unordered_map.h:
 
@@ -463,6 +524,12 @@ CMakeFiles/server.dir/apps/server_main.cpp.o: ../apps/server_main.cpp \
 /usr/include/x86_64-linux-gnu/bits/sched.h:
 
 /usr/include/ctype.h:
+
+/usr/include/c++/11/bits/std_thread.h:
+
+/usr/include/c++/11/bits/cpp_type_traits.h:
+
+/usr/include/c++/11/bits/stl_iterator_base_funcs.h:
 
 /usr/include/x86_64-linux-gnu/bits/time64.h:
 
@@ -473,8 +540,6 @@ CMakeFiles/server.dir/apps/server_main.cpp.o: ../apps/server_main.cpp \
 /usr/include/c++/11/initializer_list:
 
 /usr/include/x86_64-linux-gnu/c++/11/bits/c++locale.h:
-
-/usr/include/x86_64-linux-gnu/bits/siginfo-consts.h:
 
 /usr/include/unistd.h:
 
@@ -496,6 +561,10 @@ CMakeFiles/server.dir/apps/server_main.cpp.o: ../apps/server_main.cpp \
 
 /usr/include/c++/11/ext/type_traits.h:
 
+/usr/include/c++/11/csignal:
+
+/usr/include/c++/11/pstl/glue_memory_defs.h:
+
 /usr/include/c++/11/ext/numeric_traits.h:
 
 /usr/include/c++/11/bits/atomic_base.h:
@@ -506,7 +575,9 @@ CMakeFiles/server.dir/apps/server_main.cpp.o: ../apps/server_main.cpp \
 
 /usr/include/c++/11/bits/char_traits.h:
 
-/usr/include/c++/11/pstl/execution_defs.h:
+/usr/include/c++/11/chrono:
+
+/usr/include/x86_64-linux-gnu/bits/wordsize.h:
 
 /usr/include/x86_64-linux-gnu/bits/types/struct_itimerspec.h:
 
@@ -518,8 +589,6 @@ CMakeFiles/server.dir/apps/server_main.cpp.o: ../apps/server_main.cpp \
 
 /usr/lib/gcc/x86_64-linux-gnu/11/include/stdarg.h:
 
-/usr/include/c++/11/bits/std_mutex.h:
-
 ../include/network/server.h:
 
 /usr/include/x86_64-linux-gnu/c++/11/bits/c++config.h:
@@ -527,6 +596,8 @@ CMakeFiles/server.dir/apps/server_main.cpp.o: ../apps/server_main.cpp \
 /usr/include/x86_64-linux-gnu/bits/pthread_stack_min-dynamic.h:
 
 ../include/protocol/protocol.h:
+
+/usr/include/c++/11/functional:
 
 /usr/include/linux/errno.h:
 
@@ -538,11 +609,15 @@ CMakeFiles/server.dir/apps/server_main.cpp.o: ../apps/server_main.cpp \
 
 /usr/include/c++/11/bits/exception_ptr.h:
 
+/usr/include/c++/11/list:
+
 /usr/include/x86_64-linux-gnu/bits/stdio_lim.h:
 
 /usr/include/x86_64-linux-gnu/bits/timex.h:
 
 /usr/include/c++/11/bits/invoke.h:
+
+../include/common/config.h:
 
 /usr/include/c++/11/bits/postypes.h:
 
@@ -555,6 +630,10 @@ CMakeFiles/server.dir/apps/server_main.cpp.o: ../apps/server_main.cpp \
 ../include/user/user_manager.h:
 
 /usr/include/x86_64-linux-gnu/c++/11/bits/gthr.h:
+
+/usr/include/x86_64-linux-gnu/bits/types/__sigval_t.h:
+
+/usr/include/c++/11/bits/functexcept.h:
 
 /usr/include/c++/11/streambuf:
 
@@ -572,9 +651,15 @@ CMakeFiles/server.dir/apps/server_main.cpp.o: ../apps/server_main.cpp \
 
 /usr/include/c++/11/bits/exception_defines.h:
 
-/usr/include/c++/11/atomic:
+../include/filesystem/superblock.h:
 
 /usr/include/x86_64-linux-gnu/bits/libc-header-start.h:
+
+/usr/include/x86_64-linux-gnu/bits/types/struct_sigstack.h:
+
+/usr/include/x86_64-linux-gnu/bits/types/__locale_t.h:
+
+../include/filesystem/file_ops.h:
 
 /usr/include/x86_64-linux-gnu/sys/single_threaded.h:
 
@@ -602,7 +687,7 @@ CMakeFiles/server.dir/apps/server_main.cpp.o: ../apps/server_main.cpp \
 
 /usr/include/x86_64-linux-gnu/bits/types/clock_t.h:
 
-/usr/include/x86_64-linux-gnu/bits/types/__FILE.h:
+/usr/include/c++/11/bits/std_function.h:
 
 /usr/include/c++/11/bits/stl_tempbuf.h:
 
@@ -638,21 +723,13 @@ CMakeFiles/server.dir/apps/server_main.cpp.o: ../apps/server_main.cpp \
 
 /usr/include/c++/11/bits/shared_ptr.h:
 
-/usr/include/x86_64-linux-gnu/bits/siginfo-consts-arch.h:
-
 /usr/include/x86_64-linux-gnu/bits/uintn-identity.h:
 
 /usr/include/x86_64-linux-gnu/bits/stdlib-float.h:
 
 /usr/include/alloca.h:
 
-/usr/include/c++/11/bits/std_abs.h:
-
 /usr/include/c++/11/cstdio:
-
-/usr/include/x86_64-linux-gnu/bits/wordsize.h:
-
-/usr/include/c++/11/chrono:
 
 /usr/include/stdio.h:
 
@@ -662,9 +739,9 @@ CMakeFiles/server.dir/apps/server_main.cpp.o: ../apps/server_main.cpp \
 
 /usr/include/errno.h:
 
-/usr/include/c++/11/bits/functexcept.h:
+/usr/include/x86_64-linux-gnu/bits/signum-arch.h:
 
-/usr/include/x86_64-linux-gnu/bits/types/__sigval_t.h:
+/usr/include/x86_64-linux-gnu/bits/errno.h:
 
 /usr/include/sched.h:
 
@@ -683,8 +760,6 @@ CMakeFiles/server.dir/apps/server_main.cpp.o: ../apps/server_main.cpp \
 ../include/review/review.h:
 
 /usr/include/c++/11/bits/basic_string.tcc:
-
-/usr/include/x86_64-linux-gnu/bits/sigaction.h:
 
 /usr/include/c++/11/bits/stl_uninitialized.h:
 
@@ -706,6 +781,10 @@ CMakeFiles/server.dir/apps/server_main.cpp.o: ../apps/server_main.cpp \
 
 /usr/include/c++/11/bits/stl_raw_storage_iter.h:
 
+/usr/include/c++/11/bits/unique_lock.h:
+
+/usr/include/c++/11/bits/uses_allocator.h:
+
 /usr/include/c++/11/bits/unique_ptr.h:
 
 /usr/include/c++/11/ostream:
@@ -720,17 +799,17 @@ CMakeFiles/server.dir/apps/server_main.cpp.o: ../apps/server_main.cpp \
 
 /usr/include/c++/11/bits/refwrap.h:
 
+/usr/include/c++/11/bits/localefwd.h:
+
+../include/filesystem/block_manager.h:
+
 /usr/include/c++/11/exception:
 
 /usr/include/c++/11/bits/nested_exception.h:
 
 /usr/include/c++/11/bits/shared_ptr_atomic.h:
 
-/usr/include/c++/11/bits/parse_numbers.h:
-
 /usr/include/c++/11/bits/atomic_lockfree_defines.h:
-
-/usr/include/c++/11/bits/streambuf.tcc:
 
 /usr/include/c++/11/bits/stl_map.h:
 
@@ -742,17 +821,19 @@ CMakeFiles/server.dir/apps/server_main.cpp.o: ../apps/server_main.cpp \
 
 /usr/include/c++/11/bits/erase_if.h:
 
-/usr/include/x86_64-linux-gnu/bits/types/sigevent_t.h:
+../include/filesystem/disk.h:
 
-/usr/include/c++/11/bits/hashtable.h:
+/usr/include/c++/11/bits/istream.tcc:
 
-/usr/include/c++/11/bits/hashtable_policy.h:
+/usr/include/c++/11/istream:
 
-/usr/include/c++/11/thread:
+/usr/include/x86_64-linux-gnu/bits/types/siginfo_t.h:
 
-/usr/include/c++/11/ratio:
+/usr/include/c++/11/bits/ios_base.h:
 
-/usr/include/c++/11/limits:
+/usr/include/c++/11/bits/locale_classes.h:
+
+/usr/include/c++/11/bits/locale_classes.tcc:
 
 /usr/include/c++/11/ios:
 
@@ -760,25 +841,13 @@ CMakeFiles/server.dir/apps/server_main.cpp.o: ../apps/server_main.cpp \
 
 /usr/include/x86_64-linux-gnu/c++/11/bits/error_constants.h:
 
+/usr/include/c++/11/pstl/glue_algorithm_defs.h:
+
 /usr/include/c++/11/stdexcept:
 
-/usr/include/c++/11/bits/uses_allocator.h:
-
-/usr/include/c++/11/bits/unique_lock.h:
-
-../include/review/review_system.h:
+/usr/include/c++/11/bits/uniform_int_dist.h:
 
 /usr/include/c++/11/bits/basic_ios.h:
-
-/usr/include/c++/11/bits/cpp_type_traits.h:
-
-/usr/include/c++/11/bits/stl_iterator_base_funcs.h:
-
-/usr/include/c++/11/bits/std_thread.h:
-
-/usr/include/c++/11/bits/locale_classes.h:
-
-/usr/include/c++/11/bits/locale_classes.tcc:
 
 /usr/include/c++/11/bits/exception.h:
 
@@ -792,32 +861,48 @@ CMakeFiles/server.dir/apps/server_main.cpp.o: ../apps/server_main.cpp \
 
 /usr/include/c++/11/bits/locale_facets.tcc:
 
-/usr/include/c++/11/bits/enable_special_members.h:
+/usr/include/x86_64-linux-gnu/bits/sigthread.h:
 
-../include/user/user.h:
+../include/storage/cache.h:
+
+/usr/include/x86_64-linux-gnu/c++/11/bits/basic_file.h:
+
+/usr/include/x86_64-linux-gnu/c++/11/bits/c++io.h:
+
+/usr/include/c++/11/bits/fstream.tcc:
+
+../include/filesystem/inode.h:
+
+/usr/include/x86_64-linux-gnu/bits/types/__FILE.h:
+
+/usr/include/c++/11/cstring:
+
+/usr/include/c++/11/bits/streambuf.tcc:
+
+/usr/include/string.h:
+
+/usr/include/c++/11/bits/stl_algo.h:
+
+/usr/include/c++/11/pstl/execution_defs.h:
+
+/usr/include/c++/11/bits/algorithmfwd.h:
+
+/usr/include/c++/11/bits/std_abs.h:
+
+/usr/include/c++/11/bits/stl_heap.h:
+
+/usr/include/c++/11/bits/hashtable.h:
+
+/usr/include/c++/11/bits/hashtable_policy.h:
+
+/usr/include/c++/11/bits/stl_list.h:
+
+../include/filesystem/directory_ops.h:
+
+/usr/include/c++/11/bits/codecvt.h:
 
 /usr/include/c++/11/bits/basic_ios.tcc:
 
-/usr/include/c++/11/istream:
+/usr/include/c++/11/bits/enable_special_members.h:
 
-/usr/include/c++/11/pstl/glue_memory_defs.h:
-
-/usr/include/c++/11/csignal:
-
-/usr/include/c++/11/bits/istream.tcc:
-
-/usr/include/x86_64-linux-gnu/bits/errno.h:
-
-/usr/include/x86_64-linux-gnu/bits/signum-arch.h:
-
-/usr/include/x86_64-linux-gnu/bits/ss_flags.h:
-
-/usr/include/x86_64-linux-gnu/bits/types/sig_atomic_t.h:
-
-/usr/include/c++/11/bits/ios_base.h:
-
-/usr/include/x86_64-linux-gnu/bits/types/siginfo_t.h:
-
-../include/storage/storage.h:
-
-/usr/include/x86_64-linux-gnu/bits/types/sigval_t.h:
+../include/user/user.h:

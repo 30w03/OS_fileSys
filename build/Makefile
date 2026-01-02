@@ -240,6 +240,19 @@ network/fast:
 .PHONY : network/fast
 
 #=============================================================================
+# Target rules for targets named test_acl_lock
+
+# Build rule for target.
+test_acl_lock: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 test_acl_lock
+.PHONY : test_acl_lock
+
+# fast build rule for target.
+test_acl_lock/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_acl_lock.dir/build.make CMakeFiles/test_acl_lock.dir/build
+.PHONY : test_acl_lock/fast
+
+#=============================================================================
 # Target rules for targets named server
 
 # Build rule for target.
@@ -670,6 +683,30 @@ src/network/connection.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/network.dir/build.make CMakeFiles/network.dir/src/network/connection.cpp.s
 .PHONY : src/network/connection.cpp.s
 
+src/network/http_handler.o: src/network/http_handler.cpp.o
+.PHONY : src/network/http_handler.o
+
+# target to build an object file
+src/network/http_handler.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/network.dir/build.make CMakeFiles/network.dir/src/network/http_handler.cpp.o
+.PHONY : src/network/http_handler.cpp.o
+
+src/network/http_handler.i: src/network/http_handler.cpp.i
+.PHONY : src/network/http_handler.i
+
+# target to preprocess a source file
+src/network/http_handler.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/network.dir/build.make CMakeFiles/network.dir/src/network/http_handler.cpp.i
+.PHONY : src/network/http_handler.cpp.i
+
+src/network/http_handler.s: src/network/http_handler.cpp.s
+.PHONY : src/network/http_handler.s
+
+# target to generate assembly for a file
+src/network/http_handler.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/network.dir/build.make CMakeFiles/network.dir/src/network/http_handler.cpp.s
+.PHONY : src/network/http_handler.cpp.s
+
 src/network/server.o: src/network/server.cpp.o
 .PHONY : src/network/server.o
 
@@ -837,6 +874,30 @@ src/user/user_manager.s: src/user/user_manager.cpp.s
 src/user/user_manager.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/user.dir/build.make CMakeFiles/user.dir/src/user/user_manager.cpp.s
 .PHONY : src/user/user_manager.cpp.s
+
+tests/test_acl_lock.o: tests/test_acl_lock.cpp.o
+.PHONY : tests/test_acl_lock.o
+
+# target to build an object file
+tests/test_acl_lock.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_acl_lock.dir/build.make CMakeFiles/test_acl_lock.dir/tests/test_acl_lock.cpp.o
+.PHONY : tests/test_acl_lock.cpp.o
+
+tests/test_acl_lock.i: tests/test_acl_lock.cpp.i
+.PHONY : tests/test_acl_lock.i
+
+# target to preprocess a source file
+tests/test_acl_lock.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_acl_lock.dir/build.make CMakeFiles/test_acl_lock.dir/tests/test_acl_lock.cpp.i
+.PHONY : tests/test_acl_lock.cpp.i
+
+tests/test_acl_lock.s: tests/test_acl_lock.cpp.s
+.PHONY : tests/test_acl_lock.s
+
+# target to generate assembly for a file
+tests/test_acl_lock.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_acl_lock.dir/build.make CMakeFiles/test_acl_lock.dir/tests/test_acl_lock.cpp.s
+.PHONY : tests/test_acl_lock.cpp.s
 
 tests/test_backup.o: tests/test_backup.cpp.o
 .PHONY : tests/test_backup.o
@@ -1050,6 +1111,7 @@ help:
 	@echo "... review_cli"
 	@echo "... server"
 	@echo "... storage"
+	@echo "... test_acl_lock"
 	@echo "... test_backup"
 	@echo "... test_comments"
 	@echo "... test_directory"
@@ -1095,6 +1157,9 @@ help:
 	@echo "... src/network/connection.o"
 	@echo "... src/network/connection.i"
 	@echo "... src/network/connection.s"
+	@echo "... src/network/http_handler.o"
+	@echo "... src/network/http_handler.i"
+	@echo "... src/network/http_handler.s"
 	@echo "... src/network/server.o"
 	@echo "... src/network/server.i"
 	@echo "... src/network/server.s"
@@ -1116,6 +1181,9 @@ help:
 	@echo "... src/user/user_manager.o"
 	@echo "... src/user/user_manager.i"
 	@echo "... src/user/user_manager.s"
+	@echo "... tests/test_acl_lock.o"
+	@echo "... tests/test_acl_lock.i"
+	@echo "... tests/test_acl_lock.s"
 	@echo "... tests/test_backup.o"
 	@echo "... tests/test_backup.i"
 	@echo "... tests/test_backup.s"

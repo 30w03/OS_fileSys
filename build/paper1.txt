@@ -1,3 +1,0 @@
-This is my research paper about deep learning and neural networks.
-It presents novel CNN architectures and experimental results.
-The paper demonstrates significant improvements over existing methods.

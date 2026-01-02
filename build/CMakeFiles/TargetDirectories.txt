@@ -4,6 +4,7 @@
 /home/project/peer-review-system/build/CMakeFiles/user.dir
 /home/project/peer-review-system/build/CMakeFiles/review.dir
 /home/project/peer-review-system/build/CMakeFiles/network.dir
+/home/project/peer-review-system/build/CMakeFiles/test_acl_lock.dir
 /home/project/peer-review-system/build/CMakeFiles/server.dir
 /home/project/peer-review-system/build/CMakeFiles/client.dir
 /home/project/peer-review-system/build/CMakeFiles/review_cli.dir

@@ -10,6 +10,7 @@ set(CMAKE_DEPENDS_LANGUAGES
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/home/project/peer-review-system/src/network/client.cpp" "CMakeFiles/network.dir/src/network/client.cpp.o" "gcc" "CMakeFiles/network.dir/src/network/client.cpp.o.d"
   "/home/project/peer-review-system/src/network/connection.cpp" "CMakeFiles/network.dir/src/network/connection.cpp.o" "gcc" "CMakeFiles/network.dir/src/network/connection.cpp.o.d"
+  "/home/project/peer-review-system/src/network/http_handler.cpp" "CMakeFiles/network.dir/src/network/http_handler.cpp.o" "gcc" "CMakeFiles/network.dir/src/network/http_handler.cpp.o.d"
   "/home/project/peer-review-system/src/network/server.cpp" "CMakeFiles/network.dir/src/network/server.cpp.o" "gcc" "CMakeFiles/network.dir/src/network/server.cpp.o.d"
   )
 

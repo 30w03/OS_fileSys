@@ -3,6 +3,8 @@ file(REMOVE_RECURSE
   "CMakeFiles/network.dir/src/network/client.cpp.o.d"
   "CMakeFiles/network.dir/src/network/connection.cpp.o"
   "CMakeFiles/network.dir/src/network/connection.cpp.o.d"
+  "CMakeFiles/network.dir/src/network/http_handler.cpp.o"
+  "CMakeFiles/network.dir/src/network/http_handler.cpp.o.d"
   "CMakeFiles/network.dir/src/network/server.cpp.o"
   "CMakeFiles/network.dir/src/network/server.cpp.o.d"
   "libnetwork.a"

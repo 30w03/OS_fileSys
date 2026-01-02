@@ -111,11 +111,26 @@ CMakeFiles/network.dir/src/network/client.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/network.dir/src/network/client.cpp.s"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/project/peer-review-system/src/network/client.cpp -o CMakeFiles/network.dir/src/network/client.cpp.s
 
+CMakeFiles/network.dir/src/network/http_handler.cpp.o: CMakeFiles/network.dir/flags.make
+CMakeFiles/network.dir/src/network/http_handler.cpp.o: ../src/network/http_handler.cpp
+CMakeFiles/network.dir/src/network/http_handler.cpp.o: CMakeFiles/network.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/network.dir/src/network/http_handler.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/network.dir/src/network/http_handler.cpp.o -MF CMakeFiles/network.dir/src/network/http_handler.cpp.o.d -o CMakeFiles/network.dir/src/network/http_handler.cpp.o -c /home/project/peer-review-system/src/network/http_handler.cpp
+
+CMakeFiles/network.dir/src/network/http_handler.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/network.dir/src/network/http_handler.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/project/peer-review-system/src/network/http_handler.cpp > CMakeFiles/network.dir/src/network/http_handler.cpp.i
+
+CMakeFiles/network.dir/src/network/http_handler.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/network.dir/src/network/http_handler.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/project/peer-review-system/src/network/http_handler.cpp -o CMakeFiles/network.dir/src/network/http_handler.cpp.s
+
 # Object files for target network
 network_OBJECTS = \
 "CMakeFiles/network.dir/src/network/connection.cpp.o" \
 "CMakeFiles/network.dir/src/network/server.cpp.o" \
-"CMakeFiles/network.dir/src/network/client.cpp.o"
+"CMakeFiles/network.dir/src/network/client.cpp.o" \
+"CMakeFiles/network.dir/src/network/http_handler.cpp.o"
 
 # External object files for target network
 network_EXTERNAL_OBJECTS =
@@ -123,9 +138,10 @@ network_EXTERNAL_OBJECTS =
 libnetwork.a: CMakeFiles/network.dir/src/network/connection.cpp.o
 libnetwork.a: CMakeFiles/network.dir/src/network/server.cpp.o
 libnetwork.a: CMakeFiles/network.dir/src/network/client.cpp.o
+libnetwork.a: CMakeFiles/network.dir/src/network/http_handler.cpp.o
 libnetwork.a: CMakeFiles/network.dir/build.make
 libnetwork.a: CMakeFiles/network.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Linking CXX static library libnetwork.a"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Linking CXX static library libnetwork.a"
 	$(CMAKE_COMMAND) -P CMakeFiles/network.dir/cmake_clean_target.cmake
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/network.dir/link.txt --verbose=$(VERBOSE)
 

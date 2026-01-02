@@ -69,6 +69,7 @@ all: CMakeFiles/protocol.dir/all
 all: CMakeFiles/user.dir/all
 all: CMakeFiles/review.dir/all
 all: CMakeFiles/network.dir/all
+all: CMakeFiles/test_acl_lock.dir/all
 all: CMakeFiles/server.dir/all
 all: CMakeFiles/client.dir/all
 all: CMakeFiles/review_cli.dir/all
@@ -93,6 +94,7 @@ clean: CMakeFiles/protocol.dir/clean
 clean: CMakeFiles/user.dir/clean
 clean: CMakeFiles/review.dir/clean
 clean: CMakeFiles/network.dir/clean
+clean: CMakeFiles/test_acl_lock.dir/clean
 clean: CMakeFiles/server.dir/clean
 clean: CMakeFiles/client.dir/clean
 clean: CMakeFiles/review_cli.dir/clean
@@ -113,7 +115,7 @@ clean: CMakeFiles/test_comments.dir/clean
 CMakeFiles/storage.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/storage.dir/build.make CMakeFiles/storage.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/storage.dir/build.make CMakeFiles/storage.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=23,24,25,26 "Built target storage"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=24,25,26,27 "Built target storage"
 .PHONY : CMakeFiles/storage.dir/all
 
 # Build rule for subdir invocation for target.
@@ -165,7 +167,7 @@ CMakeFiles/filesystem.dir/clean:
 CMakeFiles/protocol.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/protocol.dir/build.make CMakeFiles/protocol.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/protocol.dir/build.make CMakeFiles/protocol.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=14,15 "Built target protocol"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=15,16 "Built target protocol"
 .PHONY : CMakeFiles/protocol.dir/all
 
 # Build rule for subdir invocation for target.
@@ -191,7 +193,7 @@ CMakeFiles/protocol.dir/clean:
 CMakeFiles/user.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/user.dir/build.make CMakeFiles/user.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/user.dir/build.make CMakeFiles/user.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=43,44 "Built target user"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=46,47 "Built target user"
 .PHONY : CMakeFiles/user.dir/all
 
 # Build rule for subdir invocation for target.
@@ -219,7 +221,7 @@ CMakeFiles/review.dir/all: CMakeFiles/filesystem.dir/all
 CMakeFiles/review.dir/all: CMakeFiles/user.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/review.dir/build.make CMakeFiles/review.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/review.dir/build.make CMakeFiles/review.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=16,17 "Built target review"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=17,18 "Built target review"
 .PHONY : CMakeFiles/review.dir/all
 
 # Build rule for subdir invocation for target.
@@ -249,12 +251,12 @@ CMakeFiles/network.dir/all: CMakeFiles/user.dir/all
 CMakeFiles/network.dir/all: CMakeFiles/review.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/network.dir/build.make CMakeFiles/network.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/network.dir/build.make CMakeFiles/network.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=10,11,12,13 "Built target network"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=10,11,12,13,14 "Built target network"
 .PHONY : CMakeFiles/network.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/network.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/project/peer-review-system/build/CMakeFiles 21
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/project/peer-review-system/build/CMakeFiles 22
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/network.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/project/peer-review-system/build/CMakeFiles 0
 .PHONY : CMakeFiles/network.dir/rule
@@ -269,6 +271,33 @@ CMakeFiles/network.dir/clean:
 .PHONY : CMakeFiles/network.dir/clean
 
 #=============================================================================
+# Target rules for target CMakeFiles/test_acl_lock.dir
+
+# All Build rule for target.
+CMakeFiles/test_acl_lock.dir/all: CMakeFiles/storage.dir/all
+CMakeFiles/test_acl_lock.dir/all: CMakeFiles/filesystem.dir/all
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_acl_lock.dir/build.make CMakeFiles/test_acl_lock.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_acl_lock.dir/build.make CMakeFiles/test_acl_lock.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=28,29 "Built target test_acl_lock"
+.PHONY : CMakeFiles/test_acl_lock.dir/all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/test_acl_lock.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/project/peer-review-system/build/CMakeFiles 13
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/test_acl_lock.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/project/peer-review-system/build/CMakeFiles 0
+.PHONY : CMakeFiles/test_acl_lock.dir/rule
+
+# Convenience name for target.
+test_acl_lock: CMakeFiles/test_acl_lock.dir/rule
+.PHONY : test_acl_lock
+
+# clean rule for target.
+CMakeFiles/test_acl_lock.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_acl_lock.dir/build.make CMakeFiles/test_acl_lock.dir/clean
+.PHONY : CMakeFiles/test_acl_lock.dir/clean
+
+#=============================================================================
 # Target rules for target CMakeFiles/server.dir
 
 # All Build rule for target.
@@ -280,12 +309,12 @@ CMakeFiles/server.dir/all: CMakeFiles/review.dir/all
 CMakeFiles/server.dir/all: CMakeFiles/network.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=21,22 "Built target server"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=22,23 "Built target server"
 .PHONY : CMakeFiles/server.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/server.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/project/peer-review-system/build/CMakeFiles 23
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/project/peer-review-system/build/CMakeFiles 24
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/server.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/project/peer-review-system/build/CMakeFiles 0
 .PHONY : CMakeFiles/server.dir/rule
@@ -316,7 +345,7 @@ CMakeFiles/client.dir/all: CMakeFiles/network.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/client.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/project/peer-review-system/build/CMakeFiles 23
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/project/peer-review-system/build/CMakeFiles 24
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/client.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/project/peer-review-system/build/CMakeFiles 0
 .PHONY : CMakeFiles/client.dir/rule
@@ -340,7 +369,7 @@ CMakeFiles/review_cli.dir/all: CMakeFiles/user.dir/all
 CMakeFiles/review_cli.dir/all: CMakeFiles/review.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/review_cli.dir/build.make CMakeFiles/review_cli.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/review_cli.dir/build.make CMakeFiles/review_cli.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=18,19,20 "Built target review_cli"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=19,20,21 "Built target review_cli"
 .PHONY : CMakeFiles/review_cli.dir/all
 
 # Build rule for subdir invocation for target.
@@ -367,7 +396,7 @@ CMakeFiles/test_filesystem.dir/all: CMakeFiles/storage.dir/all
 CMakeFiles/test_filesystem.dir/all: CMakeFiles/filesystem.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_filesystem.dir/build.make CMakeFiles/test_filesystem.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_filesystem.dir/build.make CMakeFiles/test_filesystem.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=37,38 "Built target test_filesystem"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=40,41 "Built target test_filesystem"
 .PHONY : CMakeFiles/test_filesystem.dir/all
 
 # Build rule for subdir invocation for target.
@@ -394,7 +423,7 @@ CMakeFiles/test_backup.dir/all: CMakeFiles/storage.dir/all
 CMakeFiles/test_backup.dir/all: CMakeFiles/filesystem.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_backup.dir/build.make CMakeFiles/test_backup.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_backup.dir/build.make CMakeFiles/test_backup.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=27,28 "Built target test_backup"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=30,31 "Built target test_backup"
 .PHONY : CMakeFiles/test_backup.dir/all
 
 # Build rule for subdir invocation for target.
@@ -421,7 +450,7 @@ CMakeFiles/test_directory.dir/all: CMakeFiles/storage.dir/all
 CMakeFiles/test_directory.dir/all: CMakeFiles/filesystem.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_directory.dir/build.make CMakeFiles/test_directory.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_directory.dir/build.make CMakeFiles/test_directory.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=31,32 "Built target test_directory"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=34,35 "Built target test_directory"
 .PHONY : CMakeFiles/test_directory.dir/all
 
 # Build rule for subdir invocation for target.
@@ -448,7 +477,7 @@ CMakeFiles/test_file_ops.dir/all: CMakeFiles/storage.dir/all
 CMakeFiles/test_file_ops.dir/all: CMakeFiles/filesystem.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_file_ops.dir/build.make CMakeFiles/test_file_ops.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_file_ops.dir/build.make CMakeFiles/test_file_ops.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=33,34 "Built target test_file_ops"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=36,37 "Built target test_file_ops"
 .PHONY : CMakeFiles/test_file_ops.dir/all
 
 # Build rule for subdir invocation for target.
@@ -475,7 +504,7 @@ CMakeFiles/test_file_ops_debug.dir/all: CMakeFiles/storage.dir/all
 CMakeFiles/test_file_ops_debug.dir/all: CMakeFiles/filesystem.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_file_ops_debug.dir/build.make CMakeFiles/test_file_ops_debug.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_file_ops_debug.dir/build.make CMakeFiles/test_file_ops_debug.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=35,36 "Built target test_file_ops_debug"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=38,39 "Built target test_file_ops_debug"
 .PHONY : CMakeFiles/test_file_ops_debug.dir/all
 
 # Build rule for subdir invocation for target.
@@ -502,7 +531,7 @@ CMakeFiles/test_industrial.dir/all: CMakeFiles/storage.dir/all
 CMakeFiles/test_industrial.dir/all: CMakeFiles/filesystem.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_industrial.dir/build.make CMakeFiles/test_industrial.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_industrial.dir/build.make CMakeFiles/test_industrial.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=39,40 "Built target test_industrial"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=42,43 "Built target test_industrial"
 .PHONY : CMakeFiles/test_industrial.dir/all
 
 # Build rule for subdir invocation for target.
@@ -531,7 +560,7 @@ CMakeFiles/test_persistence.dir/all: CMakeFiles/user.dir/all
 CMakeFiles/test_persistence.dir/all: CMakeFiles/review.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_persistence.dir/build.make CMakeFiles/test_persistence.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_persistence.dir/build.make CMakeFiles/test_persistence.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=41,42 "Built target test_persistence"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=44,45 "Built target test_persistence"
 .PHONY : CMakeFiles/test_persistence.dir/all
 
 # Build rule for subdir invocation for target.
@@ -560,7 +589,7 @@ CMakeFiles/test_comments.dir/all: CMakeFiles/user.dir/all
 CMakeFiles/test_comments.dir/all: CMakeFiles/review.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_comments.dir/build.make CMakeFiles/test_comments.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_comments.dir/build.make CMakeFiles/test_comments.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=29,30 "Built target test_comments"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/project/peer-review-system/build/CMakeFiles --progress-num=32,33 "Built target test_comments"
 .PHONY : CMakeFiles/test_comments.dir/all
 
 # Build rule for subdir invocation for target.
