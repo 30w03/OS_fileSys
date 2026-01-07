@@ -15,6 +15,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <iomanip> // Added for setw, setfill
+#include <algorithm> // Added for transform
 
 Server::Server(uint16_t port, const std::string& diskImage)
     : port_(port), diskImage_(diskImage), serverSocket_(-1), running_(false),
@@ -60,11 +61,19 @@ bool Server::start() {
         std::cout << "Creating /reviews directory..." << std::endl;
         dirOps->mkdir("/reviews");
     }
+    if (!filesystem_->exists("/system")) {
+        std::cout << "Creating /system directory..." << std::endl;
+        dirOps->mkdir("/system");
+    }
 
     // 2. 加载用户数据
     std::cout << "Loading user data..." << std::endl;
-
+    userManager_->loadFromFile("users.dat");
     
+    // 3. 初始化评审系统 (加载元数据)
+    std::cout << "Initializing review system..." << std::endl;
+    reviewSystem_->init();
+
     // 创建默认管理员账户（如果不存在）
     User admin;
     if (!userManager_->getUserById(1, admin)) {
@@ -73,13 +82,13 @@ bool Server::start() {
         }
     }
     
-    // 3. 创建 socket
+    // 3. 创建 socket (Force IPv4 for better compatibility)
     serverSocket_ = socket(AF_INET, SOCK_STREAM, 0);
     if (serverSocket_ < 0) {
         std::cerr << "Failed to create socket" << std::endl;
         return false;
     }
-    
+
     // 4. 设置 socket 选项（允许地址重用）
     int opt = 1;
     if (setsockopt(serverSocket_, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
@@ -87,13 +96,13 @@ bool Server::start() {
         close(serverSocket_);
         return false;
     }
-    
+
     // 5. 绑定地址
     sockaddr_in serverAddr{};
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_addr.s_addr = INADDR_ANY;
     serverAddr.sin_port = htons(port_);
-    
+
     if (bind(serverSocket_, reinterpret_cast<sockaddr*>(&serverAddr), sizeof(serverAddr)) < 0) {
         std::cerr << "Failed to bind socket to port " << port_ << std::endl;
         close(serverSocket_);
@@ -247,6 +256,11 @@ void Server::handleClient(std::unique_ptr<Connection> client) {
                 std::vector<char> data;
                 
                 if (Protocol::parseFileUploadRequest(request, path, data)) {
+                    // Ensure path starts with /
+                    if (!path.empty() && path[0] != '/') {
+                        path = "/" + path;
+                    }
+
                     std::cout << "  → FILE_UPLOAD_REQUEST: " << path 
                              << " (" << data.size() << " bytes)" << std::endl;
                     
@@ -269,6 +283,11 @@ void Server::handleClient(std::unique_ptr<Connection> client) {
                 std::string path;
                 
                 if (Protocol::parseFileDownloadRequest(request, path)) {
+                    // Ensure path starts with /
+                    if (!path.empty() && path[0] != '/') {
+                        path = "/" + path;
+                    }
+
                     std::cout << "  → FILE_DOWNLOAD_REQUEST: " << path << std::endl;
                     
                     std::vector<char> data;
@@ -291,6 +310,11 @@ void Server::handleClient(std::unique_ptr<Connection> client) {
                 std::string path;
                 
                 if (Protocol::parseFileDeleteRequest(request, path)) {
+                    // Ensure path starts with /
+                    if (!path.empty() && path[0] != '/') {
+                        path = "/" + path;
+                    }
+
                     std::cout << "  → FILE_DELETE_REQUEST: " << path << std::endl;
                     
                     bool success = filesystem_->deleteFile(path);
@@ -351,6 +375,11 @@ void Server::handleClient(std::unique_ptr<Connection> client) {
                 std::cout << "  → GET_REVIEWS_REQUEST" << std::endl;
                 handleGetReviews(client.get(), request);
                 continue;
+
+            case Protocol::MSG_GET_REVIEWER_HISTORY_REQUEST: // 🔥 New
+                std::cout << "  → GET_REVIEWER_HISTORY_REQUEST" << std::endl;
+                handleGetReviewerHistory(client.get(), request);
+                continue;
                 
             case Protocol::MSG_MAKE_DECISION_REQUEST:
                 std::cout << "  → MAKE_DECISION_REQUEST" << std::endl;
@@ -370,6 +399,31 @@ void Server::handleClient(std::unique_ptr<Connection> client) {
             case Protocol::MSG_LIST_ONLINE_USERS_REQUEST:
                 std::cout << "  → LIST_ONLINE_USERS_REQUEST" << std::endl;
                 handleListOnlineUsers(client.get(), request);
+                continue;
+                
+            case Protocol::MSG_UPLOAD_REVISION_REQUEST:
+                std::cout << "  → UPLOAD_REVISION_REQUEST" << std::endl;
+                handleUploadRevision(client.get(), request);
+                continue;
+                
+            case Protocol::MSG_UPDATE_PAPER_FILE_REQUEST:
+                std::cout << "  → UPDATE_PAPER_FILE_REQUEST" << std::endl;
+                handleUpdatePaperFile(client.get(), request);
+                continue;
+
+            case Protocol::MSG_UPDATE_USER_ROLE_REQUEST:
+                std::cout << "  → UPDATE_USER_ROLE_REQUEST" << std::endl;
+                handleUpdateUserRole(client.get(), request);
+                continue;
+                
+            case Protocol::MSG_DEACTIVATE_USER_REQUEST:
+                std::cout << "  → DEACTIVATE_USER_REQUEST" << std::endl;
+                handleDeactivateUser(client.get(), request);
+                continue;
+                
+            case Protocol::MSG_SYSTEM_BACKUP_REQUEST:
+                std::cout << "  → SYSTEM_BACKUP_REQUEST" << std::endl;
+                handleSystemBackup(client.get(), request);
                 continue;
                 
             default:
@@ -535,7 +589,7 @@ void Server::handleHttpRequest(std::unique_ptr<Connection> client) {
         
         requestData.append(buffer, received);
         
-        // 检查是否收到了完整的HTTP请求（简单检测）
+        // 检查是否收到了完整的HTTP headers
         if (requestData.find("\r\n\r\n") != std::string::npos) {
             break;
         }
@@ -543,6 +597,66 @@ void Server::handleHttpRequest(std::unique_ptr<Connection> client) {
         // 防止无限循环
         if (requestData.size() > 65536) { // 64KB
             break;
+        }
+    }
+
+    // 检查 Content-Length 并读取剩余 Body
+    size_t headerEnd = requestData.find("\r\n\r\n");
+    if (headerEnd != std::string::npos) {
+        size_t contentLength = 0;
+        
+        // 简单的查找 Content-Length
+        // 为了兼容性，查找几种常见的大小写形式
+        const char* clKeys[] = {"Content-Length:", "content-length:", "CONTENT-LENGTH:"};
+        for (const char* key : clKeys) {
+            size_t keyLen = strlen(key);
+            size_t clPos = requestData.find(key);
+            if (clPos != std::string::npos && clPos < headerEnd) {
+                size_t valStart = clPos + keyLen;
+                size_t valEnd = requestData.find("\r\n", valStart);
+                if (valEnd != std::string::npos) {
+                    std::string valStr = requestData.substr(valStart, valEnd - valStart);
+                    // trim spaces
+                    size_t first = valStr.find_first_not_of(" \t");
+                    if (first != std::string::npos) {
+                        valStr.erase(0, first);
+                    }
+                    try {
+                        contentLength = std::stoul(valStr);
+                    } catch(...) {
+                        contentLength = 0;
+                    }
+                    break; 
+                }
+            }
+        }
+
+        if (contentLength > 0) {
+            size_t currentBodyLen = requestData.size() - (headerEnd + 4);
+            size_t needed = (contentLength > currentBodyLen) ? (contentLength - currentBodyLen) : 0;
+            
+            // 如果还需要读取更多数据
+            while (needed > 0 && client->isConnected()) {
+                ssize_t received = recv(client->getSocket(), buffer, sizeof(buffer), 0);
+                
+                if (received <= 0) {
+                    break;
+                }
+                
+                requestData.append(buffer, received);
+                
+                if (static_cast<size_t>(received) >= needed) {
+                    needed = 0;
+                } else {
+                    needed -= received;
+                }
+                
+                // 安全限制：防止 Body 过大导致内存耗尽 (例如限制 50MB)
+                if (requestData.size() > 50 * 1024 * 1024) {
+                    std::cerr << "Request too large, aborting" << std::endl;
+                    break;
+                }
+            }
         }
     }
     
@@ -972,14 +1086,17 @@ void Server::handleSubmitReview(Connection* client, const Protocol::Message& req
         return;
     }
     
-    // 解析决定
+    // 解析决定 (Case-insensitive)
+    std::string d = decision;
+    std::transform(d.begin(), d.end(), d.begin(), ::toupper);
+    
     ReviewDecision dec = ReviewDecision::BORDERLINE;
-    if (decision == "STRONG_ACCEPT") dec = ReviewDecision::STRONG_ACCEPT;
-    else if (decision == "ACCEPT") dec = ReviewDecision::ACCEPT;
-    else if (decision == "WEAK_ACCEPT") dec = ReviewDecision::WEAK_ACCEPT;
-    else if (decision == "WEAK_REJECT") dec = ReviewDecision::WEAK_REJECT;
-    else if (decision == "REJECT") dec = ReviewDecision::REJECT;
-    else if (decision == "STRONG_REJECT") dec = ReviewDecision::STRONG_REJECT;
+    if (d == "STRONG_ACCEPT") dec = ReviewDecision::STRONG_ACCEPT;
+    else if (d == "ACCEPT") dec = ReviewDecision::ACCEPT;
+    else if (d == "WEAK_ACCEPT") dec = ReviewDecision::WEAK_ACCEPT;
+    else if (d == "WEAK_REJECT") dec = ReviewDecision::WEAK_REJECT;
+    else if (d == "REJECT") dec = ReviewDecision::REJECT;
+    else if (d == "STRONG_REJECT") dec = ReviewDecision::STRONG_REJECT;
     
     uint32_t reviewId = reviewSystem_->submitReview(userId, paperId, dec, confidence, comments);
     
@@ -1153,15 +1270,24 @@ void Server::handleDownloadPaper(Connection* client, const Protocol::Message& re
     
     std::cout << "User " << userId << " attempting to download " << path << std::endl;
     
+    // Check if user is Editor or Admin to grant access
+    User user;
+    uint32_t accessUserId = userId;
+    if (userManager_->getUserById(userId, user)) {
+        if (user.role == UserRole::EDITOR || user.role == UserRole::ADMIN) {
+            accessUserId = 1; // Use admin ID for file access
+        }
+    }
+
     // 使用 ACL 感知的读取操作
     // 注意：这里我们直接调用 fileOps，绕过 Filesystem 的默认 Admin 权限
     std::vector<char> data;
-    size_t size = filesystem_->getFileOps()->getFileSize(userId, path);
+    size_t size = filesystem_->getFileOps()->getFileSize(accessUserId, path);
     
     if (size == 0) {
         // 可能是权限拒绝，也可能是文件不存在
         // 再次检查是否存在
-        if (!filesystem_->getFileOps()->fileExists(userId, path)) {
+        if (!filesystem_->getFileOps()->fileExists(accessUserId, path)) {
              std::cerr << "File not found or permission denied (size=0)" << std::endl;
              auto response = Protocol::createDownloadPaperResponse(false, {});
              client->sendMessage(response);
@@ -1170,7 +1296,7 @@ void Server::handleDownloadPaper(Connection* client, const Protocol::Message& re
     }
     
     data.resize(size);
-    ssize_t bytesRead = filesystem_->getFileOps()->readFile(userId, path, data.data(), size);
+    ssize_t bytesRead = filesystem_->getFileOps()->readFile(accessUserId, path, data.data(), size);
     
     if (bytesRead < 0) {
         std::cerr << "❌ Permission denied or read error for user " << userId << " on " << path << std::endl;
@@ -1225,12 +1351,272 @@ void Server::handleGetReviews(Connection* client, const Protocol::Message& reque
 }
 
 // ============================================================================
+// 获取审稿历史
+// ============================================================================
+void Server::handleGetReviewerHistory(Connection* client, const Protocol::Message& request) {
+    uint32_t sessionId;
+    if (!Protocol::parseGetReviewerHistoryRequest(request, sessionId)) {
+        auto response = Protocol::createGetReviewerHistoryResponse(false, {});
+        client->sendMessage(response);
+        return;
+    }
+    
+    uint32_t userId;
+    if (!userManager_->validateSession(sessionId, userId)) {
+        auto response = Protocol::createGetReviewerHistoryResponse(false, {});
+        client->sendMessage(response);
+        return;
+    }
+    
+    auto reviews = reviewSystem_->getReviewsByReviewer(userId);
+    
+    std::vector<ReviewInfo> reviewInfos;
+    for (const auto& review : reviews) {
+        ReviewInfo info;
+        info.reviewId = review.reviewId;
+        info.paperId = review.paperId;
+        info.reviewerId = review.reviewerId;
+        info.decision = review.getDecisionName();
+        info.confidenceScore = review.confidenceScore;
+        info.comments = review.comments;
+        info.submitTime = static_cast<uint64_t>(review.submitTime);
+        
+        User reviewer;
+        if (userManager_->getUserById(review.reviewerId, reviewer)) {
+            info.reviewerName = reviewer.username;
+        } else {
+            info.reviewerName = "User" + std::to_string(review.reviewerId);
+        }
+        
+        reviewInfos.push_back(info);
+    }
+    
+    auto response = Protocol::createGetReviewerHistoryResponse(true, reviewInfos);
+    client->sendMessage(response);
+}
+
+// ============================================================================
 // 编辑决定
 // ============================================================================
 void Server::handleMakeDecision(Connection* client, const Protocol::Message& request) {
-    // TODO: 实现
-    auto response = Protocol::createMakeDecisionResponse(false, "Not implemented");
-    client->sendMessage(response);
+    uint32_t sessionId, paperId;
+    std::string decisionStr;
+    
+    if (!Protocol::parseMakeDecisionRequest(request, sessionId, paperId, decisionStr)) {
+        auto response = Protocol::createMakeDecisionResponse(false, "Invalid request");
+        client->sendMessage(response);
+        return;
+    }
+    
+    uint32_t userId;
+    if (!userManager_->validateSession(sessionId, userId)) {
+        auto response = Protocol::createMakeDecisionResponse(false, "Invalid session");
+        client->sendMessage(response);
+        return;
+    }
+    
+    // Case insensitive comparison
+    std::transform(decisionStr.begin(), decisionStr.end(), decisionStr.begin(), ::toupper);
+
+    PaperStatus status = PaperStatus::SUBMITTED;
+    if (decisionStr == "ACCEPTED" || decisionStr == "ACCEPT") status = PaperStatus::ACCEPTED;
+    else if (decisionStr == "REJECTED" || decisionStr == "REJECT") status = PaperStatus::REJECTED;
+    else {
+        auto response = Protocol::createMakeDecisionResponse(false, "Invalid decision status");
+        client->sendMessage(response);
+        return;
+    }
+    
+    if (reviewSystem_->makeFinalDecision(userId, paperId, status)) {
+        auto response = Protocol::createMakeDecisionResponse(true, "Decision recorded successfully");
+        client->sendMessage(response);
+    } else {
+        auto response = Protocol::createMakeDecisionResponse(false, "Failed to record decision (Permission denied or invalid state)");
+        client->sendMessage(response);
+    }
+}
+
+// ============================================================================
+// 上传修订版
+// ============================================================================
+void Server::handleUploadRevision(Connection* client, const Protocol::Message& request) {
+    uint32_t sessionId, paperId;
+    std::vector<char> fileData;
+    
+    if (!Protocol::parseUploadRevisionRequest(request, sessionId, paperId, fileData)) {
+        auto response = Protocol::createUploadRevisionResponse(false, "Invalid request");
+        client->sendMessage(response);
+        return;
+    }
+    
+    uint32_t userId;
+    if (!userManager_->validateSession(sessionId, userId)) {
+        auto response = Protocol::createUploadRevisionResponse(false, "Invalid session");
+        client->sendMessage(response);
+        return;
+    }
+    
+    if (reviewSystem_->uploadRevision(paperId, userId, fileData)) {
+        auto response = Protocol::createUploadRevisionResponse(true, "Revision uploaded successfully");
+        client->sendMessage(response);
+    } else {
+        auto response = Protocol::createUploadRevisionResponse(false, "Failed to upload revision");
+        client->sendMessage(response);
+    }
+}
+
+// ============================================================================
+// 更新论文文件
+// ============================================================================
+void Server::handleUpdatePaperFile(Connection* client, const Protocol::Message& request) {
+    uint32_t sessionId, paperId;
+    std::vector<char> fileData;
+    
+    if (!Protocol::parseUpdatePaperFileRequest(request, sessionId, paperId, fileData)) {
+        auto response = Protocol::createUpdatePaperFileResponse(false, "Invalid request");
+        client->sendMessage(response);
+        return;
+    }
+    
+    uint32_t userId;
+    if (!userManager_->validateSession(sessionId, userId)) {
+        auto response = Protocol::createUpdatePaperFileResponse(false, "Invalid session");
+        client->sendMessage(response);
+        return;
+    }
+    
+    if (reviewSystem_->updatePaperFile(paperId, userId, fileData)) {
+        auto response = Protocol::createUpdatePaperFileResponse(true, "Paper updated successfully");
+        client->sendMessage(response);
+    } else {
+        auto response = Protocol::createUpdatePaperFileResponse(false, "Failed to update paper (Check ownership or status)");
+        client->sendMessage(response);
+    }
+}
+
+// ============================================================================
+// 更新用户角色
+// ============================================================================
+void Server::handleUpdateUserRole(Connection* client, const Protocol::Message& request) {
+    uint32_t sessionId, targetUserId;
+    std::string roleStr;
+    
+    if (!Protocol::parseUpdateUserRoleRequest(request, sessionId, targetUserId, roleStr)) {
+        auto response = Protocol::createUpdateUserRoleResponse(false, "Invalid request");
+        client->sendMessage(response);
+        return;
+    }
+    
+    uint32_t adminId;
+    if (!userManager_->validateSession(sessionId, adminId)) {
+        auto response = Protocol::createUpdateUserRoleResponse(false, "Invalid session");
+        client->sendMessage(response);
+        return;
+    }
+    
+    // Check admin permission
+    User admin;
+    if (!userManager_->getUserById(adminId, admin) || admin.role != UserRole::ADMIN) {
+        auto response = Protocol::createUpdateUserRoleResponse(false, "Permission denied");
+        client->sendMessage(response);
+        return;
+    }
+    
+    // Case insensitive comparison
+    std::transform(roleStr.begin(), roleStr.end(), roleStr.begin(), ::toupper);
+
+    UserRole newRole = UserRole::AUTHOR;
+    if (roleStr == "REVIEWER") newRole = UserRole::REVIEWER;
+    else if (roleStr == "EDITOR") newRole = UserRole::EDITOR;
+    else if (roleStr == "ADMIN") newRole = UserRole::ADMIN;
+    else if (roleStr != "AUTHOR") {
+        auto response = Protocol::createUpdateUserRoleResponse(false, "Invalid role");
+        client->sendMessage(response);
+        return;
+    }
+    
+    if (userManager_->updateUserRole(targetUserId, newRole)) {
+        auto response = Protocol::createUpdateUserRoleResponse(true, "User role updated successfully");
+        client->sendMessage(response);
+    } else {
+        auto response = Protocol::createUpdateUserRoleResponse(false, "Failed to update user role");
+        client->sendMessage(response);
+    }
+}
+
+// ============================================================================
+// 停用用户
+// ============================================================================
+void Server::handleDeactivateUser(Connection* client, const Protocol::Message& request) {
+    uint32_t sessionId, targetUserId;
+    
+    if (!Protocol::parseDeactivateUserRequest(request, sessionId, targetUserId)) {
+        auto response = Protocol::createDeactivateUserResponse(false, "Invalid request");
+        client->sendMessage(response);
+        return;
+    }
+    
+    uint32_t adminId;
+    if (!userManager_->validateSession(sessionId, adminId)) {
+        auto response = Protocol::createDeactivateUserResponse(false, "Invalid session");
+        client->sendMessage(response);
+        return;
+    }
+    
+    // Check admin permission
+    User admin;
+    if (!userManager_->getUserById(adminId, admin) || admin.role != UserRole::ADMIN) {
+        auto response = Protocol::createDeactivateUserResponse(false, "Permission denied");
+        client->sendMessage(response);
+        return;
+    }
+    
+    if (userManager_->deactivateUser(targetUserId)) {
+        auto response = Protocol::createDeactivateUserResponse(true, "User deactivated successfully");
+        client->sendMessage(response);
+    } else {
+        auto response = Protocol::createDeactivateUserResponse(false, "Failed to deactivate user");
+        client->sendMessage(response);
+    }
+}
+
+// ============================================================================
+// 系统备份
+// ============================================================================
+void Server::handleSystemBackup(Connection* client, const Protocol::Message& request) {
+    uint32_t sessionId;
+    
+    if (!Protocol::parseSystemBackupRequest(request, sessionId)) {
+        auto response = Protocol::createSystemBackupResponse(false, "Invalid request");
+        client->sendMessage(response);
+        return;
+    }
+    
+    uint32_t adminId;
+    if (!userManager_->validateSession(sessionId, adminId)) {
+        auto response = Protocol::createSystemBackupResponse(false, "Invalid session");
+        client->sendMessage(response);
+        return;
+    }
+    
+    // Check admin permission
+    User admin;
+    if (!userManager_->getUserById(adminId, admin) || admin.role != UserRole::ADMIN) {
+        auto response = Protocol::createSystemBackupResponse(false, "Permission denied");
+        client->sendMessage(response);
+        return;
+    }
+    
+    bool metaSuccess = reviewSystem_->saveMetadata();
+    bool userSuccess = userManager_->saveToFile("users.dat");
+    
+    if (metaSuccess && userSuccess) {
+        auto response = Protocol::createSystemBackupResponse(true, "System backup completed successfully");
+        client->sendMessage(response);
+    } else {
+        auto response = Protocol::createSystemBackupResponse(false, "Backup partially failed");
+        client->sendMessage(response);
+    }
 }
 
 // ============================================================================

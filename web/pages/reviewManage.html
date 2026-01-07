@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>评审管理 - 同行评审系统</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        /* 复用基础样式 */
+        body { background-color: #f5f8fa; display: flex; min-height: 100vh; color: #333; margin: 0; font-family: 'Segoe UI', sans-serif; }
+        .sidebar { width: 280px; background: linear-gradient(to bottom, #1da598, #43e97b); color: white; padding: 30px 0; display: flex; flex-direction: column; }
+        .logo-container { padding: 0 30px 25px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; margin-bottom: 25px; }
+        .logo-container i { font-size: 32px; margin-right: 15px; color: #ffd54f; }
+        .logo-container h1 { font-size: 24px; font-weight: 700; }
+        .nav-item { display: flex; align-items: center; padding: 18px 30px; font-size: 18px; text-decoration: none; color: #fff; transition: all 0.3s ease; }
+        .nav-item:hover { background: rgba(255,255,255,0.1); padding-left: 35px; }
+        
+        /* 主内容区 */
+        .main-content { flex: 1; padding: 40px; overflow-y: auto; }
+        .page-header { margin-bottom: 30px; }
+        .page-title { font-size: 28px; color: #2c3e50; margin-bottom: 10px; }
+        
+        /* 选项卡 */
+        .tabs { display: flex; border-bottom: 2px solid #e0e0e0; margin-bottom: 30px; }
+        .tab { padding: 15px 30px; cursor: pointer; font-weight: 600; color: #7f8c8d; border-bottom: 3px solid transparent; transition: all 0.3s; }
+        .tab.active { color: #18c6b0; border-bottom-color: #18c6b0; }
+        
+        /* 列表样式 */
+        .review-list { display: grid; gap: 20px; }
+        .review-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-left: 4px solid #ff9800; }
+        .review-title { font-size: 18px; font-weight: 700; color: #2c3e50; margin-bottom: 10px; }
+        .review-meta { color: #7f8c8d; font-size: 14px; margin-bottom: 15px; }
+        .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; transition: all 0.3s; margin-right: 10px; }
+        .btn-primary { background: #18c6b0; color: white; }
+        .btn-secondary { background: #95a5a6; color: white; }
+        
+        /* 模态框 */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 30px; border-radius: 10px; width: 600px; max-width: 90%; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; }
+        .form-control { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        
+        /* 分配表格 */
+        .assign-table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .assign-table th, .assign-table td { padding: 15px; text-align: left; border-bottom: 1px solid #eee; }
+        .assign-table th { background: #f8f9fa; font-weight: 600; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo-container">
+            <i class="fas fa-book-reader"></i>
+            <h1>同行评审</h1>
+        </div>
+        <a class="nav-item" href="../nomarlPage.html"><i class="fas fa-home"></i> 返回主页</a>
+    </div>
+
+    <div class="main-content">
+        <div class="page-header">
+            <h1 class="page-title">评审管理</h1>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" id="tab-pending" onclick="switchTab('pending-reviews')">待评审任务</div>
+            <div class="tab" id="tab-history" onclick="switchTab('history-reviews')">历史评审</div>
+            <div class="tab" id="tab-assign" style="display:none;" onclick="switchTab('assign-reviews')">分配评审</div>
+            <div class="tab" id="tab-progress" style="display:none;" onclick="switchTab('review-progress')">审稿进度</div>
+            <div class="tab" id="tab-decision" style="display:none;" onclick="switchTab('final-decision')">最终录用</div>
+        </div>
+
+        <!-- 待评审列表 -->
+        <div id="pending-reviews" class="tab-content">
+            <div class="review-list" id="pendingList">
+                <div style="text-align:center; padding:40px; color:#999;">加载中...</div>
+            </div>
+        </div>
+
+        <!-- 历史评审列表 -->
+        <div id="history-reviews" class="tab-content" style="display:none;">
+            <div class="review-list" id="historyList">
+                <div style="text-align:center; padding:40px; color:#999;">加载中...</div>
+            </div>
+        </div>
+
+        <!-- 分配评审 (编辑) -->
+        <div id="assign-reviews" class="tab-content" style="display:none;">
+            <div style="margin-bottom: 20px; display: flex; gap: 20px;">
+                <div style="flex: 1;">
+                    <h3>1. 选择论文</h3>
+                    <div id="assignPaperList" class="review-list" style="max-height: 400px; overflow-y: auto;"></div>
+                </div>
+                <div style="flex: 1;">
+                    <h3>2. 选择评审人</h3>
+                    <div id="reviewerList" class="review-list" style="max-height: 400px; overflow-y: auto;"></div>
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="submitAssignment()">确认分配</button>
+        </div>
+
+        <!-- 审稿进度 (编辑) -->
+        <div id="review-progress" class="tab-content" style="display:none;">
+            <div class="review-list" id="progressList">
+                <div style="text-align:center; padding:40px; color:#999;">加载中...</div>
+            </div>
+        </div>
+
+        <!-- 最终录用 (编辑) -->
+        <div id="final-decision" class="tab-content" style="display:none;">
+            <div class="review-list" id="decisionList">
+                <div style="text-align:center; padding:40px; color:#999;">加载中...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 提交评审模态框 -->
+    <div id="reviewModal" class="modal">
+        <div class="modal-content">
+            <h2>提交评审意见</h2>
+            <form id="reviewForm">
+                <input type="hidden" id="reviewPaperId">
+                <div class="form-group">
+                    <label>评审决定</label>
+                    <select class="form-control" id="reviewDecision">
+                        <option value="STRONG_ACCEPT">Strong Accept</option>
+                        <option value="ACCEPT">Accept</option>
+                        <option value="WEAK_ACCEPT">Weak Accept</option>
+                        <option value="BORDERLINE">Borderline</option>
+                        <option value="WEAK_REJECT">Weak Reject</option>
+                        <option value="REJECT">Reject</option>
+                        <option value="STRONG_REJECT">Strong Reject</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>置信度 (1-5)</label>
+                    <input type="number" class="form-control" id="reviewConfidence" min="1" max="5" value="3">
+                </div>
+                <div class="form-group">
+                    <label>详细评语</label>
+                    <textarea class="form-control" id="reviewComments" rows="5" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>上传评审意见表 (PDF/Word)</label>
+                    <input type="file" class="form-control" id="reviewFile">
+                </div>
+                <div style="text-align: right;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+                    <button type="submit" class="btn btn-primary">提交</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 录用决定模态框 -->
+    <div id="decisionModal" class="modal">
+        <div class="modal-content">
+            <h2>做出最终决定</h2>
+            <input type="hidden" id="decisionPaperId">
+            <div class="form-group">
+                <label>最终决定</label>
+                <select class="form-control" id="finalDecision">
+                    <option value="ACCEPTED">Accept (录用)</option>
+                    <option value="REJECTED">Reject (拒绝)</option>
+                </select>
+            </div>
+            <div style="text-align: right;">
+                <button type="button" class="btn btn-secondary" onclick="closeDecisionModal()">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitDecision()">确认提交</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedPaperId = null;
+        let selectedReviewerId = null;
+
+        // 页面加载
+        document.addEventListener('DOMContentLoaded', () => {
+            const roleStr = sessionStorage.getItem('role');
+            const role = roleStr ? roleStr.toUpperCase() : '';
+            
+            // 检查 URL 参数
+            const urlParams = new URLSearchParams(window.location.search);
+            const tab = urlParams.get('tab');
+
+            if (role === 'EDITOR') {
+                // 编辑不显示待评审和历史评审
+                document.getElementById('tab-pending').style.display = 'none';
+                document.getElementById('tab-history').style.display = 'none';
+                
+                // 显示编辑特有标签
+                document.getElementById('tab-progress').style.display = 'block';
+                document.getElementById('tab-decision').style.display = 'block';
+                
+                // 如果 URL 参数指定了 tab=situation，默认进入审稿进度
+                if (tab === 'situation') {
+                    switchTab('review-progress');
+                } else if (tab === 'progress') {
+                    switchTab('review-progress');
+                } else if (tab === 'decision') {
+                    switchTab('final-decision');
+                } else {
+                    // 默认
+                    switchTab('review-progress');
+                }
+            } else {
+                // 评审员默认看待评审
+                if (tab === 'history') {
+                    switchTab('history-reviews');
+                } else {
+                    switchTab('pending-reviews');
+                }
+            }
+        });
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+            document.getElementById(tabId).style.display = 'block';
+            
+            document.querySelectorAll('.tab').forEach(el => {
+                el.classList.remove('active');
+                if (el.getAttribute('onclick') && el.getAttribute('onclick').includes(`'${tabId}'`)) {
+                    el.classList.add('active');
+                }
+            });
+            
+            if (tabId === 'pending-reviews') loadPendingReviews();
+            if (tabId === 'history-reviews') loadHistoryReviews();
+            if (tabId === 'assign-reviews') loadAssignData();
+            if (tabId === 'review-progress') loadReviewProgress();
+            if (tabId === 'final-decision') loadFinalDecision();
+        }
+
+        // 加载待评审论文
+        async function loadPendingReviews() {
+            try {
+                const sessionId = sessionStorage.getItem('sessionId');
+                const res = await fetch('/api/papers/review', {
+                    headers: { 'Authorization': 'Bearer ' + sessionId }
+                });
+                const data = await res.json();
+                const container = document.getElementById('pendingList');
+                
+                if (!data.success) {
+                    container.innerHTML = `<div style="color:red;">${data.message}</div>`;
+                    return;
+                }
+
+                const papers = Array.isArray(data.data) ? data.data : [];
+                // 过滤出未评审的
+                const pendingPapers = papers.filter(p => !p.reviewed);
+
+                if (pendingPapers.length === 0) {
+                    container.innerHTML = '<div style="text-align:center; padding:40px; color:#999;">暂无待评审的论文</div>';
+                    return;
+                }
+
+                container.innerHTML = pendingPapers.map(paper => `
+                    <div class="review-card">
+                        <div class="review-title">${paper.title}</div>
+                        <div class="review-meta">ID: ${paper.paperId} | 状态: ${paper.status}</div>
+                        <button class="btn btn-primary" onclick="openReviewModal(${paper.paperId})">撰写评审</button>
+                        <button class="btn btn-secondary" onclick="downloadPaper(${paper.paperId})">下载论文</button>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error(err);
+                document.getElementById('pendingList').innerHTML = '<div style="color:red;">加载失败</div>';
+            }
+        }
+
+        // 加载审稿进度
+        async function loadReviewProgress() {
+            try {
+                const sessionId = sessionStorage.getItem('sessionId');
+                const res = await fetch('/api/reviews/progress', {
+                    headers: { 'Authorization': 'Bearer ' + sessionId }
+                });
+                const data = await res.json();
+                const container = document.getElementById('progressList');
+                
+                if (!data.success) {
+                    container.innerHTML = `<div style="color:red;">${data.message}</div>`;
+                    return;
+                }
+
+                let progress = [];
+                if (Array.isArray(data)) {
+                    progress = data;
+                } else if (Array.isArray(data.data)) {
+                    progress = data.data;
+                } else if (data.data && data.data.progress) {
+                    if (typeof data.data.progress === 'string') {
+                        try {
+                            progress = JSON.parse(data.data.progress);
+                        } catch (e) {
+                            console.error("Failed to parse progress JSON", e);
+                        }
+                    } else if (Array.isArray(data.data.progress)) {
+                        progress = data.data.progress;
+                    }
+                }
+
+                if (progress.length === 0) {
+                    container.innerHTML = '<div style="text-align:center; padding:40px; color:#999;">暂无数据</div>';
+                    return;
+                }
+
+                container.innerHTML = progress.map(p => {
+                    // 计算是否完成
+                    let isCompleted = false;
+                    if (p.reviewers && p.reviewers.length > 0) {
+                        const allCompleted = p.reviewers.every(r => r.status === 'COMPLETED');
+                        isCompleted = allCompleted;
+                    }
+                    
+                    const statusBadge = isCompleted 
+                        ? '<span style="color:#4caf50; font-weight:bold; border:1px solid #4caf50; padding:2px 8px; border-radius:4px;">完成</span>' 
+                        : '<span style="color:#ff9800; font-weight:bold; border:1px solid #ff9800; padding:2px 8px; border-radius:4px;">未完成</span>';
+
+                    let reviewersHtml = '';
+                    if (!p.reviewers || p.reviewers.length === 0) {
+                        reviewersHtml = '<div style="color:#999; font-style:italic;">暂无分配评审人</div>';
+                    } else {
+                        reviewersHtml = p.reviewers.map(r => {
+                            const statusColor = r.status === 'COMPLETED' ? '#4caf50' : '#ff9800';
+                            const statusText = r.status === 'COMPLETED' ? '已完成' : '待评审';
+                            return `
+                                <div style="display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px dashed #eee;">
+                                    <span>${r.name}</span>
+                                    <span style="color:${statusColor};">${statusText}</span>
+                                </div>
+                            `;
+                        }).join('');
+                    }
+
+                    return `
+                        <div class="review-card" style="border-left-color: #2196f3;">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <div class="review-title">${p.title}</div>
+                                <div>${statusBadge}</div>
+                            </div>
+                            <div class="review-meta">ID: ${p.paperId} | 状态: ${p.status}</div>
+                            <div style="background:#f9f9f9; padding:10px; border-radius:5px; margin-top:10px;">
+                                <div style="font-weight:600; margin-bottom:5px;">评审人状态:</div>
+                                ${reviewersHtml}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.error(err);
+                document.getElementById('progressList').innerHTML = '<div style="color:red;">加载失败</div>';
+            }
+        }
+
+        // 加载最终录用
+        async function loadFinalDecision() {
+            try {
+                const sessionId = sessionStorage.getItem('sessionId');
+                const res = await fetch('/api/reviews/progress', {
+                    headers: { 'Authorization': 'Bearer ' + sessionId }
+                });
+                const data = await res.json();
+                const container = document.getElementById('decisionList');
+                
+                if (!data.success) {
+                    container.innerHTML = `<div style="color:red;">${data.message}</div>`;
+                    return;
+                }
+
+                let progress = [];
+                if (data.data && data.data.progress) {
+                    if (typeof data.data.progress === 'string') {
+                        try {
+                            progress = JSON.parse(data.data.progress);
+                        } catch (e) {
+                            console.error("Failed to parse progress JSON", e);
+                        }
+                    }
+                }
+
+                if (progress.length === 0) {
+                    container.innerHTML = '<div style="text-align:center; padding:40px; color:#999;">暂无数据</div>';
+                    return;
+                }
+
+                container.innerHTML = progress.map(p => {
+                    // 决定状态显示
+                    let currentDecision = p.status;
+                    if (currentDecision === 'Submitted' || currentDecision === 'Under Review' || currentDecision === 'Reviewed') {
+                        currentDecision = 'TENTATIVE';
+                    } else if (currentDecision === 'Accepted') {
+                        currentDecision = 'ACCEPTED';
+                    } else if (currentDecision === 'Rejected') {
+                        currentDecision = 'REJECTED';
+                    }
+
+                    // 评审意见展示
+                    let reviewsHtml = '';
+                    if (p.reviewers && p.reviewers.length > 0) {
+                        reviewsHtml = p.reviewers.map(r => {
+                            if (r.status !== 'COMPLETED') return '';
+                            return `
+                                <div style="background:white; padding:10px; margin-top:10px; border:1px solid #eee; border-radius:4px;">
+                                    <div style="font-weight:bold; color:#555;">评审人: ${r.name}</div>
+                                    <div style="margin-top:5px;">决定: <span style="font-weight:bold;">${r.decision}</span></div>
+                                </div>
+                            `;
+                        }).join('');
+                        if (!reviewsHtml) reviewsHtml = '<div style="padding:10px; color:#999;">暂无已完成的评审意见</div>';
+                    } else {
+                        reviewsHtml = '<div style="padding:10px; color:#999;">暂无评审人</div>';
+                    }
+
+                    return `
+                        <div class="review-card" style="border-left-color: #9c27b0;">
+                            <div style="display:flex; justify-content:space-between; align-items:start;">
+                                <div>
+                                    <div class="review-title">${p.title}</div>
+                                    <div class="review-meta">ID: ${p.paperId}</div>
+                                </div>
+                                <div>
+                                    <select class="form-control" style="width:auto; font-weight:bold; color:#9c27b0; border-color:#9c27b0;" 
+                                            onchange="updateDecision(${p.paperId}, this.value)">
+                                        <option value="TENTATIVE" ${currentDecision === 'TENTATIVE' ? 'selected' : ''}>TENTATIVE (待定)</option>
+                                        <option value="ACCEPTED" ${currentDecision === 'ACCEPTED' ? 'selected' : ''}>ACCEPTED (录用)</option>
+                                        <option value="REJECTED" ${currentDecision === 'REJECTED' ? 'selected' : ''}>REJECTED (拒绝)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div style="background:#f5f5f5; padding:15px; border-radius:8px; margin-top:15px;">
+                                <h4 style="margin-top:0; margin-bottom:10px; color:#333;">评审人意见反馈</h4>
+                                ${reviewsHtml}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.error(err);
+                document.getElementById('decisionList').innerHTML = '<div style="color:red;">加载失败</div>';
+            }
+        }
+
+        async function updateDecision(paperId, decision) {
+            if (decision === 'TENTATIVE') return; // 不做操作
+            
+            if (!confirm(`确定要将论文 ID:${paperId} 的状态修改为 ${decision} 吗？`)) {
+                loadFinalDecision(); // 恢复原状
+                return;
+            }
+
+            try {
+                const sessionId = sessionStorage.getItem('sessionId');
+                const res = await fetch(`/api/papers/${paperId}/decision`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + sessionId
+                    },
+                    body: JSON.stringify({ decision })
+                });
+                
+                const data = await res.json();
+                if (data.success) {
+                    alert('状态更新成功！');
+                    loadFinalDecision();
+                } else {
+                    alert('更新失败: ' + data.message);
+                    loadFinalDecision();
+                }
+            } catch (err) {
+                alert('网络错误');
+                loadFinalDecision();
+            }
+        }
+
+        // 加载历史评审
+        async function loadHistoryReviews() {
+            try {
+                const sessionId = sessionStorage.getItem('sessionId');
+                const res = await fetch('/api/papers/review', {
+                    headers: { 'Authorization': 'Bearer ' + sessionId }
+                });
+                const data = await res.json();
+                const container = document.getElementById('historyList');
+                
+                if (!data.success) {
+                    container.innerHTML = `<div style="color:red;">${data.message}</div>`;
+                    return;
+                }
+
+                const papers = Array.isArray(data.data) ? data.data : [];
+                // 过滤出已评审的
+                const historyPapers = papers.filter(p => p.reviewed);
+
+                if (historyPapers.length === 0) {
+                    container.innerHTML = '<div style="text-align:center; padding:40px; color:#999;">暂无历史评审记录</div>';
+                    return;
+                }
+
+                container.innerHTML = historyPapers.map(paper => {
+                    let reviewDetails = '';
+                    if (paper.myReview) {
+                        reviewDetails = `
+                            <div style="background:#f9f9f9; padding:10px; border-radius:5px; margin-top:10px; border:1px solid #eee;">
+                                <div style="font-weight:bold; color:#555; margin-bottom:5px;">我的评审结果:</div>
+                                <div><span style="font-weight:600;">决定:</span> ${paper.myReview.decision}</div>
+                                <div><span style="font-weight:600;">置信度:</span> ${paper.myReview.confidence}/5</div>
+                                <div style="margin-top:5px;"><span style="font-weight:600;">评语:</span> <span style="white-space: pre-wrap;">${paper.myReview.comments}</span></div>
+                            </div>
+                        `;
+                    }
+
+                    return `
+                    <div class="review-card" style="border-left-color: #4caf50;">
+                        <div class="review-title">${paper.title}</div>
+                        <div class="review-meta">ID: ${paper.paperId} | 状态: ${paper.status}</div>
+                        <div class="review-abstract" style="margin-bottom:10px; color:#666;">${paper.abstract}</div>
+                        <div style="margin-top:10px;">
+                            <span style="color:#4caf50; font-weight:bold;"><i class="fas fa-check-circle"></i> 已完成评审</span>
+                        </div>
+                        ${reviewDetails}
+                        <button class="btn btn-secondary" style="margin-top:10px;" onclick="downloadPaper(${paper.paperId})">下载论文</button>
+                    </div>
+                `}).join('');
+            } catch (err) {
+                console.error(err);
+                document.getElementById('historyList').innerHTML = '<div style="color:red;">加载失败</div>';
+            }
+        }
+
+        // 下载论文
+        async function downloadPaper(paperId) {
+            const sessionId = sessionStorage.getItem('sessionId');
+            window.open(`/api/papers/${paperId}/download?sessionId=${sessionId}`, '_blank');
+        }
+
+        // 加载分配所需数据
+        async function loadAssignData() {
+            const sessionId = sessionStorage.getItem('sessionId');
+            // 加载所有论文
+            const papersRes = await fetch('/api/papers', {
+                headers: { 'Authorization': 'Bearer ' + sessionId }
+            });
+            const papersData = await papersRes.json();
+            
+            // 加载所有评审人
+            const usersRes = await fetch('/api/users?role=REVIEWER', {
+                headers: { 'Authorization': 'Bearer ' + sessionId }
+            });
+            const usersData = await usersRes.json();
+            
+            const paperList = document.getElementById('assignPaperList');
+            const reviewerList = document.getElementById('reviewerList');
+            
+            if (papersData.success) {
+                // 假设 papersData.data.papers 是数组
+                // 之前 handleGetPapers 只返回 count，需要修复后端
+                // 暂时假设后端已修复
+                const papers = papersData.data.papers || [];
+                paperList.innerHTML = papers.map(paper => `
+                    <div class="review-card" style="cursor:pointer; border-left-color: #ccc;" onclick="selectPaper(this, ${paper.id})">
+                        <div style="font-weight:bold;">${paper.title}</div>
+                        <div style="font-size:12px; color:#666;">ID: ${paper.id} | ${paper.status}</div>
+                    </div>
+                `).join('');
+            }
+            
+            if (usersData.success) {
+                const users = JSON.parse(usersData.data.users);
+                reviewerList.innerHTML = users.map(user => `
+                    <div class="review-card" style="cursor:pointer; border-left-color: #ccc;" onclick="selectReviewer(this, ${user.userId})">
+                        <div style="font-weight:bold;">${user.username}</div>
+                        <div style="font-size:12px; color:#666;">ID: ${user.userId}</div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function selectPaper(el, id) {
+            document.querySelectorAll('#assignPaperList .review-card').forEach(c => c.style.borderLeftColor = '#ccc');
+            el.style.borderLeftColor = '#18c6b0';
+            selectedPaperId = id;
+        }
+
+        function selectReviewer(el, id) {
+            document.querySelectorAll('#reviewerList .review-card').forEach(c => c.style.borderLeftColor = '#ccc');
+            el.style.borderLeftColor = '#18c6b0';
+            selectedReviewerId = id;
+        }
+
+        async function submitAssignment() {
+            if (!selectedPaperId || !selectedReviewerId) {
+                alert('请先选择论文和评审人');
+                return;
+            }
+            
+            try {
+                const sessionId = sessionStorage.getItem('sessionId');
+                const res = await fetch('/api/papers/assign', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + sessionId
+                    },
+                    body: JSON.stringify({
+                        paperId: selectedPaperId.toString(),
+                        reviewerId: selectedReviewerId.toString()
+                    })
+                });
+                
+                const data = await res.json();
+                if (data.success) {
+                    alert('分配成功！');
+                    loadAssignData(); // 刷新
+                } else {
+                    alert('分配失败: ' + data.message);
+                }
+            } catch (err) {
+                alert('网络错误');
+            }
+        }
+
+        // 模态框操作
+        function openReviewModal(paperId) {
+            document.getElementById('reviewPaperId').value = paperId;
+            document.getElementById('reviewModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('reviewModal').style.display = 'none';
+        }
+
+        document.getElementById('reviewForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const paperId = document.getElementById('reviewPaperId').value;
+            const fileInput = document.getElementById('reviewFile');
+            
+            let fileData = "";
+            let filename = "";
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                filename = file.name;
+                try {
+                    fileData = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                            // Remove "data:*/*;base64," prefix
+                            const base64 = reader.result.split(',')[1];
+                            resolve(base64);
+                        };
+                        reader.onerror = reject;
+                        reader.readAsDataURL(file);
+                    });
+                } catch (err) {
+                    alert('文件读取失败');
+                    return;
+                }
+            }
+            
+            const payload = {
+                decision: document.getElementById('reviewDecision').value,
+                confidence: document.getElementById('reviewConfidence').value,
+                comments: document.getElementById('reviewComments').value,
+                filename: filename,
+                fileData: fileData
+            };
+
+            try {
+                const sessionId = sessionStorage.getItem('sessionId');
+                const res = await fetch(`/api/reviews/${paperId}`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + sessionId
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                const data = await res.json();
+                if (data.success) {
+                    alert('评审提交成功！');
+                    closeModal();
+                    loadPendingReviews();
+                } else {
+                    alert('提交失败: ' + data.message);
+                }
+            } catch (err) {
+                alert('网络错误');
+            }
+        });
+
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,154 @@
+自动化审稿人分配算法伪代码
+========================================
+
+该算法实现了自动化的审稿人分配功能，包括硬约束筛选、软约束评分和随机扰动机制，以确保分配的合理性和公平性。
+
+
+1. 硬约束条件 (Hard Constraints)
+========================================
+
+硬约束定义了审稿人分配时必须满足的强制条件，不满足这些条件的用户将被直接排除在候选列表之外。
+
+```cpp
+// 硬约束筛选：强制条件检查
+for (const auto& user : allUsers) {
+    // 1. 必须是审稿人角色
+    if (user.role != UserRole::REVIEWER) continue;
+    
+    // 2. 不能是作者（防止自审）
+    if (isAuthorOfPaper(user.userId, paperId)) continue;
+    
+    // 3. 不能存在利益冲突（同单位）
+    if (hasConflictOfInterest(user.institution, paperAuthorInstitutions)) continue;
+    
+    // 4. 负载限制（不能超过最大负载）
+    if (getReviewerLoad(user.userId) >= user.maxLoad) continue;
+    
+    // 5. 不能已分配给该论文
+    if (isAlreadyAssigned(user.userId, paperId)) continue;
+    
+    candidates.push_back(user);  // 满足所有硬约束的候选者
+}
+```
+
+
+2. 软约束评分 (Soft Constraint Scoring)
+========================================
+
+软约束主要基于主题匹配度进行评分，通过计算论文关键词与审稿人研究兴趣的匹配度来量化专业匹配程度。
+
+```cpp
+// 软约束评分：主题匹配度计算
+struct CandidateScore {
+    uint32_t userId;
+    double score;
+};
+
+std::vector<CandidateScore> scores;
+for (const auto& candidate : candidates) {
+    double score = 0.0;
+    
+    // 领域匹配：关键词交集计数（简化版Jaccard相似度）
+    int matchCount = 0;
+    for (const auto& paperKeyword : paper.keywords) {
+        for (const auto& userInterest : candidate.researchInterests) {
+            if (paperKeyword == userInterest) {  // 简单字符串匹配
+                matchCount++;
+            }
+        }
+    }
+    
+    score += matchCount * 10.0;  // 每个匹配关键词加10分
+    
+    scores.push_back({candidate.userId, score});
+}
+```
+
+
+3. 随机扰动机制 (Random Perturbation)
+========================================
+
+引入随机扰动机制是为了确保分配结果的多样性和公平性，避免相同条件下的重复分配模式。
+
+```cpp
+// 随机扰动：添加随机因子以确保多样性
+std::random_device rd;
+std::mt19937 gen(rd());
+std::uniform_real_distribution<> dis(0.0, 1.0);  // 0-1分的随机扰动
+
+for (auto& scoreEntry : scores) {
+    scoreEntry.score += dis(gen);  // 为每个候选人的分数添加随机扰动
+}
+
+// 排序并选择Top N个候选人
+std::sort(scores.begin(), scores.end(), [](const CandidateScore& a, const CandidateScore& b) {
+    return a.score > b.score;  // 按分数降序排序
+});
+
+// 执行分配
+int needed = 3 - paper.assignedReviewers.size();
+for (int i = 0; i < std::min((int)scores.size(), needed); ++i) {
+    paper.assignedReviewers.push_back(scores[i].userId);
+    grantReviewerPermission(paperId, scores[i].userId);
+}
+```
+
+
+核心算法流程
+========================================
+
+```cpp
+bool autoAssignReviewers(uint32_t paperId) {
+    // 1. 获取所有潜在审稿人
+    std::vector<User> allUsers = userManager->listAllUsers();
+    
+    // 2. 硬约束筛选
+    std::vector<User> candidates = applyHardConstraints(allUsers, paperId);
+    
+    if (candidates.empty()) {
+        return false;  // 无符合条件的审稿人
+    }
+    
+    // 3. 软约束评分
+    std::vector<CandidateScore> scores = calculateSoftScores(candidates, paperId);
+    
+    // 4. 随机扰动
+    applyRandomPerturbation(scores);
+    
+    // 5. 排序选择
+    selectAndAssignReviewers(scores, paperId);
+    
+    return true;
+}
+```
+
+
+关键数据结构
+========================================
+
+```cpp
+// 论文结构
+struct Paper {
+    uint32_t paperId;
+    std::vector<uint32_t> authorIds;
+    std::vector<std::string> keywords;
+    std::vector<uint32_t> assignedReviewers;
+    PaperStatus status;
+};
+
+// 用户结构
+struct User {
+    uint32_t userId;
+    UserRole role;
+    std::string institution;
+    std::vector<std::string> researchInterests;
+    int maxLoad;
+};
+
+// 审稿人角色定义
+enum class UserRole {
+    AUTHOR,
+    REVIEWER,
+    EDITOR
+};
+```

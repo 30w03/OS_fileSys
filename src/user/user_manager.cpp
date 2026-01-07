@@ -127,6 +127,30 @@ bool UserManager::deactivateUser(uint32_t userId) {
     return true;
 }
 
+bool UserManager::deleteUser(uint32_t userId) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    
+    auto it = users_.find(userId);
+    if (it == users_.end()) {
+        return false;
+    }
+    
+    // Remove from usernames map
+    usernames_.erase(it->second.username);
+    
+    // Remove from users map
+    users_.erase(it);
+    
+    // Invalidate any active sessions for this user
+    for (auto& [sid, session] : sessions_) {
+        if (session.userId == userId) {
+            session.isValid = false;
+        }
+    }
+    
+    return true;
+}
+
 std::vector<User> UserManager::listAllUsers() {
     std::lock_guard<std::mutex> lock(mutex_);
     
@@ -143,6 +167,11 @@ std::vector<User> UserManager::listAllUsers() {
 // ============================================================================
 // 会话管理
 // ============================================================================
+// 30 minutes timeout for session validity
+const uint64_t SESSION_TIMEOUT = 1800;
+// 1 minute threshold for "Online" status display
+const uint64_t ONLINE_THRESHOLD = 60;
+
 uint32_t UserManager::createSession(uint32_t userId) {
     std::lock_guard<std::mutex> lock(mutex_);
     
@@ -150,6 +179,7 @@ uint32_t UserManager::createSession(uint32_t userId) {
     session.sessionId = generateSessionId();
     session.userId = userId;
     session.timestamp = static_cast<uint64_t>(std::time(nullptr));
+    session.lastActivityTime = session.timestamp;
     session.isValid = true;
     
     sessions_[session.sessionId] = session;
@@ -164,6 +194,16 @@ bool UserManager::validateSession(uint32_t sessionId, uint32_t& userId) {
     if (it == sessions_.end() || !it->second.isValid) {
         return false;
     }
+    
+    // Check timeout
+    uint64_t now = static_cast<uint64_t>(std::time(nullptr));
+    if (now > it->second.lastActivityTime + SESSION_TIMEOUT) {
+        it->second.isValid = false;
+        return false;
+    }
+    
+    // Update activity time
+    it->second.lastActivityTime = now;
     
     userId = it->second.userId;
     return true;
@@ -197,6 +237,38 @@ bool UserManager::hasPermission(uint32_t userId, UserRole requiredRole) {
 // ============================================================================
 uint32_t UserManager::generateUserId() {
     return nextUserId_++;
+}
+
+std::vector<User> UserManager::getOnlineUsers() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::vector<User> onlineUsers;
+    std::unordered_map<uint32_t, bool> addedUsers;
+    uint64_t now = static_cast<uint64_t>(std::time(nullptr));
+    
+    for (auto& [sid, session] : sessions_) {
+        if (session.isValid) {
+            // Check session expiry (cleanup)
+            if (now > session.lastActivityTime + SESSION_TIMEOUT) {
+                session.isValid = false;
+                continue;
+            }
+            
+            // Check online status (display)
+            // Only count users active within the last ONLINE_THRESHOLD seconds
+            if (now > session.lastActivityTime + ONLINE_THRESHOLD) {
+                continue;
+            }
+            
+            if (addedUsers.find(session.userId) == addedUsers.end()) {
+                auto it = users_.find(session.userId);
+                if (it != users_.end()) {
+                    onlineUsers.push_back(it->second);
+                    addedUsers[session.userId] = true;
+                }
+            }
+        }
+    }
+    return onlineUsers;
 }
 
 uint32_t UserManager::generateSessionId() {
@@ -250,6 +322,22 @@ bool UserManager::saveToFile(const std::string& filename) {
         // Write maxLoad
         file.write(reinterpret_cast<const char*>(&user.maxLoad), sizeof(user.maxLoad));
     }
+
+    // 保存会话数据
+    uint32_t sessionCount = sessions_.size();
+    file.write(reinterpret_cast<const char*>(&sessionCount), sizeof(sessionCount));
+    
+    for (const auto& pair : sessions_) {
+        const Session& session = pair.second;
+        file.write(reinterpret_cast<const char*>(&session.sessionId), sizeof(session.sessionId));
+        file.write(reinterpret_cast<const char*>(&session.userId), sizeof(session.userId));
+        file.write(reinterpret_cast<const char*>(&session.timestamp), sizeof(session.timestamp));
+        file.write(reinterpret_cast<const char*>(&session.lastActivityTime), sizeof(session.lastActivityTime));
+        file.write(reinterpret_cast<const char*>(&session.isValid), sizeof(session.isValid));
+    }
+    
+    // 保存 nextSessionId_
+    file.write(reinterpret_cast<const char*>(&nextSessionId_), sizeof(nextSessionId_));
     
     return file.good();
 }
@@ -266,6 +354,8 @@ bool UserManager::loadFromFile(const std::string& filename) {
     // 使用 unordered_map 而不是 map
     std::unordered_map<uint32_t, User> tempUsers;
     std::unordered_map<std::string, uint32_t> tempUsernames;
+    std::unordered_map<uint32_t, Session> tempSessions;
+    uint32_t tempNextSessionId = 1;
     
     uint32_t userCount;
     file.read(reinterpret_cast<char*>(&userCount), sizeof(userCount));
@@ -294,10 +384,6 @@ bool UserManager::loadFromFile(const std::string& filename) {
         user.passwordHash.resize(passLen);
         file.read(&user.passwordHash[0], passLen);
         
-        // Try to read new fields. If we hit EOF or fail, it might be an old file format.
-        // However, since we don't have versioning, this is best-effort or requires a fresh DB.
-        // We'll assume the file format matches the code.
-        
         // Read institution
         uint32_t instLen;
         file.read(reinterpret_cast<char*>(&instLen), sizeof(instLen));
@@ -320,21 +406,11 @@ bool UserManager::loadFromFile(const std::string& filename) {
             // Read maxLoad
             file.read(reinterpret_cast<char*>(&user.maxLoad), sizeof(user.maxLoad));
         } else {
-            // If we failed to read new fields, reset stream state if it was just EOF/short read
-            // and keep the defaults for these fields.
-            // But wait, if we are in the middle of a file (multiple users), 
-            // we might have read into the next user's data.
-            // Without versioning, migration is hard. 
-            // Let's assume we are starting fresh or the user accepts data loss.
             file.clear(); 
         }
 
         if (!file.good()) {
-            // If we are still not good, it's a real error or end of file in a bad place
              std::cout << "⚠️  Failed to read user data (possibly old format), using defaults for remaining fields" << std::endl;
-             // We might want to return true to allow partial load, or false.
-             // The original code returned true on failure inside the loop?
-             // No, it returned true.
         }
         
         tempUsers[user.userId] = user;
@@ -344,12 +420,38 @@ bool UserManager::loadFromFile(const std::string& filename) {
             nextUserId_ = user.userId + 1;
         }
     }
+
+    // 读取会话数据
+    uint32_t sessionCount;
+    file.read(reinterpret_cast<char*>(&sessionCount), sizeof(sessionCount));
+    if (file.good()) {
+        for (uint32_t i = 0; i < sessionCount; i++) {
+            Session session;
+            file.read(reinterpret_cast<char*>(&session.sessionId), sizeof(session.sessionId));
+            file.read(reinterpret_cast<char*>(&session.userId), sizeof(session.userId));
+            file.read(reinterpret_cast<char*>(&session.timestamp), sizeof(session.timestamp));
+            file.read(reinterpret_cast<char*>(&session.lastActivityTime), sizeof(session.lastActivityTime));
+            file.read(reinterpret_cast<char*>(&session.isValid), sizeof(session.isValid));
+            
+            // Fallback for old data or if lastActivityTime is 0
+            if (session.lastActivityTime == 0) {
+                session.lastActivityTime = session.timestamp;
+            }
+            
+            tempSessions[session.sessionId] = session;
+        }
+        
+        // 读取 nextSessionId_
+        file.read(reinterpret_cast<char*>(&tempNextSessionId), sizeof(tempNextSessionId));
+    }
     
     // 只有在成功读取所有数据后才替换
     users_ = std::move(tempUsers);
     usernames_ = std::move(tempUsernames);
+    sessions_ = std::move(tempSessions);
+    nextSessionId_ = tempNextSessionId;
     
-    std::cout << "✅ Loaded " << users_.size() << " users from file" << std::endl;
+    std::cout << "✅ Loaded " << users_.size() << " users and " << sessions_.size() << " sessions from file" << std::endl;
     
     return true;
 }

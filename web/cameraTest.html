@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>摄像头测试 & E 方向检测</title>
+  <style>
+    :root {
+      --primary-green: #18c6b0;
+      --light-green: #43e97b;
+      --accent-color: #ff7043;
+      --light-bg: #f8f9fc;
+      --dark-text: #333;
+      --shadow-light: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+    * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI','Microsoft YaHei',sans-serif; }
+    body { display:flex; min-height:100vh; background:var(--light-bg); color:var(--dark-text); }
+    /* 侧边栏 */
+    .sidebar {
+      width: 240px; background: linear-gradient(to bottom, #1da598, #43e97b);
+      color:#fff; padding:30px 0; display:flex; flex-direction:column;
+    }
+    .logo-container {
+      padding:0 30px 25px; border-bottom:1px solid rgba(255,255,255,0.1);
+      display:flex; align-items:center; margin-bottom:25px;
+    }
+    .logo-container i { font-size:32px; margin-right:15px; color:#ffd54f; }
+    .logo-container h1 { font-size:20px; font-weight:700; }
+    .nav-item {
+      display:flex; align-items:center; padding:15px 30px; font-size:16px;
+      text-decoration:none; color:#fff; transition:all .3s; cursor:pointer;
+    }
+    .nav-item i { width:24px; margin-right:12px; }
+    .nav-item:hover { background:rgba(255,255,255,0.1); padding-left:35px; }
+    /* 主区 */
+    .main-content { flex:1; display:flex; flex-direction:column; }
+    .topbar {
+      display:flex; justify-content:space-between; align-items:center;
+      padding:20px 40px; background:#fff; box-shadow:var(--shadow-light);
+      position:sticky; top:0; z-index:10;
+    }
+    .topbar-logo i { font-size:36px; color:var(--primary-green); }
+    .content-area {
+      flex:1; padding:40px; background:linear-gradient(to bottom, #eef9f8, #f8f9fc);
+      display:flex; flex-direction:column; align-items:center;
+    }
+    /* 视频与结果 */
+    #video {
+      width:100%; max-width:600px; border:2px solid var(--primary-green);
+      border-radius:8px; box-shadow:var(--shadow-light);
+    }
+    #direction {
+      margin-top:20px; font-size:1.3em; color:var(--accent-color);
+    }
+    button {
+      font-size:1em; padding:10px 20px; margin:10px;
+      border:none; border-radius:6px; cursor:pointer;
+      background:var(--primary-green); color:#fff; transition:background .3s;
+    }
+    button:hover { background:var(--light-green); }
+  </style>
+</head>
+<body>
+  <nav class="sidebar">
+    <div class="logo-container">
+      <i class="fas fa-video"></i>
+      <h1>摄像头测试</h1>
+    </div>
+    <a class="nav-item" href="cameraTest.html"><i class="fas fa-video"></i> 摄像头测试</a>
+    <a class="nav-item" href="signDemo.html"><i class="fas fa-hand-paper"></i> 手语演示</a>
+    <a class="nav-item" href="../serviceFront/dataChange.html#info"><i class="fas fa-user-cog"></i> 个人信息</a>
+  </nav>
+
+  <main class="main-content">
+    <header class="topbar">
+      <div class="topbar-logo"><i class="fas fa-graduation-cap"></i></div>
+      <div class="user-greeting">实时 E 方向检测</div>
+    </header>
+    <section class="content-area">
+      <video id="video" autoplay playsinline></video>
+      <div id="direction">当前方向：<span id="dirText">未开始</span></div>
+      <div>
+        <button id="startBtn">开始检测</button>
+        <button id="stopBtn">停止检测</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const video = document.getElementById('video');
+    const dirText = document.getElementById('dirText');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    let statusInterval = null;
+
+    async function openCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video:true });
+        video.srcObject = stream;
+      } catch (e) {
+        alert('无法访问摄像头：' + e.message);
+      }
+    }
+
+    startBtn.onclick = () => {
+      fetch('/e-detection/start', { method:'POST' })
+        .then(r=>r.json()).then(data=>{
+          if(data.status==='success'){
+            dirText.textContent='初始化中...';
+            if(!statusInterval) statusInterval = setInterval(checkStatus,500);
+          } else alert(data.message);
+        }).catch(e=>alert('启动失败：'+e.message));
+    };
+
+    stopBtn.onclick = () => {
+      fetch('/e-detection/stop',{method:'POST'})
+        .then(r=>r.json()).then(()=>{
+          if(statusInterval) clearInterval(statusInterval);
+          statusInterval = null;
+          dirText.textContent='已停止';
+        }).catch(e=>alert('停止失败：'+e.message));
+    };
+
+    function checkStatus(){
+      fetch('/e-detection/status').then(r=>r.json())
+        .then(data=>{
+          dirText.textContent = data.direction||'--';
+          if(!data.is_running && statusInterval){
+            clearInterval(statusInterval);
+            statusInterval = null;
+          }
+        }).catch(()=>{
+          dirText.textContent='状态请求失败';
+          if(statusInterval){ clearInterval(statusInterval); statusInterval=null; }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', openCamera);
+  </script>
+  <!-- Font Awesome -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/js/all.min.js"></script>
+</body>
+</html>

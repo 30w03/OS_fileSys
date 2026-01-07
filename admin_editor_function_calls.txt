@@ -1,0 +1,334 @@
+# Admin 和 Editor 功能调用链
+
+## 1. Editor (编辑) 功能调用链
+
+### 1.1 获取所有论文
+
+```
+HTTP 请求: GET /api/papers
+    ↓
+HttpHandler::handleGetPapers()
+    ↓
+ReviewSystem::getAllPapers()
+```
+
+### 1.2 分配审稿人
+
+```
+HTTP 请求: POST /api/papers/assign
+    ↓
+HttpHandler::handleAssignReviewer()
+    ↓
+ReviewSystem::assignReviewer()
+    ↓
+Filesystem::FileOps::grantPermission()
+    ↓
+Filesystem::FileOps::setFileLock()
+    ↓
+ReviewSystem::saveMetadataNoLock()
+```
+
+### 1.3 自动分配审稿人
+
+```
+HTTP 请求: POST /api/papers/auto-assign
+    ↓
+HttpHandler::handleAutoAssign()
+    ↓
+ReviewSystem::autoAssignReviewers()
+    ↓
+UserManager::listAllUsers()
+    ↓
+UserManager::getUserById()
+    ↓
+Filesystem::FileOps::grantPermission()
+    ↓
+Filesystem::FileOps::setFileLock()
+```
+
+### 1.4 移除审稿人
+
+```
+HTTP 请求: DELETE /api/papers/assign
+    ↓
+HttpHandler::handleRemoveReviewer()
+    ↓
+ReviewSystem::removeReviewer()
+    ↓
+ReviewSystem::saveMetadataNoLock()
+```
+
+### 1.5 做出论文决定
+
+```
+HTTP 请求: POST /api/papers/{id}/decision
+    ↓
+HttpHandler::handleMakeDecision()
+    ↓
+ReviewSystem::makeFinalDecision()
+    ↓
+ReviewSystem::saveMetadataNoLock()
+```
+
+### 1.6 获取评审进度
+
+```
+HTTP 请求: GET /api/reviews/progress
+    ↓
+HttpHandler::handleGetReviewProgress()
+    ↓
+ReviewSystem::getReviewsForPaper()
+    ↓
+ReviewSystem::getPapersForReviewer()
+```
+
+### 1.7 获取统计信息
+
+```
+HTTP 请求: GET /api/statistics
+    ↓
+HttpHandler::handleGetStatistics()
+    ↓
+ReviewSystem::getStatistics()
+```
+
+## 2. Admin (管理员) 功能调用链
+
+### 2.1 用户管理
+
+#### 2.1.1 获取用户列表
+
+```
+HTTP 请求: GET /api/users
+    ↓
+HttpHandler::handleGetUsers()
+    ↓
+UserManager::listAllUsers()
+    ↓
+Filesystem::loadUsers()
+```
+
+#### 2.1.2 更新用户角色
+
+```
+HTTP 请求: PUT /api/users/{id}/role
+    ↓
+HttpHandler::handleUpdateUserRole()
+    ↓
+UserManager::updateUserRole()
+    ↓
+Filesystem::saveUsers()
+```
+
+#### 2.1.3 停用用户
+
+```
+HTTP 请求: POST /api/users/{id}/deactivate
+    ↓
+HttpHandler::handleDeactivateUser()
+    ↓
+UserManager::deactivateUser()
+    ↓
+Filesystem::saveUsers()
+```
+
+### 2.2 系统监控
+
+#### 2.2.1 获取系统统计
+
+```
+HTTP 请求: GET /api/system/stats
+    ↓
+HttpHandler::handleGetSystemStats()
+    ↓
+ReviewSystem::getSystemStats()
+    ↓
+PaperManager::getPaperStats()
+    ↓
+ReviewManager::getReviewStats()
+    ↓
+UserManager::getUserCount()
+```
+
+#### 2.2.2 获取在线用户
+
+```
+HTTP 请求: GET /api/system/online-users
+    ↓
+HttpHandler::handleGetOnlineUsers()
+    ↓
+UserManager::getOnlineUsers()
+    ↓
+SessionManager::getActiveSessions()
+```
+
+### 2.3 系统备份
+
+```
+HTTP 请求: POST /api/system/backup
+    ↓
+HttpHandler::handleSystemBackup()
+    ↓
+Filesystem::createBackup()
+    ↓
+Filesystem::copyFiles()
+```
+
+### 2.4 系统概述
+
+```
+HTTP 请求: GET /api/overview
+    ↓
+HttpHandler::handleGetOverview()
+    ↓
+ReviewSystem::getOverview()
+    ↓
+PaperManager::getPaperStats()
+    ↓
+ReviewManager::getReviewStats()
+    ↓
+UserManager::getUserCount()
+```
+
+## 3. 通用功能调用链 (适用于所有角色)
+
+### 3.1 用户认证
+
+#### 3.1.1 用户登录
+
+```
+HTTP 请求: POST /api/auth/login
+    ↓
+HttpHandler::handleLogin()
+    ↓
+UserManager::authenticateUser()
+    ↓
+UserManager::createSession()
+    ↓
+Filesystem::saveSessions()
+```
+
+#### 3.1.2 用户注册
+
+```
+HTTP 请求: POST /api/auth/register
+    ↓
+HttpHandler::handleRegister()
+    ↓
+UserManager::createUser()
+    ↓
+Filesystem::saveUsers()
+```
+
+#### 3.1.3 用户登出
+
+```
+HTTP 请求: POST /api/auth/logout
+    ↓
+HttpHandler::handleLogout()
+    ↓
+UserManager::invalidateSession()
+    ↓
+Filesystem::saveSessions()
+```
+
+### 3.2 用户资料
+
+#### 3.2.1 更新用户资料
+
+```
+HTTP 请求: PUT /api/user/profile
+    ↓
+HttpHandler::handleUpdateProfile()
+    ↓
+UserManager::updateUserProfile()
+    ↓
+Filesystem::saveUsers()
+```
+
+### 3.3 文件管理
+
+#### 3.3.1 获取文件列表
+
+```
+HTTP 请求: GET /api/files
+    ↓
+HttpHandler::handleGetFiles()
+    ↓
+Filesystem::listFiles()
+```
+
+#### 3.3.2 上传文件
+
+```
+HTTP 请求: POST /api/files/upload
+    ↓
+HttpHandler::handleUploadFile()
+    ↓
+Filesystem::uploadFile()
+```
+
+#### 3.3.3 删除文件
+
+```
+HTTP 请求: DELETE /api/files/{filename}
+    ↓
+HttpHandler::handleDeleteFile()
+    ↓
+Filesystem::deleteFile()
+```
+
+## 4. 权限检查机制
+
+在所有需要权限验证的请求中，都会先调用权限检查方法：
+
+```
+HTTP 请求 (需要权限验证)
+    ↓
+HttpHandler::validateAuth()
+    ↓
+UserManager::validateSession()
+    ↓
+UserManager::hasPermission()
+    ↓
+(检查用户角色权限)
+    ↓
+(如果权限不足，返回403错误)
+    ↓
+(否则继续处理请求)
+```
+
+权限检查逻辑：
+```cpp
+bool hasPermission(uint32_t userId, UserRole requiredRole) {
+    User user;
+    if (!getUserById(userId, user)) {
+        return false;
+    }
+    return static_cast<uint8_t>(user.role) >= static_cast<uint8_t>(requiredRole);
+}
+```
+
+## 5. 数据持久化调用链
+
+所有业务操作最终都会调用文件系统接口进行数据持久化：
+
+```
+业务逻辑方法
+    ↓
+Manager 方法
+    ↓
+Filesystem 接口
+    ↓
+具体存储实现 (文件系统/数据库)
+```
+
+常用的持久化操作：
+- `saveUsers()`：保存用户信息
+- `loadUsers()`：加载用户信息
+- `savePapers()`：保存论文信息
+- `loadPapers()`：加载论文信息
+- `saveReviews()`：保存评审信息
+- `loadReviews()`：加载评审信息
+- `saveSessions()`：保存会话信息
+- `loadSessions()`：加载会话信息

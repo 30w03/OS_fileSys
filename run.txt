@@ -8,7 +8,7 @@ echo "=== Test 1: Filesystem Tests ==="
 echo -e "\n=== Test 2: File Operations Tests ==="
 ./test_file_operations
 
-echo -e "\n=== Test 3: Network Protocol Tests ==="
+echo -e "\n=== Test 3: Ne.twork Protocol Tests ==="
 ./test_network
 
 🚀 步骤2：启动服务器（在一个终端）

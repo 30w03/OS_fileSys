@@ -14,11 +14,16 @@ public:
                  std::shared_ptr<UserManager> userMgr);
     ~ReviewSystem();
     
+    bool init();
+
     // 论文操作
     uint32_t submitPaper(uint32_t authorId, const std::string& title,
                         const std::string& abstract, 
                         const std::vector<char>& fileData,
                         const std::vector<std::string>& keywords = {});
+    // 修改论文（覆盖文件）
+    bool updatePaperFile(uint32_t paperId, uint32_t authorId,
+                        const std::vector<char>& fileData);
     bool uploadRevision(uint32_t paperId, uint32_t authorId,
                        const std::vector<char>& fileData);
     std::vector<Paper> getPapersByAuthor(uint32_t authorId);
@@ -42,8 +47,11 @@ public:
     // 评审操作
     uint32_t submitReview(uint32_t reviewerId, uint32_t paperId,
                          ReviewDecision decision, int confidence,
-                         const std::string& comments);
+                         const std::string& comments,
+                         const std::vector<char>& fileData = {},
+                         const std::string& filename = "");
     std::vector<Review> getReviewsForPaper(uint32_t paperId);
+    std::vector<Review> getReviewsByReviewer(uint32_t reviewerId); // 🔥 New method
     Review getReviewInfo(uint32_t reviewId);
     
     // 编辑决定
@@ -61,6 +69,11 @@ public:
     // 持久化
     bool saveMetadata();
     bool loadMetadata();
+
+    // 权限检查 (Public for HttpHandler)
+    bool isAuthorOfPaper(uint32_t userId, uint32_t paperId);
+    bool isReviewerOfPaper(uint32_t userId, uint32_t paperId);
+    bool isEditor(uint32_t userId);
     
 private:
     std::shared_ptr<Filesystem> filesystem_;
@@ -74,15 +87,11 @@ private:
     
     mutable std::mutex mutex_;  // 并发保护
     
-    // 权限检查
-    bool isAuthorOfPaper(uint32_t userId, uint32_t paperId);
-    bool isReviewerOfPaper(uint32_t userId, uint32_t paperId);
-    bool isEditor(uint32_t userId);
-    
     // 内部辅助函数
     std::string generatePaperPath(uint32_t paperId, uint32_t version = 1);
-    std::string generateReviewPath(uint32_t reviewId);
+    std::string generateReviewPath(uint32_t reviewId, const std::string& extension = ".txt");
     std::string generateMetadataPath();
+    bool saveMetadataNoLock();
     
     // 序列化辅助函数
     bool serializePaper(const Paper& paper, std::vector<char>& data);

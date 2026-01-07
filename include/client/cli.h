@@ -23,6 +23,7 @@ private:
     void handleRegister();
     void handleLogout();
     void handleSubmitPaper();
+    void handleUpdatePaper(); // New command
     void handleMyPapers();
     void handleReview();
     void handleAssignReviewer();

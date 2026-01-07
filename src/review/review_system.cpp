@@ -8,6 +8,7 @@
 #include <random>
 #include <set>
 #include <unordered_set>
+#include <unistd.h> // for getpid()
 
 ReviewSystem::ReviewSystem(std::shared_ptr<Filesystem> fs, 
                           std::shared_ptr<UserManager> userMgr)
@@ -15,12 +16,14 @@ ReviewSystem::ReviewSystem(std::shared_ptr<Filesystem> fs,
     , userManager_(userMgr)
     , nextPaperId_(1)
     , nextReviewId_(1) {
-    
-    loadMetadata();
+}
+
+bool ReviewSystem::init() {
+    return loadMetadata();
 }
 
 ReviewSystem::~ReviewSystem() {
-    // saveMetadata();  // TEMP FIX
+    saveMetadataNoLock();
 }
 
 // ============================================================================
@@ -40,6 +43,22 @@ uint32_t ReviewSystem::submitPaper(uint32_t authorId,
         return 0;
     }
     
+    // 获取 FileOps
+    auto fileOps = filesystem_->getFileOps();
+
+    // 查找可用的 Paper ID
+    std::string potentialPath;
+    while (true) {
+        potentialPath = generatePaperPath(nextPaperId_, 1);
+        // 检查文件是否存在 (使用 authorId 权限检查，或者使用 root/admin 权限如果需要)
+        // 这里假设 authorId 有权读取/检查该路径，或者 fileExists 不严格检查权限
+        if (!fileOps->fileExists(authorId, potentialPath)) {
+            break;
+        }
+        std::cout << "⚠️ Paper ID " << nextPaperId_ << " conflict (file exists: " << potentialPath << "), skipping..." << std::endl;
+        nextPaperId_++;
+    }
+
     // 创建论文对象
     Paper paper;
     paper.paperId = nextPaperId_++;
@@ -52,10 +71,10 @@ uint32_t ReviewSystem::submitPaper(uint32_t authorId,
     paper.keywords = keywords;
     
     // 生成文件路径
-    paper.filepath = generatePaperPath(paper.paperId, 1);
+    paper.filepath = potentialPath;
     
     // 保存文件到文件系统 (使用 FileOps 直接操作以设置 Owner)
-    auto fileOps = filesystem_->getFileOps();
+    // auto fileOps = filesystem_->getFileOps(); // Moved up
     
     // 1. 创建文件 (Owner = authorId)
     // 确保父目录存在 (createFile 内部会检查，但这里我们假设目录结构已由 Admin 初始化)
@@ -74,7 +93,7 @@ uint32_t ReviewSystem::submitPaper(uint32_t authorId,
     
     // 保存论文元数据
     papers_[paper.paperId] = paper;
-    // saveMetadata();  // TEMP FIX
+    saveMetadataNoLock();
     
     std::cout << "✅ Paper submitted successfully!" << std::endl;
     std::cout << "   Paper ID: " << paper.paperId << std::endl;
@@ -88,6 +107,82 @@ uint32_t ReviewSystem::submitPaper(uint32_t authorId,
 // ============================================================================
 // 上传修订版本
 // ============================================================================
+
+// ============================================================================
+// 修改论文文件 (覆盖)
+// ============================================================================
+bool ReviewSystem::updatePaperFile(uint32_t paperId, uint32_t authorId, 
+                                  const std::vector<char>& fileData) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    
+    auto it = papers_.find(paperId);
+    if (it == papers_.end()) {
+        std::cerr << "❌ Paper not found: " << paperId << std::endl;
+        return false;
+    }
+    
+    Paper& paper = it->second;
+    
+    // 检查权限
+    if (!isAuthorOfPaper(authorId, paperId)) {
+        std::cerr << "❌ User " << authorId << " is not author of paper " << paperId << std::endl;
+        return false;
+    }
+
+    // 只能在 SUBMITTED 状态下修改
+    if (paper.status != PaperStatus::SUBMITTED) {
+        std::cerr << "❌ Paper can only be modified when status is SUBMITTED" << std::endl;
+        return false;
+    }
+    
+    // 获取 FileOps
+    auto fileOps = filesystem_->getFileOps();
+    
+    // 使用临时文件 + 原子替换来保证写入的原子性和可回滚性
+    // tmp 名称需要保证文件名长度不超过 Config::MAX_FILENAME - 1
+    size_t slash = paper.filepath.find_last_of('/');
+    std::string parent = (slash == 0) ? "/" : paper.filepath.substr(0, slash);
+    std::string base = paper.filepath.substr(slash + 1);
+    std::string suffix = std::string(".tmp.") + std::to_string(getpid());
+    size_t maxName = Config::MAX_FILENAME - 1; // reserve space
+    if (base.size() + suffix.size() > maxName) {
+        base = base.substr(0, maxName - suffix.size());
+    }
+    std::string tmpName = parent + "/" + base + suffix;
+
+    if (!fileOps->createFile(authorId, tmpName)) {
+        std::cerr << "❌ Failed to create tmp file: " << tmpName << std::endl;
+        return false;
+    }
+
+    ssize_t written = fileOps->writeFile(authorId, tmpName, fileData.data(), fileData.size());
+    if (written != (ssize_t)fileData.size()) {
+        std::cerr << "❌ Failed to write tmp file content: " << tmpName << " (written=" << written << ", expected=" << fileData.size() << ")" << std::endl;
+        fileOps->deleteFile(authorId, tmpName);
+        return false;
+    }
+
+    // 诊断：打印 tmp 文件信息与 BlockManager 状态
+    {
+        Inode inode;
+        if (filesystem_->getFileOps()->getFileInfo(authorId, tmpName, inode)) {
+            std::cerr << "DEBUG: tmp Inode uid=" << inode.uid << " size=" << inode.size << " flags=" << inode.flags << std::endl;
+        }
+        if (filesystem_->getBlockManager()) filesystem_->getBlockManager()->printStats();
+    }
+
+    // 原子替换
+    if (!fileOps->atomicReplaceFile(authorId, paper.filepath, tmpName)) {
+        std::cerr << "❌ atomicReplaceFile failed for " << paper.filepath << " using " << tmpName << std::endl;
+        // 尝试清理 tmp
+        fileOps->deleteFile(authorId, tmpName);
+        return false;
+    }
+
+    std::cout << "✅ Paper file replaced atomically: " << paper.filepath << std::endl;
+    return true;
+}
+
 bool ReviewSystem::uploadRevision(uint32_t paperId, uint32_t authorId,
                                  const std::vector<char>& fileData) {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -109,7 +204,8 @@ bool ReviewSystem::uploadRevision(uint32_t paperId, uint32_t authorId,
     // 生成新版本路径
     paper.currentVersion++;
     std::string revisionPath = generatePaperPath(paperId, paper.currentVersion);
-    paper.revisionPaths.push_back(revisionPath);
+    // 修复 Bug：将旧文件路径保存到 revisionPaths，并将 filepath 更新为新路径
+    paper.revisionPaths.push_back(paper.filepath);
     
     // 保存新版本 (使用 FileOps 直接操作以设置 Owner)
     auto fileOps = filesystem_->getFileOps();
@@ -130,7 +226,24 @@ bool ReviewSystem::uploadRevision(uint32_t paperId, uint32_t authorId,
         return false;
     }
     
-    // saveMetadata();  // TEMP FIX
+    // 更新主文件路径指向新版本
+    paper.filepath = revisionPath;
+    
+    // 如果是上传了修订版，通常意味着之前的版本被拒绝或需要修改
+    // 因此需要重置状态为 SUBMITTED 或 UNDER_REVIEW，以便重新分配或重新审稿
+    // 这里我们将其重置为 SUBMITTED，等待编辑重新分配或处理
+    if (paper.status == PaperStatus::REJECTED) {
+       paper.status = PaperStatus::SUBMITTED;
+       // 清空分配的审稿人，因为这是新版本，或者是让编辑重新分配？ 
+       // 通常流程是：编辑收到Revision -> 重新分配原审稿人或新审稿人
+       // 简单起见，重置为 SUBMITTED 状态即可，保留历史审稿记录（在 Reviews 中）
+       // 但需要清除 `assignedReviewers` 吗？ 
+       // 如果清除，编辑需要重新分配。如果不清除，之前的审稿人还能看到。
+       // 策略：重置为 SUBMITTED，保留 assignedReviewers，但因为状态变了，审稿人可能无法立即提交Review（如果只能在UNDER_REVIEW状态提交）
+       // 真正完善的流程比较复杂，这里至少先改为 SUBMITTED 让流程能继续
+    }
+
+    saveMetadataNoLock();
     
     std::cout << "✅ Revision uploaded successfully!" << std::endl;
     std::cout << "   Paper ID: " << paperId << std::endl;
@@ -234,7 +347,7 @@ bool ReviewSystem::assignReviewer(uint32_t editorId, uint32_t paperId,
     // 授予审稿人 ACL 权限 (只读)
     filesystem_->getFileOps()->grantPermission(1, paper.filepath, reviewerId);
     
-    // saveMetadata();  // TEMP FIX
+    saveMetadataNoLock();
     
     std::cout << "✅ Reviewer assigned successfully!" << std::endl;
     std::cout << "   Paper ID: " << paperId << std::endl;
@@ -270,7 +383,7 @@ bool ReviewSystem::removeReviewer(uint32_t editorId, uint32_t paperId,
     }
     
     paper.assignedReviewers.erase(reviewerIt);
-    // saveMetadata();  // TEMP FIX
+    saveMetadataNoLock();
     
     return true;
 }
@@ -448,13 +561,20 @@ std::vector<Paper> ReviewSystem::getPapersToReview(uint32_t reviewerId) const {
     std::lock_guard<std::mutex> lock(mutex_);
     std::vector<Paper> result;
     
+    std::cout << "🔍 Checking papers for reviewer " << reviewerId << std::endl;
+    
     for (const auto& [paperId, paper] : papers_) {
+        // Debug log
+        // std::cout << "   Checking paper " << paperId << " (Assigned count: " << paper.assignedReviewers.size() << ")" << std::endl;
+
         // 检查是否分配给该审稿人
         bool isAssigned = std::find(paper.assignedReviewers.begin(), 
                                     paper.assignedReviewers.end(), 
                                     reviewerId) != paper.assignedReviewers.end();
         
         if (!isAssigned) continue;
+        
+        std::cout << "   Found assigned paper " << paperId << std::endl;
         
         // 检查是否已提交评审
         bool hasReviewed = false;
@@ -467,10 +587,14 @@ std::vector<Paper> ReviewSystem::getPapersToReview(uint32_t reviewerId) const {
         
         // ✅ 只返回未审的论文
         if (!hasReviewed) {
+            std::cout << "   -> Added to pending list" << std::endl;
             result.push_back(paper);
+        } else {
+            std::cout << "   -> Already reviewed" << std::endl;
         }
     }
     
+    std::cout << "   Total pending papers: " << result.size() << std::endl;
     return result;
 }
 
@@ -479,7 +603,9 @@ std::vector<Paper> ReviewSystem::getPapersToReview(uint32_t reviewerId) const {
 // ============================================================================
 uint32_t ReviewSystem::submitReview(uint32_t reviewerId, uint32_t paperId,
                                    ReviewDecision decision, int confidence,
-                                   const std::string& comments) {
+                                   const std::string& comments,
+                                   const std::vector<char>& fileData,
+                                   const std::string& filename) {
     std::lock_guard<std::mutex> lock(mutex_);
     
     if (!isReviewerOfPaper(reviewerId, paperId)) {
@@ -503,14 +629,43 @@ uint32_t ReviewSystem::submitReview(uint32_t reviewerId, uint32_t paperId,
     review.confidenceScore = confidence;
     review.comments = comments;
     review.submitTime = std::time(nullptr);
-    review.filepath = generateReviewPath(review.reviewId);
+    
+    // Determine extension
+    std::string extension = ".txt";
+    if (!filename.empty()) {
+        size_t dotPos = filename.find_last_of('.');
+        if (dotPos != std::string::npos) {
+            extension = filename.substr(dotPos);
+        }
+    } else if (!fileData.empty()) {
+        // Try to guess from magic bytes
+        if (fileData.size() > 4 && fileData[0] == '%' && fileData[1] == 'P' && fileData[2] == 'D' && fileData[3] == 'F') {
+            extension = ".pdf";
+        } else if (fileData.size() > 2 && fileData[0] == 'P' && fileData[1] == 'K') {
+            extension = ".docx"; // Assume docx for zip, or could be .zip
+        }
+    }
+    
+    std::cout << "   ReviewSystem: Filename='" << filename << "', Extension='" << extension << "'" << std::endl;
+    
+    review.filepath = generateReviewPath(review.reviewId, extension);
     
     // 保存评审文件
-    std::vector<char> reviewData(comments.begin(), comments.end());
-    if (!filesystem_->writeFile(review.filepath, reviewData)) {
-        std::cerr << "❌ Failed to write review file: " << review.filepath << std::endl;
-        nextReviewId_--;
-        return 0;
+    // 如果有上传的文件数据，优先保存文件数据
+    if (!fileData.empty()) {
+        if (!filesystem_->writeFile(review.filepath, fileData)) {
+            std::cerr << "❌ Failed to write review file: " << review.filepath << std::endl;
+            nextReviewId_--;
+            return 0;
+        }
+    } else {
+        // 否则保存评论文本
+        std::vector<char> reviewData(comments.begin(), comments.end());
+        if (!filesystem_->writeFile(review.filepath, reviewData)) {
+            std::cerr << "❌ Failed to write review file: " << review.filepath << std::endl;
+            nextReviewId_--;
+            return 0;
+        }
     }
     
     reviews_[review.reviewId] = review;
@@ -569,7 +724,7 @@ uint32_t ReviewSystem::submitReview(uint32_t reviewerId, uint32_t paperId,
         }
     }
     
-    // saveMetadata();  // TEMP FIX
+    saveMetadataNoLock();
     
     std::cout << "✅ Review submitted successfully!" << std::endl;
     std::cout << "   Review ID: " << review.reviewId << std::endl;
@@ -626,13 +781,28 @@ bool ReviewSystem::makeFinalDecision(uint32_t editorId, uint32_t paperId,
     }
     
     it->second.status = decision;
-    // saveMetadata();  // TEMP FIX
+    saveMetadataNoLock();
     
     std::cout << "✅ Final decision made!" << std::endl;
     std::cout << "   Paper ID: " << paperId << std::endl;
     std::cout << "   Decision: " << it->second.getStatusName() << std::endl;
     
     return true;
+}
+
+// ============================================================================
+// 获取审稿人的所有评审记录
+// ============================================================================
+std::vector<Review> ReviewSystem::getReviewsByReviewer(uint32_t reviewerId) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::vector<Review> result;
+    
+    for (const auto& pair : reviews_) {
+        if (pair.second.reviewerId == reviewerId) {
+            result.push_back(pair.second);
+        }
+    }
+    return result;
 }
 
 // ============================================================================
@@ -735,9 +905,9 @@ std::string ReviewSystem::generatePaperPath(uint32_t paperId, uint32_t version) 
     return oss.str();
 }
 
-std::string ReviewSystem::generateReviewPath(uint32_t reviewId) {
+std::string ReviewSystem::generateReviewPath(uint32_t reviewId, const std::string& extension) {
     std::ostringstream oss;
-    oss << "/reviews/review_" << std::setw(6) << std::setfill('0') << reviewId << ".txt";
+    oss << "/reviews/review_" << std::setw(6) << std::setfill('0') << reviewId << extension;
     return oss.str();
 }
 
@@ -774,7 +944,10 @@ bool ReviewSystem::deserializeReview(const std::vector<char>& data, Review& revi
 // ============================================================================
 bool ReviewSystem::saveMetadata() {
     std::lock_guard<std::mutex> lock(mutex_);
-    
+    return saveMetadataNoLock();
+}
+
+bool ReviewSystem::saveMetadataNoLock() {
     try {
         std::vector<char> data;
         
@@ -856,6 +1029,10 @@ bool ReviewSystem::loadMetadata() {
             std::cout << "ℹ️  No existing metadata found, starting fresh" << std::endl;
             return true;
         }
+
+        // Clear existing data before loading
+        papers_.clear();
+        reviews_.clear();
         
         const char* ptr = data.data();
         const char* end = data.data() + data.size();
@@ -898,8 +1075,15 @@ bool ReviewSystem::loadMetadata() {
         };
 
         // 1. Counters
-        nextPaperId_ = readU32();
-        nextReviewId_ = readU32();
+        // Only update counters if they are larger than current (to avoid regression on partial load)
+        // But since we cleared papers_, we should probably trust the file.
+        // However, if we are reloading, we might want to be careful.
+        // For now, let's trust the file.
+        uint32_t loadedNextPaperId = readU32();
+        uint32_t loadedNextReviewId = readU32();
+        
+        if (loadedNextPaperId > nextPaperId_) nextPaperId_ = loadedNextPaperId;
+        if (loadedNextReviewId > nextReviewId_) nextReviewId_ = loadedNextReviewId;
         
         // 2. Papers
         uint32_t paperCount = readU32();

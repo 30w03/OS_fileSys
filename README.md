@@ -72,3 +72,15 @@ block_manager.h / .cpp: 这是最关键的模块。
 第三步：看“大脑” (High-Level Logic)
 
 filesystem.h: 这时候再看它，你就知道它只是一个指挥官，指挥 Inode 和 Block Manager 干活。
+
+## 测试常用
+mkdir -p build && cd build
+cmake ..
+make
+./server
+重置服务器内容
+rm -f disk.img users.dat refcounts.dat snapshots.dat server.log users.dat.bak*
+# 访问网页前端
+# 打开浏览器访问 http://localhost:8080
+
+

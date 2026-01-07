@@ -1,0 +1,129 @@
+# 访问控制列表 (ACL) 与文件锁定机制说明
+
+## 1. 核心数据结构
+
+### Inode 结构扩展
+```cpp
+struct Inode {
+    // 原字段保持不变
+    uint32_t flags;              // 新增：文件锁定标志
+    uint32_t acl_uids[4];        // 新增：ACL 用户列表 (4个用户槽位)
+};
+```
+
+## 2. 文件锁定机制
+
+### 锁定标志定义
+```cpp
+const uint32_t INODE_FLAG_LOCKED = 0x00000001; // 文件锁定标志
+```
+
+### 锁定/解锁文件
+```cpp
+bool setFileLock(uint32_t userId, const std::string& path, bool locked) {
+    // 只有文件所有者或管理员可以锁定文件
+    if (inode.uid != userId && userId != 1) return false;
+    inode.flags = locked ? (inode.flags | INODE_FLAG_LOCKED) : (inode.flags & ~INODE_FLAG_LOCKED);
+    return writeInode(inode);
+}
+```
+
+### 检查写入权限
+```cpp
+bool checkWritePermission(uint32_t userId, const Inode& inode) {
+    // 锁定文件时，只有管理员可以写入
+    if (inode.flags & INODE_FLAG_LOCKED) return userId == 1;
+    return true;
+}
+```
+
+## 3. 访问控制列表 (ACL)
+
+### 权限检查层次
+```cpp
+enum class AccessMode { READ, WRITE, EXECUTE };
+
+bool checkPermission(uint32_t userId, const Inode& inode, AccessMode mode) {
+    if (userId == 1) return true;              // 1. 管理员权限
+    if (inode.uid == userId) {                 // 2. 所有者权限
+        if (mode == AccessMode::WRITE && (inode.flags & INODE_FLAG_LOCKED)) return false;
+        return true;
+    }
+    for (int i = 0; i < 4; i++) {              // 3. ACL 用户权限
+        if (inode.acl_uids[i] == userId) return mode == AccessMode::READ;
+    }
+    return false;                              // 4. 默认拒绝
+}
+```
+
+### 授予权限
+```cpp
+bool grantPermission(uint32_t userId, const std::string& path, uint32_t targetUid) {
+    if (inode.uid != userId && userId != 1) return false;
+    for (int i = 0; i < 4; i++) {
+        if (inode.acl_uids[i] == 0) {
+            inode.acl_uids[i] = targetUid;
+            return writeInode(inode);
+        }
+    }
+    return false; // ACL满
+}
+```
+
+### 撤销权限
+```cpp
+bool revokePermission(uint32_t userId, const std::string& path, uint32_t targetUid) {
+    if (inode.uid != userId && userId != 1) return false;
+    for (int i = 0; i < 4; i++) {
+        if (inode.acl_uids[i] == targetUid) {
+            inode.acl_uids[i] = 0;
+            return writeInode(inode);
+        }
+    }
+    return true; // 已不存在
+}
+```
+
+## 4. 文件操作权限检查
+
+### 读取文件
+```cpp
+ssize_t readFile(uint32_t userId, const std::string& path, char* buffer, size_t size) {
+    Inode inode = getInode(path);
+    if (!checkPermission(userId, inode, AccessMode::READ)) return -1;
+    // 执行读取操作
+}
+```
+
+### 写入文件
+```cpp
+ssize_t writeFile(uint32_t userId, const std::string& path, const char* data, size_t size) {
+    Inode inode = getInode(path);
+    if (!checkPermission(userId, inode, AccessMode::WRITE)) return -1;
+    // 执行写入操作（包含CoW逻辑）
+}
+```
+
+## 5. 实际使用场景
+
+### 作者锁定论文
+```cpp
+setFileLock(authorId, "/paper.pdf", true);
+```
+
+### 作者授权评审者
+```cpp
+grantPermission(authorId, "/paper.pdf", reviewerId);
+```
+
+### 评审者读取论文
+```cpp
+readFile(reviewerId, "/paper.pdf", buffer, 1024 * 1024);
+```
+
+### 管理员编辑锁定的论文
+```cpp
+if (adminId == 1) {
+    writeFile(adminId, "/paper.pdf", newContent, strlen(newContent));
+}
+```

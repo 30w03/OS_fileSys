@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>用户中心 - 同行评审系统</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body { background: #f5f8fa; margin: 0; font-family: 'Segoe UI', sans-serif; }
+        .sidebar {
+            width: 280px;
+            background: linear-gradient(to bottom, #1da598, #43e97b);
+            color: white;
+            padding: 30px 0;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            height: 100vh;
+        }
+        .logo-container {
+            padding: 0 30px 25px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+        .logo-container i {
+            font-size: 32px;
+            margin-right: 15px;
+            color: #ffd54f;
+        }
+        .logo-container h1 {
+            font-size: 24px;
+            font-weight: 700;
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 18px 30px;
+            font-size: 18px;
+            text-decoration: none;
+            color: #fff;
+            transition: all 0.3s ease;
+            position: relative;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .nav-item i {
+            width: 28px;
+            margin-right: 15px;
+            font-size: 18px;
+            text-align: center;
+        }
+        .nav-item:hover, .nav-item.active {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            padding-left: 35px;
+        }
+        .main-content {
+            padding: 40px;
+            margin-left: 280px;
+        }
+        .user-center-header { font-size: 36px; font-weight: 900; color: #18c6b0; margin-bottom: 18px; text-align: center;}
+        .user-menu {
+            background: rgba(255,255,255,0.07);
+            border-radius: 10px;
+            margin: 30px 0 0 0;
+            padding: 0 0 8px 0;
+            width: 100%;
+        }
+        .user-menu-item {
+            display: block;
+            padding: 16px 40px;
+            font-size: 18px;
+            color: rgba(255,255,255,0.85);
+            text-decoration: none;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .user-menu-item:hover, .user-menu-item.active {
+            color: #18c6b0;
+            background: #e0f4ff;
+            border-radius: 6px;
+            padding-left: 48px;
+        }
+        .user-menu-item.logout { color: #e74a3b; }
+        .info-panel {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            padding: 32px 40px;
+            margin-bottom: 32px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .info-panel h3 { margin-top: 0; color: #18c6b0; border-bottom: 2px solid #f0f0f0; padding-bottom: 15px; margin-bottom: 25px; }
+        .info-row {
+            margin-bottom: 20px;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+        }
+        .info-label {
+            width: 120px;
+            color: #7f8c8d;
+            font-weight: 600;
+        }
+        .info-value {
+            color: #2c3e50;
+            font-weight: 500;
+        }
+        .role-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            background: #e0f2f1;
+            color: #009688;
+        }
+    </style>
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="logo-container">
+            <i class="fas fa-book"></i>
+            <h1>同行评审系统</h1>
+        </div>
+        <a class="nav-item active" href="#">
+            <i class="fas fa-user-cog"></i> 用户中心
+        </a>
+        <div class="user-menu">
+            <div class="user-menu-item active" data-panel="info">当前信息</div>
+            <!-- 暂时隐藏未实现的功能 -->
+            <!-- <div class="user-menu-item" data-panel="password">修改密码</div> -->
+            <a class="user-menu-item logout" href="#" onclick="logout(); return false;">退出登录</a>
+        </div>
+        <a class="nav-item" href="../nomarlPage.html" style="margin-top: auto; margin-bottom: 20px; background: rgba(255, 255, 255, 0.1);">
+            <i class="fas fa-arrow-left"></i> 返回主页面
+        </a>
+    </nav>
+    <main class="main-content">
+        <div class="user-center-header">用户中心</div>
+        
+        <!-- 信息展示 -->
+        <div id="panel-info" class="info-panel">
+            <h3>当前信息</h3>
+            <div class="info-row">
+                <span class="info-label">用户 ID：</span>
+                <span id="info-userid" class="info-value">加载中...</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">用户名：</span>
+                <span id="info-username" class="info-value">加载中...</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">身份角色：</span>
+                <span id="info-role" class="info-value">加载中...</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">账号状态：</span>
+                <span id="info-status" class="info-value">加载中...</span>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // 检查登录状态
+        const sessionId = sessionStorage.getItem('sessionId');
+        const user_no = sessionStorage.getItem('userId');
+        if (!sessionId) {
+            window.location.href = '../login.html';
+        }
+
+        // 展示当前信息
+        async function loadUserInfo() {
+            try {
+                const res = await fetch('/api/user/profile', {
+                    headers: {
+                        'Authorization': 'Bearer ' + sessionId
+                    }
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    const user = data.data;
+                    document.getElementById('info-userid').textContent = user.userId;
+                    document.getElementById('info-username').textContent = user.username;
+                    
+                    // 角色翻译
+                    const roleMap = {
+                        'AUTHOR': '作者',
+                        'REVIEWER': '评审员',
+                        'EDITOR': '编辑',
+                        'ADMIN': '管理员'
+                    };
+                    const roleName = roleMap[user.role] || user.role;
+                    document.getElementById('info-role').innerHTML = `<span class="role-badge">${roleName}</span>`;
+                    
+                    const statusMap = {
+                        'active': '正常',
+                        'inactive': '禁用'
+                    };
+                    document.getElementById('info-status').textContent = statusMap[user.status] || user.status;
+                } else {
+                    document.getElementById('panel-info').innerHTML = `<div style="color:red;">加载失败: ${data.message}</div>`;
+                }
+            } catch (e) {
+                console.error(e);
+                document.getElementById('panel-info').innerHTML = '<div style="color:red;">请求出错</div>';
+            }
+        }
+
+        function logout() {
+            fetch('/api/auth/logout', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + sessionId
+                }
+            })
+            .finally(() => {
+                sessionStorage.clear();
+                window.location.href = '../login.html';
+            });
+        }
+
+        // 初始化
+        loadUserInfo();
+
+// 重置所有编辑表单到初始状态
+function resetEditForms() {
+    // 账户名
+    document.getElementById('name-error').textContent = '';
+    document.getElementById('name-success').textContent = '';
+    document.getElementById('name-oldpwd').value = '';
+    document.getElementById('name-new').value = '';
+    document.getElementById('name-step1').style.display = '';
+    document.getElementById('name-step2').style.display = 'none';
+    const nameBtn = document.querySelector('#panel-name #name-step2 button');
+    nameBtn.textContent = '提交修改';
+    nameBtn.type = 'submit';
+    nameBtn.onclick = null;
+
+    // 密码
+    document.getElementById('pwd-error').textContent = '';
+    document.getElementById('pwd-success').textContent = '';
+    document.getElementById('pwd-old').value = '';
+    document.getElementById('pwd-new').value = '';
+    document.getElementById('pwd-new2').value = '';
+    document.getElementById('pwd-step1').style.display = '';
+    document.getElementById('pwd-step2').style.display = 'none';
+    const pwdBtn = document.querySelector('#panel-password #pwd-step2 button');
+    pwdBtn.textContent = '提交修改';
+    pwdBtn.type = 'submit';
+    pwdBtn.onclick = null;
+
+    // 安全问题
+    document.getElementById('sec-error').textContent = '';
+    document.getElementById('sec-success').textContent = '';
+    document.getElementById('sec-oldpwd').value = '';
+    document.getElementById('sec-question').value = '';
+    document.getElementById('sec-answer').value = '';
+    document.getElementById('sec-step1').style.display = '';
+    document.getElementById('sec-step2').style.display = 'none';
+    const secBtn = document.querySelector('#panel-security #sec-step2 button');
+    secBtn.textContent = '提交修改';
+    secBtn.type = 'submit';
+    secBtn.onclick = null;
+}
+
+// 修改账户名：先验证密码再允许输入新用户名
+document.getElementById('name-checkpwd-btn').onclick = async function() {
+    const oldpwd = document.getElementById('name-oldpwd').value;
+    document.getElementById('name-error').textContent = '';
+    if (!await checkPassword(oldpwd)) {
+        document.getElementById('name-error').textContent = '密码错误';
+        return;
+    }
+    document.getElementById('name-step1').style.display = 'none';
+    document.getElementById('name-step2').style.display = '';
+};
+// 修改账户名
+document.getElementById('panel-name').onsubmit = async function(e) {
+    e.preventDefault();
+    const newName = document.getElementById('name-new').value.trim();
+    document.getElementById('name-error').textContent = '';
+    document.getElementById('name-success').textContent = '';
+    const res = await fetch(`/users/${encodeURIComponent(user_no)}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({name: newName,admin_no: parseInt(user_no) })
+    });
+    const data = await res.json();
+    if (data.msg) {
+        document.getElementById('name-success').textContent = '修改成功';
+        // 改按钮为“返回”
+        const btn = document.querySelector('#panel-name #name-step2 button');
+        btn.textContent = '返回';
+        btn.type = 'button';
+        btn.onclick = function() {
+            document.querySelector('.user-menu-item[data-panel="info"]').click();
+            loadUserInfo();
+            resetEditForms();
+        };
+    } else {
+        document.getElementById('name-error').textContent = data.error || '修改失败';
+    }
+};
+
+// 修改密码：先验证密码再允许输入新密码
+document.getElementById('pwd-checkpwd-btn').onclick = async function() {
+    const oldpwd = document.getElementById('pwd-old').value;
+    document.getElementById('pwd-error').textContent = '';
+    if (!await checkPassword(oldpwd)) {
+        document.getElementById('pwd-error').textContent = '密码错误';
+        return;
+    }
+    document.getElementById('pwd-step1').style.display = 'none';
+    document.getElementById('pwd-step2').style.display = '';
+};
+// 修改密码
+document.getElementById('panel-password').onsubmit = async function(e) {
+    e.preventDefault();
+    const newpwd = document.getElementById('pwd-new').value;
+    const newpwd2 = document.getElementById('pwd-new2').value;
+    document.getElementById('pwd-error').textContent = '';
+    document.getElementById('pwd-success').textContent = '';
+    if (newpwd !== newpwd2) {
+        document.getElementById('pwd-error').textContent = '两次输入的新密码不一致';
+        return;
+    }
+    const res = await fetch(`/users/${encodeURIComponent(user_no)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            password: newpwd,
+            admin_no: parseInt(user_no) 
+          })
+    });
+    const data = await res.json();
+    if (data.msg) {
+        document.getElementById('pwd-success').textContent = '修改成功';
+        // 改按钮为“返回”
+        const btn = document.querySelector('#panel-password #pwd-step2 button');
+        btn.textContent = '返回';
+        btn.type = 'button';
+        btn.onclick = function() {
+            document.querySelector('.user-menu-item[data-panel="info"]').click();
+            loadUserInfo();
+            resetEditForms();
+        };
+    } else {
+        document.getElementById('pwd-error').textContent = data.error || '修改失败';
+    }
+};
+
+// 修改安全问题：先验证密码再允许输入新安全问题
+document.getElementById('sec-checkpwd-btn').onclick = async function() {
+    const oldpwd = document.getElementById('sec-oldpwd').value;
+    document.getElementById('sec-error').textContent = '';
+    if (!await checkPassword(oldpwd)) {
+        document.getElementById('sec-error').textContent = '密码错误';
+        return;
+    }
+    document.getElementById('sec-step1').style.display = 'none';
+    document.getElementById('sec-step2').style.display = '';
+};
+// 修改安全问题
+document.getElementById('panel-security').onsubmit = async function(e) {
+    e.preventDefault();
+    const question = document.getElementById('sec-question').value.trim();
+    const answer = document.getElementById('sec-answer').value.trim();
+    document.getElementById('sec-error').textContent = '';
+    document.getElementById('sec-success').textContent = '';
+    const res = await fetch(`/users/${encodeURIComponent(user_no)}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({security_question: question, security_answer: answer,admin_no: parseInt(user_no) })
+    });
+    const data = await res.json();
+    if (data.msg) {
+        document.getElementById('sec-success').textContent = '修改成功';
+        // 改按钮为“返回”
+        const btn = document.querySelector('#panel-security #sec-step2 button');
+        btn.textContent = '返回';
+        btn.type = 'button';
+        btn.onclick = function() {
+            document.querySelector('.user-menu-item[data-panel="info"]').click();
+            loadUserInfo();
+            resetEditForms();
+        };
+    } else {
+        document.getElementById('sec-error').textContent = data.error || '修改失败';
+    }
+};
+
+// 权限提升（只需验证码，无需密码）
+document.getElementById('panel-role').onsubmit = async function(e) {
+    e.preventDefault();
+    const code = document.getElementById('role-oldpwd').value.trim(); // 复用输入框作为验证码
+    document.getElementById('role-error').textContent = '';
+    document.getElementById('role-success').textContent = '';
+    if (!code) {
+        document.getElementById('role-error').textContent = '请输入验证码';
+        return;
+    }
+
+    try {
+        // 检查当前用户信息
+        const userRes = await fetch(`/users/${encodeURIComponent(user_no)}`);
+        const userData = await userRes.json();
+        if (userData.role_id >= 2) {
+            document.getElementById('role-error').textContent = '您已经是文件管理员，无需提升';
+            return;
+        }
+
+        // 提交权限提升请求
+        const res = await fetch('/users/upgrade', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({user_no, admin_code: code})
+        });
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('role-success').textContent = '权限提升为文件管理员，请重新登入';
+            setTimeout(() => { window.location.href = '../login.html'; }, 1800);
+        } else {
+            document.getElementById('role-error').textContent = data.error || '验证码错误或权限提升失败';
+        }
+    } catch (err) {
+        document.getElementById('role-error').textContent = '网络错误，请稍后重试';
+    }
+};
+    </script>
+</body>
+</html>

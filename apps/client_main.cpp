@@ -24,11 +24,13 @@ void printUsage() {
     
     std::cout << "\n📝 Paper Management:" << std::endl;
     std::cout << "  submit <title> <abstract> <keywords> <file> - Submit a paper" << std::endl;
+    std::cout << "  update_paper <paper_id> <file> - Update paper file (Overwrite)" << std::endl;
     std::cout << "  mypapers                  - View my submitted papers" << std::endl;
     std::cout << "  allpapers                 - View all papers (editor only)" << std::endl;
     
     std::cout << "\n🔍 Review Management:" << std::endl;
     std::cout << "  toreview                  - View papers assigned to me for review" << std::endl;
+    std::cout << "  myreviews                 - View my review history" << std::endl; // 🔥 New
     std::cout << "  review <paper_id> <decision> <score> <comment>" << std::endl;
     std::cout << "         - Submit review (decision: accept/reject/revise)" << std::endl;
     
@@ -36,12 +38,20 @@ void printUsage() {
     std::cout << "  assign <paper_id> <reviewer_id> - Assign reviewer to paper" << std::endl;
     std::cout << "  autoassign <paper_id>     - Automatically assign reviewers" << std::endl;
     std::cout << "  stats                     - View system statistics" << std::endl;
+    std::cout << "  decision <paper_id> <decision> - Make editor decision (accept/reject/revise)" << std::endl;
+    std::cout << "  download_paper <paper_id> - Download paper PDF" << std::endl;
     
     std::cout << "\n📁 File Operations:" << std::endl;
     std::cout << "  list                      - List remote files" << std::endl;
     std::cout << "  upload <local> <remote>   - Upload file" << std::endl;
     std::cout << "  download <remote> <local> - Download file" << std::endl;
     std::cout << "  delete <remote>           - Delete remote file" << std::endl;
+    std::cout << "  revision <paper_id> <file> - Upload revised paper" << std::endl;
+
+    std::cout << "\n🔧 Admin Functions:" << std::endl;
+    std::cout << "  role <user_id> <role>     - Update user role" << std::endl;
+    std::cout << "  deactivate <user_id>      - Deactivate user" << std::endl;
+    std::cout << "  backup                    - Trigger system backup" << std::endl;
     
     std::cout << "\n❓ Other:" << std::endl;
     std::cout << "  help                      - Show this help" << std::endl;
@@ -293,6 +303,26 @@ int main() {
             continue;
         }
         
+        // 🔥 新增：查看审稿历史
+        if (command == "myreviews") {
+            auto reviews = client.getReviewerHistory();
+            if (reviews.empty()) {
+                std::cout << "📭 No review history found" << std::endl;
+            } else {
+                std::cout << "\n📝 Your Review History (" << reviews.size() << "):" << std::endl;
+                for (const auto& review : reviews) {
+                    std::cout << "┌─────────────────────────────────────────" << std::endl;
+                    std::cout << "│ Review ID: " << review.reviewId << std::endl;
+                    std::cout << "│ Paper ID: " << review.paperId << std::endl;
+                    std::cout << "│ Decision: " << review.decision << std::endl;
+                    std::cout << "│ Confidence: " << review.confidenceScore << "/5" << std::endl;
+                    std::cout << "│ Comments: " << review.comments << std::endl;
+                    std::cout << "└─────────────────────────────────────────\n" << std::endl;
+                }
+            }
+            continue;
+        }
+
         if (command == "assign") {
             uint32_t paper_id, reviewer_id;
             iss >> paper_id >> reviewer_id;
@@ -458,6 +488,146 @@ int main() {
                 std::cout << "✅ File deleted successfully" << std::endl;
             } else {
                 std::cerr << "❌ Delete failed" << std::endl;
+            }
+            continue;
+        }
+        
+        // ============================================================================
+        // 🔥 新增命令
+        // ============================================================================
+        
+        if (command == "revision") {
+            uint32_t paper_id;
+            std::string filename;
+            iss >> paper_id >> filename;
+            
+            if (paper_id == 0 || filename.empty()) {
+                std::cerr << "❌ Usage: revision <paper_id> <file_path>" << std::endl;
+                continue;
+            }
+            
+            std::ifstream file(filename, std::ios::binary);
+            if (!file) {
+                std::cerr << "❌ Cannot open file: " << filename << std::endl;
+                continue;
+            }
+            
+            std::vector<char> content((std::istreambuf_iterator<char>(file)),
+                                     std::istreambuf_iterator<char>());
+            
+            if (client.uploadRevision(paper_id, content)) {
+                std::cout << "✅ Revision uploaded successfully" << std::endl;
+            } else {
+                std::cerr << "❌ Revision upload failed" << std::endl;
+            }
+            continue;
+        }
+
+        if (command == "update_paper") {
+            uint32_t paper_id;
+            std::string filename;
+            iss >> paper_id >> filename;
+            
+            if (paper_id == 0 || filename.empty()) {
+                std::cerr << "❌ Usage: update_paper <paper_id> <file_path>" << std::endl;
+                continue;
+            }
+            
+            std::ifstream file(filename, std::ios::binary);
+            if (!file) {
+                std::cerr << "❌ Cannot open file: " << filename << std::endl;
+                continue;
+            }
+            
+            std::vector<char> content((std::istreambuf_iterator<char>(file)),
+                                     std::istreambuf_iterator<char>());
+            
+            if (client.updatePaperFile(paper_id, content)) {
+                std::cout << "✅ Paper updated successfully (Overwrite)" << std::endl;
+            } else {
+                std::cerr << "❌ Update failed" << std::endl;
+            }
+            continue;
+        }
+        
+        if (command == "download_paper") {
+            uint32_t paper_id;
+            std::string local_path;
+            iss >> paper_id >> local_path;
+            
+            if (paper_id == 0 || local_path.empty()) {
+                std::cerr << "❌ Usage: download_paper <paper_id> <local_path>" << std::endl;
+                continue;
+            }
+            
+            if (client.downloadPaper(paper_id, local_path)) {
+                std::cout << "✅ Paper downloaded successfully" << std::endl;
+            } else {
+                std::cerr << "❌ Paper download failed" << std::endl;
+            }
+            continue;
+        }
+        
+        if (command == "decision") {
+            uint32_t paper_id;
+            std::string decision;
+            iss >> paper_id >> decision;
+            
+            if (paper_id == 0 || decision.empty()) {
+                std::cerr << "❌ Usage: decision <paper_id> <decision>" << std::endl;
+                std::cerr << "   Decisions: ACCEPTED, REJECTED" << std::endl;
+                continue;
+            }
+            
+            if (client.makeDecision(paper_id, decision)) {
+                std::cout << "✅ Decision recorded successfully" << std::endl;
+            } else {
+                std::cerr << "❌ Failed to record decision" << std::endl;
+            }
+            continue;
+        }
+        
+        if (command == "role") {
+            uint32_t user_id;
+            std::string role;
+            iss >> user_id >> role;
+            
+            if (user_id == 0 || role.empty()) {
+                std::cerr << "❌ Usage: role <user_id> <role>" << std::endl;
+                std::cerr << "   Roles: AUTHOR, REVIEWER, EDITOR, ADMIN" << std::endl;
+                continue;
+            }
+            
+            if (client.updateUserRole(user_id, role)) {
+                std::cout << "✅ User role updated successfully" << std::endl;
+            } else {
+                std::cerr << "❌ Failed to update user role" << std::endl;
+            }
+            continue;
+        }
+        
+        if (command == "deactivate") {
+            uint32_t user_id;
+            iss >> user_id;
+            
+            if (user_id == 0) {
+                std::cerr << "❌ Usage: deactivate <user_id>" << std::endl;
+                continue;
+            }
+            
+            if (client.deactivateUser(user_id)) {
+                std::cout << "✅ User deactivated successfully" << std::endl;
+            } else {
+                std::cerr << "❌ Failed to deactivate user" << std::endl;
+            }
+            continue;
+        }
+        
+        if (command == "backup") {
+            if (client.systemBackup()) {
+                std::cout << "✅ System backup completed successfully" << std::endl;
+            } else {
+                std::cerr << "❌ System backup failed" << std::endl;
             }
             continue;
         }

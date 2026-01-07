@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>我的论文 - 论文评审系统</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        /* 复用基础样式 */
+        body { background-color: #f5f8fa; display: flex; min-height: 100vh; color: #333; margin: 0; font-family: 'Segoe UI', sans-serif; }
+        .sidebar { width: 280px; background: linear-gradient(to bottom, #1da598, #43e97b); color: white; padding: 30px 0; display: flex; flex-direction: column; }
+        .logo-container { padding: 0 30px 25px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; margin-bottom: 25px; }
+        .logo-container i { font-size: 32px; margin-right: 15px; color: #ffd54f; }
+        .logo-container h1 { font-size: 24px; font-weight: 700; }
+        .nav-item { display: flex; align-items: center; padding: 18px 30px; font-size: 18px; text-decoration: none; color: #fff; transition: all 0.3s ease; }
+        .nav-item:hover { background: rgba(255,255,255,0.1); padding-left: 35px; }
+        
+        /* 主内容区 */
+        .main-content { flex: 1; padding: 40px; overflow-y: auto; }
+        .page-header { margin-bottom: 30px; }
+        .page-title { font-size: 28px; color: #2c3e50; margin-bottom: 10px; }
+        
+        /* 选项卡 */
+        .tabs { display: flex; border-bottom: 2px solid #e0e0e0; margin-bottom: 30px; }
+        .tab { padding: 15px 30px; cursor: pointer; font-weight: 600; color: #7f8c8d; border-bottom: 3px solid transparent; transition: all 0.3s; }
+        .tab.active { color: #18c6b0; border-bottom-color: #18c6b0; }
+        
+        /* 表单样式 */
+        .form-card { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); max-width: 800px; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50; }
+        .form-control { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 16px; }
+        .btn { padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.3s; }
+        .btn-primary { background: #18c6b0; color: white; }
+        .btn-primary:hover { background: #15a592; }
+        
+        /* 列表样式 */
+        .paper-list { display: grid; gap: 20px; }
+        .paper-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-left: 4px solid #18c6b0; }
+        .paper-title { font-size: 18px; font-weight: 700; color: #2c3e50; margin-bottom: 10px; }
+        .paper-meta { color: #7f8c8d; font-size: 14px; margin-bottom: 15px; }
+        .paper-abstract { color: #34495e; line-height: 1.6; margin-bottom: 15px; }
+        .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .status-submitted { background: #e3f2fd; color: #2196f3; }
+        .status-reviewing { background: #fff3e0; color: #ff9800; }
+        .status-accepted { background: #e8f5e9; color: #4caf50; }
+        .status-rejected { background: #ffebee; color: #f44336; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo-container">
+            <i class="fas fa-book-reader"></i>
+            <h1>同行评审</h1>
+        </div>
+        <a class="nav-item" href="../nomarlPage.html"><i class="fas fa-home"></i> 返回主页</a>
+    </div>
+
+    <div class="main-content">
+        <div class="page-header">
+            <h1 class="page-title">论文管理</h1>
+        </div>
+
+        <div class="tabs">
+            <div class="tab" id="tab-all-papers" style="display:none;" onclick="switchTab('all-papers')">系统内论文</div>
+            <div class="tab active" id="tab-my-papers" onclick="switchTab('my-papers')">我的投稿</div>
+            <div class="tab" id="tab-submit-paper" onclick="switchTab('submit-paper')">提交新论文</div>
+        </div>
+
+        <!-- 我的论文列表 -->
+        <div id="my-papers" class="tab-content">
+            <div class="paper-list" id="myPaperList">
+                <!-- 动态加载 -->
+                <div style="text-align:center; padding:40px; color:#999;">加载中...</div>
+            </div>
+        </div>
+
+        <!-- 提交论文表单 -->
+        <div id="submit-paper" class="tab-content" style="display:none;">
+            <div class="form-card">
+                <form id="submitForm">
+                    <div class="form-group">
+                        <label>论文标题</label>
+                        <input type="text" class="form-control" id="paperTitle" required>
+                    </div>
+                    <div class="form-group">
+                        <label>摘要</label>
+                        <textarea class="form-control" id="paperAbstract" rows="5" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>关键词 (用逗号分隔)</label>
+                        <input type="text" class="form-control" id="paperKeywords" placeholder="例如: AI, Machine Learning, System">
+                    </div>
+                    <div class="form-group">
+                        <label>上传文件 (PDF/Word)</label>
+                        <input type="file" class="form-control" id="paperFile" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">提交论文</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 所有论文列表 (编辑可见) -->
+        <div id="all-papers" class="tab-content" style="display:none;">
+            <div class="paper-list" id="allPaperList">
+                <!-- 动态加载 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 分配评审模态框 -->
+    <div id="assignModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center; z-index:1000;">
+        <div style="background:white; padding:30px; border-radius:10px; width:400px;">
+            <h3>分配评审人</h3>
+            <input type="hidden" id="assignPaperId">
+            <div class="form-group">
+                <label>选择评审人</label>
+                <select class="form-control" id="reviewerSelect">
+                    <option value="">加载中...</option>
+                </select>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+                <button class="btn btn-warning" onclick="autoAssign()" title="根据算法自动分配最合适的审稿人">
+                    <i class="fas fa-magic"></i> 自动分配
+                </button>
+                <button class="btn" onclick="closeAssignModal()">取消</button>
+                <button class="btn btn-primary" onclick="submitAssignment()">确定分配</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 查看评审意见模态框 -->
+    <div id="viewReviewsModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center; z-index:1000;">
+        <div style="background:white; padding:30px; border-radius:10px; width:600px; max-height:80vh; overflow-y:auto;">
+            <h3>评审意见反馈</h3>
+            <div id="reviewsContainer"></div>
+            <div style="display:flex; justify-content:flex-end; margin-top:20px;">
+                <button class="btn btn-secondary" onclick="closeViewReviewsModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 上传修订版模态框 -->
+    <div id="revisionModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center; z-index:1000;">
+        <div style="background:white; padding:30px; border-radius:10px; width:500px;">
+            <h3>上传修订版本 (Revise)</h3>
+            <input type="hidden" id="revisionPaperId">
+            <div class="form-group">
+                <label>选择修订版文件 (PDF/Word)</label>
+                <input type="file" class="form-control" id="revisionFile" required>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+                <button class="btn btn-secondary" onclick="closeRevisionModal()">取消</button>
+                <button class="btn btn-primary" onclick="submitRevision()">提交修订</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 更新文件模态框 (Overwrite for SUBMITTED) -->
+    <div id="updateFileModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center; z-index:1000;">
+        <div style="background:white; padding:30px; border-radius:10px; width:500px;">
+            <h3>更新论文文件 (覆盖原文件)</h3>
+            <p style="color:#e67e22; font-size:14px; margin-bottom:15px;"><i class="fas fa-exclamation-triangle"></i> 注意：此操作将直接覆盖原已提交的文件。仅在"已提交"状态下可用。</p>
+            <input type="hidden" id="updateFilePaperId">
+            <div class="form-group">
+                <label>选择新文件 (PDF/Word)</label>
+                <input type="file" class="form-control" id="updateFileInput" required>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+                <button class="btn btn-secondary" onclick="closeUpdateFileModal()">取消</button>
+                <button class="btn btn-warning" onclick="submitUpdateFile()" style="background-color:#ff9800; color:white;">确认覆盖</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let g_allPapers = [];
+
+        // 页面加载
+        document.addEventListener('DOMContentLoaded', () => {
+            const role = sessionStorage.getItem('role');
+            console.log('Current role:', role); // Debug log
+            
+            // 检查 URL 参数
+            const urlParams = new URLSearchParams(window.location.search);
+            const action = urlParams.get('action');
+
+            // 统一转换为大写进行比较
+            const upperRole = role ? role.toUpperCase() : '';
+
+            if (upperRole === 'EDITOR' || upperRole === 'ADMIN') {
+                const allPapersTab = document.getElementById('tab-all-papers');
+                if (allPapersTab) {
+                    allPapersTab.style.display = 'block';
+                    // 编辑默认看所有论文
+                    switchTab('all-papers');
+                }
+            } else if (upperRole === 'REVIEWER') {
+                // 评审员没有论文管理权限，或者只能看自己的投稿（如果有）
+                // 通常评审员应该去评审管理页面
+                switchTab('my-papers');
+            } else {
+                // 作者默认看我的论文，除非指定 action=submit
+                if (action === 'submit') {
+                    switchTab('submit-paper');
+                } else {
+                    switchTab('my-papers');
+                }
+            }
+        });
+
+        // 切换标签页
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+            document.getElementById(tabId).style.display = 'block';
+            
+            document.querySelectorAll('.tab').forEach(el => {
+                el.classList.remove('active');
+                // 匹配对应的 tab 按钮
+                if (el.getAttribute('onclick') && el.getAttribute('onclick').includes(`'${tabId}'`)) {
+                    el.classList.add('active');
+                }
+            });
+            
+            if (tabId === 'my-papers') loadMyPapers();
+            if (tabId === 'all-papers') loadAllPapers();
+        }
+
+        // 加载我的论文
+        async function loadMyPapers() {
+            try {
+                const sessionId = sessionStorage.getItem('sessionId');
+                const res = await fetch('/api/papers/my', {
+                    headers: { 'Authorization': 'Bearer ' + sessionId }
+                });
+                const data = await res.json();
+                const container = document.getElementById('myPaperList');
+                
+                if (!data.success) {
+                    container.innerHTML = `<div style="color:red;">${data.message}</div>`;
+                    return;
+                }
+
+                if (data.data.papers.length === 0) {
+                    container.innerHTML = '<div style="text-align:center; padding:40px; color:#999;">暂无提交的论文</div>';
+                    return;
+                }
+
+                container.innerHTML = data.data.papers.map(paper => renderPaperCard(paper)).join('');
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // 加载所有论文
+        async function loadAllPapers() {
+            try {
+                const sessionId = sessionStorage.getItem('sessionId');
+                const res = await fetch('/api/papers', {
+                    headers: { 'Authorization': 'Bearer ' + sessionId }
+                });
+                const data = await res.json();
+                const container = document.getElementById('allPaperList');
+                
+                if (!data.success) {
+                    container.innerHTML = `<div style="color:red;">${data.message}</div>`;
+                    return;
+                }
+                // 注意：getAllPapers 返回结构可能不同，这里假设是 data.data.papers
+                // 实际上后端返回的是 data.data.papers 还是直接 data.data 数组？
+                // 查看 handleGetAllPapers: createGetAllPapersResponse(true, paperInfos)
+                // Protocol::createGetAllPapersResponse 似乎返回 { success: true, data: [...] }
+                // 但 HttpHandler::handleGetPapers 返回 { count: ... } 并没有返回列表详情？
+                // 等等，handleGetPapers 是给普通用户用的吗？
+                // handleGetAllPapers 是给编辑用的，对应 MSG_GET_ALL_PAPERS_REQUEST
+                // HttpHandler::handleGetPapers 只是返回 count?
+                // 让我们检查 HttpHandler::handleGetPapers
+                
+                // 修正：HttpHandler::handleGetPapers 目前只返回 count
+                // 我们需要修改 HttpHandler::handleGetPapers 返回列表
+                // 或者前端应该调用不同的 API？
+                // 暂时先加上 Auth 头
+                
+                // 假设后端已修复返回列表
+                const papers = data.data.papers || []; 
+                g_allPapers = papers;
+                container.innerHTML = papers.map(paper => renderPaperCard(paper)).join('');
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // 下载论文
+        async function downloadPaper(paperId) {
+            const sessionId = sessionStorage.getItem('sessionId');
+            window.open(`/api/papers/${paperId}/download?sessionId=${sessionId}`, '_blank');
+        }
+
+        // 评审相关函数
+        function openReviewModal(paperId) {
+            document.getElementById('reviewPaperId').value = paperId;
+            document.getElementById('reviewModal').style.display = 'flex';
+            document.getElementById('reviewComments').value = '';
+            document.getElementById('reviewDecision').value = 'BORDERLINE';
+            document.getElementById('reviewConfidence').value = '3';
+        }
+
+        function closeReviewModal() {
+            document.getElementById('reviewModal').style.display = 'none';
+        }
+
+        async function submitReview() {
+            const paperId = document.getElementById('reviewPaperId').value;
+            const decision = document.getElementById('reviewDecision').value;
+            const confidence = document.getElementById('reviewConfidence').value;
+            const comments = document.getElementById('reviewComments').value;
+            
+            if (!comments) {
+                alert('请输入评审意见');
+                return;
+            }
+            
+            try {
+                const sessionId = sessionStorage.getItem('sessionId');
+                const res = await fetch(`/api/reviews/${paperId}`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + sessionId
+                    },
+                    body: JSON.stringify({ decision, confidence, comments })
+                });
+                
+                const data = await res.json();
+                if (data.success) {
+                    alert('评审提交成功！');
+                    closeReviewModal();
+                    loadReviewTasks(); // 刷新列表
+                } else {
+                    alert('提交失败: ' + data.message);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('网络错误');
+            }
+        }
+
+        // 渲染论文卡片
+        function renderPaperCard(paper) {
+            const statusMap = {
+                'Submitted': { text: '已提交', class: 'status-submitted' },
+                'Under Review': { text: '审稿中', class: 'status-reviewing' },
+                'Accepted': { text: '已录用', class: 'status-accepted' },
+                'Rejected': { text: '已拒绝', class: 'status-rejected' },
+                // Backwards compatibility or case insensitivity
+                'Submitted': { text: '已提交', class: 'status-submitted' },
+                'UNDER_REVIEW': { text: '审稿中', class: 'status-reviewing' },
+                'ACCEPTED': { text: '已录用', class: 'status-accepted' },
+                'REJECTED': { text: '已拒绝', class: 'status-rejected' }
+            };
+            const status = statusMap[paper.status] || { text: paper.status, class: '' };
+            const role = sessionStorage.getItem('role');
+            const upperRole = role ? role.toUpperCase() : '';
+            
+            let actionBtns = '';
+            if (upperRole === 'EDITOR' || upperRole === 'ADMIN') {
+                actionBtns = `
+                    <div style="margin-top:15px; border-top:1px solid #eee; padding-top:10px;">
+                        <button class="btn btn-primary" style="padding:6px 12px; font-size:14px;" onclick="openAssignModal(${paper.id})">
+                            <i class="fas fa-user-plus"></i> 分配评审
+                        </button>
+                    </div>
+                `;
+            } else {
+                // 作者视图
+                let authorBtns = [];
+                
+                // 如果状态是 Submitted (case-sensitive check based on getStatusName return value)
+                if (paper.status === 'Submitted') {
+                    authorBtns.push(`
+                        <button class="btn btn-warning" style="padding:6px 12px; font-size:14px; background-color:#ff9800; color:white;" onclick="openUpdateFileModal(${paper.id})">
+                            <i class="fas fa-edit"></i> 更新文件
+                        </button>
+                    `);
+                }
+
+                // 如果有评审意见 (后端已在 ACCEPTED/REJECTED 状态下返回 reviews)
+                if (paper.reviews && paper.reviews.length > 0) {
+                    // 将 reviews 数据存储在 DOM 元素上，方便读取
+                    const reviewsJson = JSON.stringify(paper.reviews).replace(/"/g, '&quot;');
+                    authorBtns.push(`
+                        <button class="btn btn-secondary" style="padding:6px 12px; font-size:14px;" onclick="openViewReviewsModal('${reviewsJson}')">
+                            <i class="fas fa-comments"></i> 查看评审意见
+                        </button>
+                    `);
+                }
+                
+                // 如果被拒绝，允许提交修订
+                if (paper.status === 'Rejected' || paper.status === 'REJECTED') {
+                    authorBtns.push(`
+                        <button class="btn btn-primary" style="padding:6px 12px; font-size:14px;" onclick="openRevisionModal(${paper.id})">
+                            <i class="fas fa-upload"></i> 提交修订版
+                        </button>
+                    `);
+                }
+
+                if (authorBtns.length > 0) {
+                    actionBtns = `
+                        <div style="margin-top:15px; border-top:1px solid #eee; padding-top:10px; display:flex; gap:10px;">
+                            ${authorBtns.join('')}
+                        </div>
+                    `;
+                }
+            }
+
+            return `
+                <div class="paper-card">
+                    <div style="display:flex; justify-content:space-between; align-items:start;">
+                        <div class="paper-title">${paper.title}</div>
+                        <span class="status-badge ${status.class}">${status.text}</span>
+                    </div>
+                    <div class="paper-meta">
+                        ID: ${paper.id} | 作者: ${paper.author} | 提交时间: ${new Date(parseInt(paper.timestamp)*1000).toLocaleString()}
+                    </div>
+                    <div class="paper-abstract">${paper.abstract}</div>
+                    ${actionBtns}
+                </div>
+            `;
+        }
+
+        // 查看评审意见
+        function openViewReviewsModal(reviewsJson) {
+            const reviews = JSON.parse(reviewsJson);
+            const container = document.getElementById('reviewsContainer');
+            
+            if (reviews.length === 0) {
+                container.innerHTML = '<div style="text-align:center; color:#999;">暂无详细评审意见</div>';
+            } else {
+                container.innerHTML = reviews.map((r, index) => {
+                    let downloadBtn = '';
+                    if (r.hasFile) {
+                        downloadBtn = `<button class="btn btn-secondary" style="margin-top:10px; padding:5px 10px; font-size:12px;" onclick="downloadReviewFile(${r.reviewId})"><i class="fas fa-download"></i> 下载评审附件</button>`;
+                    }
+                    
+                    return `
+                    <div style="background:#f9f9f9; padding:15px; border-radius:5px; margin-bottom:15px; border-left:4px solid #18c6b0;">
+                        <div style="font-weight:bold; margin-bottom:5px;">评审人 #${index + 1}</div>
+                        <div style="margin-bottom:5px;">决定: <span style="font-weight:bold;">${r.decision}</span></div>
+                        <div style="margin-bottom:5px;">置信度: <span style="font-weight:bold;">${r.confidence}/5</span></div>
+                        <div style="white-space:pre-wrap; color:#333; margin-top:10px;">${r.comments}</div>
+                        ${downloadBtn}
+                    </div>
+                `}).join('');
+            }
+            
+            document.getElementById('viewReviewsModal').style.display = 'flex';
+        }
+
+        function downloadReviewFile(reviewId) {
+            const sessionId = sessionStorage.getItem('sessionId');
+            window.open(`/api/reviews/${reviewId}/download?sessionId=${sessionId}`, '_blank');
+        }
+
+        function closeViewReviewsModal() {
+            document.getElementById('viewReviewsModal').style.display = 'none';
+        }
+
+        // 上传修订版
+        function openRevisionModal(paperId) {
+            document.getElementById('revisionPaperId').value = paperId;
+            document.getElementById('revisionModal').style.display = 'flex';
+        }
+
+        function closeRevisionModal() {
+            document.getElementById('revisionModal').style.display = 'none';
+        }
+
+        async function submitRevision() {
+            const paperId = document.getElementById('revisionPaperId').value;
+            const fileInput = document.getElementById('revisionFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert("请选择文件");
+                return;
+            }
+
+            const btn = document.querySelector('#revisionModal .btn-primary');
+            btn.disabled = true;
+            btn.textContent = '提交中...';
+
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            
+            reader.onload = async function() {
+                try {
+                    const base64Content = reader.result.split(',')[1];
+                    const sessionId = sessionStorage.getItem('sessionId');
+                    
+                    // 使用 /api/papers/{id}/revision 接口
+                    const res = await fetch(`/api/papers/${paperId}/revision`, {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + sessionId
+                        },
+                        body: JSON.stringify({
+                            fileData: base64Content,
+                            filename: file.name
+                        })
+                    });
+                    
+                    const data = await res.json();
+                    if (data.success) {
+                        alert('修订版提交成功！');
+                        closeRevisionModal();
+                        loadMyPapers(); // 刷新列表
+                    } else {
+                        alert('提交失败: ' + data.message);
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert('网络错误');
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = '提交修订';
+                }
+            };
+        }
+
+        // 更新文件 (Overwrite) 相关函数
+        function openUpdateFileModal(paperId) {
+            document.getElementById('updateFilePaperId').value = paperId;
+            document.getElementById('updateFileModal').style.display = 'flex';
+        }
+
+        function closeUpdateFileModal() {
+            document.getElementById('updateFileModal').style.display = 'none';
+        }
+
+        async function submitUpdateFile() {
+            const paperId = document.getElementById('updateFilePaperId').value;
+            const fileInput = document.getElementById('updateFileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert("请选择文件");
+                return;
+            }
+
+            const btn = document.querySelector('#updateFileModal .btn-warning');
+            btn.disabled = true;
+            btn.textContent = '上传中...';
+
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            
+            reader.onload = async function() {
+                try {
+                    const base64Content = reader.result.split(',')[1];
+                    const sessionId = sessionStorage.getItem('sessionId');
+                    
+                    // 使用 /api/papers/{id}/update_file 接口
+                    const res = await fetch(`/api/papers/${paperId}/update_file`, {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + sessionId
+                        },
+                        body: JSON.stringify({
+                            fileData: base64Content,
+                            filename: file.name
+                        })
+                    });
+                    
+                    const data = await res.json();
+                    if (data.success) {
+                        alert('文件更新成功！');
+                        closeUpdateFileModal();
+                        loadMyPapers(); // 刷新列表
+                    } else {
+                        alert('更新失败: ' + data.message);
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert('网络错误');
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = '确认覆盖';
+                }
+            };
+        }
+
+        // 分配评审相关函数
+        async function openAssignModal(paperId) {
+            document.getElementById('assignPaperId').value = paperId;
+            document.getElementById('assignModal').style.display = 'flex';
+            
+            // Find current paper to get assigned reviewers
+            const paper = g_allPapers.find(p => p.id === paperId);
+            const assignedReviewers = paper ? (paper.assignedReviewers || []) : [];
+
+            // 加载评审人列表
+            const select = document.getElementById('reviewerSelect');
+            select.innerHTML = '<option value="">加载中...</option>';
+            
+            try {
+                const sessionId = sessionStorage.getItem('sessionId');
+                // 使用 /api/users 接口获取评审人列表 (role=REVIEWER)
+                // 注意：后端 handleGetUsers 支持 role 参数过滤
+                const res = await fetch('/api/users?role=REVIEWER', {
+                    headers: { 'Authorization': 'Bearer ' + sessionId }
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    // data.data.users 是 JSON 字符串，需要解析
+                    const users = JSON.parse(data.data.users);
+                    if (users.length === 0) {
+                        select.innerHTML = '<option value="">无可用评审人</option>';
+                    } else {
+                        select.innerHTML = users.map(u => {
+                            const isAssigned = assignedReviewers.includes(u.userId);
+                            const disabled = isAssigned ? 'disabled' : '';
+                            const suffix = isAssigned ? ' (已分配)' : '';
+                            return `<option value="${u.userId}" ${disabled}>${u.username} (ID: ${u.userId})${suffix}</option>`;
+                        }).join('');
+                    }
+                } else {
+                    select.innerHTML = '<option value="">加载失败</option>';
+                    alert('加载评审人失败: ' + data.message);
+                }
+            } catch (err) {
+                console.error(err);
+                select.innerHTML = '<option value="">网络错误</option>';
+            }
+        }
+
+        function closeAssignModal() {
+            document.getElementById('assignModal').style.display = 'none';
+        }
+
+        async function autoAssign() {
+            const paperId = document.getElementById('assignPaperId').value;
+            if (!confirm('确定要使用算法自动分配评审人吗？\n系统将根据研究方向、负载和冲突规则自动选择最佳审稿人。')) return;
+
+            try {
+                const btn = document.querySelector('#assignModal .btn-warning');
+                const originalText = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 计算中...';
+
+                const sessionId = sessionStorage.getItem('sessionId');
+                const res = await fetch('/api/papers/assign', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + sessionId
+                    },
+                    body: JSON.stringify({ paperId: paperId, mode: 'auto' })
+                });
+                
+                const data = await res.json();
+                if (data.success) {
+                    alert('自动分配成功！系统已为您选择了合适的审稿人。');
+                    closeAssignModal();
+                    loadAllPapers();
+                } else {
+                    alert('自动分配失败: ' + data.message);
+                }
+                
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            } catch (err) {
+                console.error(err);
+                alert('网络错误');
+                const btn = document.querySelector('#assignModal .btn-warning');
+                if(btn) btn.disabled = false;
+            }
+        }
+
+        async function submitAssignment() {
+            const paperId = document.getElementById('assignPaperId').value;
+            const reviewerId = document.getElementById('reviewerSelect').value;
+            
+            if (!reviewerId) {
+                alert('请选择评审人');
+                return;
+            }
+            
+            try {
+                const sessionId = sessionStorage.getItem('sessionId');
+                const res = await fetch('/api/papers/assign', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + sessionId
+                    },
+                    body: JSON.stringify({ paperId, reviewerId })
+                });
+                
+                const data = await res.json();
+                if (data.success) {
+                    alert('分配成功');
+                    closeAssignModal();
+                    loadAllPapers(); // 刷新列表
+                } else {
+                    alert('分配失败: ' + data.message);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('网络错误');
+            }
+        }
+
+        // 提交论文
+        document.getElementById('submitForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            btn.disabled = true;
+            btn.textContent = '提交中...';
+
+            try {
+                // 1. 读取文件内容
+                const fileInput = document.getElementById('paperFile');
+                const file = fileInput.files[0];
+                
+                if (!file) {
+                    alert("请选择文件");
+                    btn.disabled = false;
+                    btn.textContent = '提交论文';
+                    return;
+                }
+
+                // 读取文件为 Base64
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                
+                reader.onload = async function() {
+                    try {
+                        // 移除 "data:application/pdf;base64," 前缀
+                        const base64Content = reader.result.split(',')[1];
+                        
+                        const payload = {
+                            title: document.getElementById('paperTitle').value,
+                            abstract: document.getElementById('paperAbstract').value,
+                            keywords: document.getElementById('paperKeywords').value.split(',').map(k => k.trim()).filter(k => k),
+                            fileData: base64Content,
+                            filename: file.name
+                        };
+
+                        const sessionId = sessionStorage.getItem('sessionId');
+                        const res = await fetch('/api/papers', {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': 'Bearer ' + sessionId
+                            },
+                            body: JSON.stringify(payload)
+                        });
+                        
+                        const data = await res.json();
+                        if (data.success) {
+                            alert('论文提交成功！');
+                            document.getElementById('submitForm').reset();
+                            switchTab('my-papers');
+                        } else {
+                            alert('提交失败: ' + data.message);
+                        }
+                    } catch (err) {
+                        console.error(err);
+                        alert('提交出错: ' + err.message);
+                    } finally {
+                        btn.disabled = false;
+                        btn.textContent = '提交论文';
+                    }
+                };
+                
+                reader.onerror = function() {
+                    alert("文件读取失败");
+                    btn.disabled = false;
+                    btn.textContent = '提交论文';
+                };
+
+            } catch (err) {
+                alert('网络错误');
+                console.error(err);
+                btn.disabled = false;
+                btn.textContent = '提交论文';
+            }
+        });
+
+        // 初始化
+        // (已在顶部定义了 DOMContentLoaded 事件，此处删除重复代码)
+    </script>
+</body>
+</html>

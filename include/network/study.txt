@@ -1,0 +1,54 @@
+网络层由 Connection类 + Client类 + Server类 + 自定义协议(Protocol) 组成
+
+网络通信本质是字节流的传输，通过 Socket API 进行交互。
+为了解决 TCP 粘包/拆包问题和数据解析，我们需要定义明确的消息边界和格式。
+
+Connection 类的作用
+连接管理器：Connection 类封装了底层的 Socket 文件描述符。
+核心功能：
+封装系统 Socket API (socket, connect, bind, listen, accept)。
+处理网络字节序 (Big Endian) 与主机字节序的转换。
+提供可靠的消息收发接口 (sendMessage, receiveMessage)。
+解决 TCP 粘包/拆包：
+    先读取定长的消息头 (Header, 24字节)，获取消息体长度。
+    再根据长度读取完整的消息体 (Payload)。
+底层实现：
+    sendAll/receiveAll：循环调用 send/recv 直到指定字节数全部传输完成。
+
+Client 类的作用 (客户端代理)
+业务请求发起者：将用户的操作转换为网络消息。
+核心功能：
+维护与服务器的 Connection 对象。
+建立与断开连接 (connect, disconnect)。
+业务封装：
+    login() -> 构造 MSG_LOGIN_REQUEST -> 发送 -> 等待 MSG_LOGIN_RESPONSE -> 解析结果。
+    submitPaper() -> 构造 MSG_SUBMIT_PAPER_REQUEST -> ...
+
+Server 类的作用 (服务端枢纽)
+连接监听与分发者：管理所有客户端连接并处理请求。
+核心功能：
+启动监听 (start)：绑定端口，进入 listen 状态。
+并发处理：
+    采用 "Thread-per-Client" 模型。
+    主线程负责 accept 新连接。
+    为每个新连接创建一个独立线程运行 handleClient。
+消息分发 (handleClient)：
+    循环接收消息 -> 解析消息类型 (Type) -> 调用对应处理函数 (handleLogin, handleSubmit...)。
+
+通信协议 (Protocol)
+消息结构 = 消息头 (Header) + 消息体 (Payload)
+Header (24字节):
+    4字节: magic (魔数，0x50525346 "PRSF")
+    1字节: version (版本号)
+    1字节: type (消息类型)
+    2字节: reserved (保留字段，对齐用)
+    4字节: length (消息体长度)
+    8字节: timestamp (时间戳)
+    4字节: checksum (CRC32 校验和)
+Payload:
+    具体的业务数据，通过序列化转换为字节流。
+
+并发模型
+多线程阻塞 IO：
+    简单直观，适合连接数适中的场景。
+    每个客户端独占一个线程，逻辑清晰。

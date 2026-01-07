@@ -1,0 +1,73 @@
+Starting Peer Review System Server...
+Port: 8080
+Disk image: disk.img
+Mounting filesystem from: disk.img
+Filesystem mounted successfully
+WAL: Reading entries. StartBlock: 35 SizeBlocks: 64
+WAL: Reading entries. StartBlock: 35 SizeBlocks: 64
+WAL: Recovering 2 entries...
+Replaying Txn 4: Op 1
+WAL: Replaying CREATE/MKDIR for Inode 4
+WAL: Inode 4 already in use (Type=1)
+WAL: Directory entry 'paper_000001.pdf' already exists
+Replaying Txn 5: Op 1
+WAL: Replaying CREATE/MKDIR for Inode 5
+WAL: Inode 5 already in use (Type=1)
+WAL: Directory entry 'review_metadata.dat' already exists
+✅ Filesystem mounted successfully
+Loading user data...
+✅ Loaded 2 users and 1 sessions from file
+Initializing review system...
+✅ Metadata loaded (Papers: 1, Reviews: 0)
+✅ Server started successfully on port 8080
+
+========================================
+  Peer Review System Server Ready
+========================================
+
+Server is running. Press Ctrl+C to stop.
+📥 New client connected from 0.0.0.0:52132
+🔧 Handling client from 0.0.0.0:52132
+🌐 Detected HTTP request
+🌐 HTTP Request: POST /api/papers/1/update_file
+📝 HTTP POST /api/papers/1/update_file
+📝 更新论文文件 - ID: 1
+DEBUG: Found fileData. Start: 13, End: 25, Length: 12
+WAL: Logging Op=1 Inode=6 Parent=1 Name=paper_000001.pdf.tmp.4940.1767782422
+❌ Failed to write tmp file content: /papers/paper_000001.pdf.tmp.4940.1767782422 (written=-1, expected=7)
+📥 New client connected from 0.0.0.0:60986
+🔧 Handling client from 0.0.0.0:60986
+🌐 Detected HTTP request
+🌐 HTTP Request: POST /api/papers/1/update_file
+📝 HTTP POST /api/papers/1/update_file
+📝 更新论文文件 - ID: 1
+DEBUG: Found fileData. Start: 13, End: 25, Length: 12
+WAL: Logging Op=1 Inode=7 Parent=1 Name=paper_000001.pdf.tmp.4940.1767782531
+❌ Failed to write tmp file content: /papers/paper_000001.pdf.tmp.4940.1767782531 (written=-1, expected=7)
+📥 New client connected from 0.0.0.0:36542
+🔧 Handling client from 0.0.0.0:36542
+🌐 Detected HTTP request
+🌐 HTTP Request: POST /api/papers/1/update_file
+📝 HTTP POST /api/papers/1/update_file
+📝 更新论文文件 - ID: 1
+DEBUG: Found fileData. Start: 13, End: 25, Length: 12
+WAL: Logging Op=1 Inode=8 Parent=1 Name=paper_000001.pdf.tmp.4940.1767782583
+❌ Failed to write tmp file content: /papers/paper_000001.pdf.tmp.4940.1767782583 (written=-1, expected=7)
+📥 New client connected from 0.0.0.0:53952
+🔧 Handling client from 0.0.0.0:53952
+🌐 Detected HTTP request
+🌐 HTTP Request: POST /api/papers/1/update_file
+📝 HTTP POST /api/papers/1/update_file
+📝 更新论文文件 - ID: 1
+DEBUG: Found fileData. Start: 13, End: 25, Length: 12
+WAL: Logging Op=1 Inode=9 Parent=1 Name=paper_000001.pdf.tmp.4940.1767782658
+❌ Failed to write tmp file content: /papers/paper_000001.pdf.tmp.4940.1767782658 (written=-1, expected=7)
+📥 New client connected from 0.0.0.0:33234
+🔧 Handling client from 0.0.0.0:33234
+🌐 Detected HTTP request
+🌐 HTTP Request: POST /api/papers/1/update_file
+📝 HTTP POST /api/papers/1/update_file
+📝 更新论文文件 - ID: 1
+DEBUG: Found fileData. Start: 13, End: 25, Length: 12
+WAL: Logging Op=1 Inode=10 Parent=1 Name=paper_000001.pdf.tmp.4940.1767782770
+❌ Failed to write tmp file content: /papers/paper_000001.pdf.tmp.4940.1767782770 (written=-1, expected=7)

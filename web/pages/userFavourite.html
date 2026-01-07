@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>我的收藏 - 文献查阅系统</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body { background: #f5f8fa; margin: 0; }
+        .sidebar {
+            width: 280px;
+            background: linear-gradient(to bottom, #1da598, #43e97b);
+            color: white;
+            padding: 30px 0;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            height: 100vh;
+        }
+        .logo-container {
+            padding: 0 30px 25px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+        .logo-container i {
+            font-size: 32px;
+            margin-right: 15px;
+            color: #ffd54f;
+        }
+        .logo-container h1 {
+            font-size: 24px;
+            font-weight: 700;
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 18px 30px;
+            font-size: 18px;
+            text-decoration: none;
+            color: #fff;
+            transition: all 0.3s ease;
+            position: relative;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .nav-item i {
+            width: 28px;
+            margin-right: 15px;
+            font-size: 18px;
+            text-align: center;
+        }
+        .nav-item:hover, .nav-item.active {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            padding-left: 35px;
+        }
+        .main-content {
+            padding: 40px;
+            margin-left: 280px;
+        }
+        .search-header { text-align: center; margin-bottom: 38px; }
+        .main-title { font-size: 36px; font-weight: 900; color: #18c6b0; margin-bottom: 18px; }
+        .result-item {
+            background: white;
+            border: 1px solid #e0f4f0;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            margin-bottom: 18px;
+            transition: box-shadow 0.3s;
+        }
+        .result-item:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.12);}
+        .result-title { font-size: 20px; font-weight: 700; color: #18c6b0; margin-bottom: 10px;}
+        .result-meta { font-size: 14px; color: #777; margin-bottom: 10px;}
+        .result-abstract { font-size: 16px; color: #333; line-height: 1.6;}
+        .remove-btn {
+            float: right;
+            background: #ff7043;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 14px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .remove-btn:hover { background: #e74a3b; }
+        .nav-sub-list {
+            background: rgba(255,255,255,0.07);
+            border-radius: 0 0 10px 10px;
+            margin-left: 0;
+            padding-left: 40px;
+            padding-bottom: 8px;
+            transition: all 0.2s;
+        }
+        .nav-sub-item {
+            display: block;
+            padding: 12px 0 12px 20px;
+            font-size: 16px;
+            color: rgba(255,255,255,0.85);
+            text-decoration: none;
+            transition: all 0.2s;
+            position: relative;
+        }
+        .nav-sub-item:hover {
+            color: #18c6b0;
+            background: #e0f4ff;
+            border-radius: 6px;
+            padding-left: 28px;
+        }
+        .arrow {
+            margin-left: auto;
+            font-size: 14px;
+        }
+        .nav-item.active .arrow {
+            transform: rotate(180deg);
+        }
+        #batch-bar {
+            position: fixed;
+            bottom: 0;
+            left: 280px;
+            right: 0;
+            background: #fff;
+            border-top: 1px solid #e0f4f0;
+            padding: 16px 40px;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
+            z-index: 200;
+            display: none;
+            align-items: center;
+            gap: 20px;
+        }
+        #batch-bar label {
+            font-size: 16px;
+        }
+        #batch-bar button {
+            background: #ff7043;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 24px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        #batch-bar button:hover {
+            background: #e74a3b;
+        }
+        #selectedCount {
+            color: #18c6b0;
+            font-weight: 600;
+        }
+        /* 顶部横幅弹窗样式 */
+        #confirmBanner {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 280px;
+            right: 0;
+            z-index: 999;
+            background: #fffbe7;
+            border-bottom: 1px solid #ffe082;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            padding: 22px 36px;
+            min-width: 320px;
+            text-align: center;
+        }
+        #confirmBanner button {
+            margin-left: 18px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="logo-container">
+            <i class="fas fa-book"></i>
+            <h1>文献查阅系统</h1>
+        </div>
+        <a class="nav-item active" href="#">
+            <i class="fas fa-star"></i> 收藏的论文
+        </a>
+        <a class="nav-item" href="../nomarlPage.html" style="margin-top: auto; margin-bottom: 20px; background: rgba(255, 255, 255, 0.1);">
+            <i class="fas fa-arrow-left"></i> 返回主页面
+        </a>
+    </nav>
+    <main class="main-content">
+        <div class="search-header">
+            <div class="main-title">我的收藏</div>
+        </div>
+        <div class="search-results" id="results"></div>
+    </main>
+    <div id="batch-bar">
+        <label>
+            <input type="checkbox" id="selectAllBox" style="transform:scale(1.3);margin-right:8px;">全选
+        </label>
+        <button id="batchRemoveBtn">批量取消收藏</button>
+        <span id="selectedCount"></span>
+    </div>
+    <!-- 顶部横幅弹窗结构 -->
+    <div id="confirmBanner">
+        <span id="bannerMsg" style="font-size:17px;color:#e67c1a;font-weight:600;margin-right:32px;">确定要取消收藏吗？</span>
+        <button id="bannerConfirmBtn" style="background:#ff7043;color:#fff;border:none;border-radius:6px;padding:8px 32px;font-size:16px;cursor:pointer;">确定</button>
+        <button id="bannerCancelBtn" style="background:#eee;color:#333;border:none;border-radius:6px;padding:8px 32px;font-size:16px;cursor:pointer;">取消</button>
+    </div>
+    <script>
+        // 假设已登录，user_no 可从本地存储或cookie获取
+        const user_no = sessionStorage.getItem('userId') || 'test_user_no';
+
+        // 转义HTML
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        }
+
+        // 摘要截断
+        function truncateAbstract(str, len = 120) {
+            if (!str) return '';
+            return str.length > len ? escapeHtml(str.slice(0, len)) + '...' : escapeHtml(str);
+        }
+
+        // 渲染收藏论文
+        async function renderFavourites() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '加载中...';
+            try {
+                const res = await fetch(
+                  `/favourite/list?user_no=${user_no}&_=${Date.now()}`
+                );
+                const data = await res.json();
+                if (!data.success || !data.papers || data.papers.length === 0) {
+                    resultsDiv.innerHTML = '<div class="no-result">暂无收藏论文</div>';
+                    initBatchBar();
+                    return;
+                }
+                let html = '';
+                for (let paper_id of data.papers) {
+                    // 获取详细信息
+                    let res = await fetch(`/papers/search?q=${encodeURIComponent(paper_id)}&field=paper_id`);
+                    let detail = await res.json();
+                    if (detail && detail.length > 0) {
+                        let item = detail[0];
+                        html += `
+                        <div class="result-item" data-paper-id="${escapeHtml(item.paper_id)}">
+                            <input type="checkbox" class="select-box" value="${escapeHtml(item.paper_id)}" style="margin-right:12px;transform:scale(1.3);">
+                            <button class="remove-btn" onclick="removeFavourite('${escapeHtml(item.paper_id)}', this)">取消收藏</button>
+                            <div class="result-title">${escapeHtml(item.paper_title || '无标题')}</div>
+                            <div class="result-meta">
+                                论文ID：${escapeHtml(item.paper_id || '')} | 
+                                链接：${item.paper_url ? `<a href="${escapeHtml(item.paper_url)}" target="_blank">原文</a>` : '无'}<br>
+                                作者：${escapeHtml(item.paper_authors || '未知')} | 
+                                第一作者：${escapeHtml(item.paper_first_author || '未知')}<br>
+                                分类：${escapeHtml(item.primary_category || '未分类')} | 
+                                发表日期：${item.publish_time || '未知'} | 
+                                更新时间：${item.update_time || '未知'}
+                            </div>
+                            <div class="result-abstract">${truncateAbstract(item.paper_abstract)}</div>
+                        </div>
+                        `;
+                    }
+                }
+                resultsDiv.innerHTML = html || '<div class="no-result">暂无收藏论文</div>';
+                initBatchBar();
+            } catch (err) {
+                resultsDiv.innerHTML = `<div class="no-result" style="color:red;">请求出错：${escapeHtml(err.message)}</div>`;
+                initBatchBar();
+            }
+        }
+
+        let pendingRemove = null; // 记录待操作的paper_id和按钮
+
+        // 顶部横幅弹窗控制
+        function showBanner(msg, onConfirm, onCancel) {
+            document.getElementById('bannerMsg').textContent = msg;
+            document.getElementById('confirmBanner').style.display = 'block';
+            document.getElementById('bannerConfirmBtn').onclick = async function() {
+                document.getElementById('confirmBanner').style.display = 'none';
+                if (onConfirm) await onConfirm();
+            };
+            document.getElementById('bannerCancelBtn').onclick = function() {
+                document.getElementById('confirmBanner').style.display = 'none';
+                if (onCancel) onCancel();
+            };
+        }
+
+        // 取消收藏
+        function removeFavourite(paper_id, btn) {
+            pendingRemove = {paper_id, btn};
+            showBanner('确定要取消收藏吗？', async function() {
+                try {
+                    const res = await fetch('/favourite/remove', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({user_no, paper_id})
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        btn.closest('.result-item').remove();
+                        initBatchBar();
+                    } else {
+                        alert('取消收藏失败');
+                    }
+                } catch (e) {
+                    alert('请求出错');
+                }
+                pendingRemove = null;
+            }, function() {
+                pendingRemove = null;
+            });
+        }
+
+        // 切换子菜单
+        function toggleMenu(menuId) {
+            var menu = document.getElementById(menuId);
+            var arrow = document.getElementById('arrow-' + menuId);
+            if (menu.style.display === "none" || menu.style.display === "") {
+                menu.style.display = "block";
+                arrow.innerHTML = "&#9662;";
+            } else {
+                menu.style.display = "none";
+                arrow.innerHTML = "&#9656;";
+            }
+        }
+
+        // 批量操作相关
+        const batchBar = document.getElementById('batch-bar');
+        const selectAllBox = document.getElementById('selectAllBox');
+        const batchRemoveBtn = document.getElementById('batchRemoveBtn');
+        let selectedPapers = new Set(); // 记录选中的论文ID
+
+        // 渲染完成后初始化批量操作条
+        function initBatchBar() {
+            const items = document.querySelectorAll('.result-item');
+            if (items.length === 0) {
+                batchBar.style.display = 'none';
+                document.getElementById('selectedCount').textContent = '';
+                return;
+            }
+            batchBar.style.display = 'flex';
+            selectAllBox.checked = false;
+            selectedPapers.clear();
+            items.forEach(item => {
+                item.querySelector('input[type="checkbox"]').checked = false;
+            });
+            updateSelectedCount();
+        }
+
+        // 更新选中数量
+        function updateSelectedCount() {
+            const count = document.querySelectorAll('.select-box:checked').length;
+            document.getElementById('selectedCount').textContent = count > 0 ? `已选中${count}篇` : '';
+        }
+
+        // 全选/取消全选
+        selectAllBox.onchange = function() {
+            const allBoxes = document.querySelectorAll('.select-box');
+            allBoxes.forEach(box => {
+                box.checked = this.checked;
+            });
+            updateSelectedCount();
+        };
+
+        // 单个选择框变化时更新选中状态
+        document.getElementById('results').onclick = function(e) {
+            if (!e.target.matches('.result-item input[type="checkbox"]')) return;
+            const paperId = e.target.closest('.result-item').getAttribute('data-paper-id');
+            if (e.target.checked) {
+                selectedPapers.add(paperId);
+            } else {
+                selectedPapers.delete(paperId);
+                selectAllBox.checked = false; // 取消全选
+            }
+            updateSelectedCount();
+        };
+
+        // 批量取消收藏
+        batchRemoveBtn.onclick = async function() {
+            const checked = Array.from(document.querySelectorAll('.select-box:checked'));
+            if (checked.length === 0) {
+                alert('请先选择要取消收藏的论文');
+                return;
+            }
+            pendingRemove = {paper_ids: checked.map(b => b.value)};
+            showBanner(`确定要取消选中的${checked.length}篇收藏吗？`, async function() {
+                for (const pid of pendingRemove.paper_ids) {
+                    await fetch('/favourite/remove', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({user_no, paper_id: pid})
+                    });
+                }
+                renderFavourites();
+                pendingRemove = null;
+            }, function() {
+                pendingRemove = null;
+            });
+        };
+
+        // 首次渲染
+        renderFavourites();
+    </script>
+</body>
+</html>

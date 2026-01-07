@@ -11,6 +11,7 @@ void signalHandler(int signal) {
         std::cout << "\nShutting down server..." << std::endl;
         if (g_server) {
             g_server->stop();
+            g_server.reset(); // Ensure destructor is called to flush data
         }
         exit(0);
     }

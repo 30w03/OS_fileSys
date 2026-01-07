@@ -153,3 +153,7 @@ install(TARGETS server client review_cli DESTINATION bin)
 add_executable(test_auto_assign tests/test_auto_assign.cpp)
 target_link_libraries(test_auto_assign review user filesystem storage OpenSSL::Crypto)
 
+# Test Update Paper
+add_executable(test_update_paper tests/test_update_paper.cpp)
+target_link_libraries(test_update_paper review user filesystem storage OpenSSL::Crypto)
+

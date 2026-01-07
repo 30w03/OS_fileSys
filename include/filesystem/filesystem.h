@@ -21,6 +21,10 @@ public:
     bool format(uint32_t blockSize = 4096, uint32_t totalInodes = 1024);
     bool mount();
     void unmount();
+    void sync(); // New method
+    
+    // Getters
+    const std::string& getDiskImagePath() const { return diskImage_; }
 
     // 获取功能模块
     std::shared_ptr<FileOps> getFileOps() { return fileOps_; }

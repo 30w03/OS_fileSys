@@ -1,0 +1,48 @@
+传输层 Connection 类图
+========================================
+
+Connection 类是传输层的核心组件，负责处理网络连接和数据传输。
+
+┌─────────────────────────────────────────────────────────────────┐
+│                     Connection                                  │
+├─────────────────────────────────────────────────────────────────┤
+│ - socket_: int                                                  │
+│ - connected_: bool                                              │
+├─────────────────────────────────────────────────────────────────┤
+│ + Connection(socket: int)                                       │
+│ + ~Connection()                                                 │
+│ + sendMessage(): bool                                           │
+│ + receiveMessage(): bool                                        │
+│ + receiveRawData(): bool                                        │
+│ + peekFirstBytes(): bool                                        │
+│ + sendHttpResponse(): bool                                      │
+│ + getSocket() const: int                                        │
+│ + getRemoteAddress() const: std::string                         │
+│ + getRemotePort() const: uint16_t                               │
+│ + close(): void                                                 │
+│ + isConnected() const: bool                                     │
+│ - sendAll(): bool                                               │
+│ - receiveAll(): bool                                            │
+└─────────────────────────────────────────────────────────────────┘
+
+关键成员变量说明：
+1. socket_: int - 底层套接字描述符，用于实际的网络通信
+2. connected_: bool - 连接状态标志，标识当前连接是否有效
+
+类图说明：
+- 矩形框表示 Connection 类
+- 第一行是类名
+- 第二行是成员变量（前缀 "-" 表示 private）
+- 第三行及以后是成员函数（前缀 "+" 表示 public，前缀 "-" 表示 private）
+- 成员函数签名显示了参数类型和返回类型
+
+这个类图展示了 Connection 类的核心结构，包括：
+- 底层套接字管理
+- 连接状态跟踪
+- 消息发送和接收
+- 原始数据处理
+- HTTP响应支持
+- 连接信息获取
+- 连接管理功能
+
+Connection 类是传输层和应用层之间的桥梁，负责处理网络通信的细节，同时提供简单的接口供上层使用。

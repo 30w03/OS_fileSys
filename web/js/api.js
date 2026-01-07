@@ -2,10 +2,14 @@
 class ApiClient {
     constructor() {
         this.baseUrl = `${CONFIG.SERVER.PROTOCOL}://${CONFIG.SERVER.HOST}:${CONFIG.SERVER.PORT}`;
-        this.sessionId = localStorage.getItem('sessionId') || null;
-        this.userId = localStorage.getItem('userId') || null;
-        this.username = localStorage.getItem('username') || null;
-        this.role = localStorage.getItem('role') || null;
+        this.sessionId = sessionStorage.getItem('sessionId') || null;
+        this.userId = sessionStorage.getItem('userId') || null;
+        this.username = sessionStorage.getItem('username') || null;
+        this.role = sessionStorage.getItem('role') || null;
+        
+        if (this.isAuthenticated()) {
+            this.startHeartbeat();
+        }
     }
     
     // 设置认证信息
@@ -15,23 +19,24 @@ class ApiClient {
         this.username = username;
         this.role = role;
         
-        localStorage.setItem('sessionId', sessionId);
-        localStorage.setItem('userId', userId);
-        localStorage.setItem('username', username);
-        localStorage.setItem('role', role);
+        sessionStorage.setItem('sessionId', sessionId);
+        sessionStorage.setItem('userId', userId);
+        sessionStorage.setItem('username', username);
+        sessionStorage.setItem('role', role);
     }
     
     // 清除认证信息
     clearAuth() {
+        this.stopHeartbeat();
         this.sessionId = null;
         this.userId = null;
         this.username = null;
         this.role = null;
         
-        localStorage.removeItem('sessionId');
-        localStorage.removeItem('userId');
-        localStorage.removeItem('username');
-        localStorage.removeItem('role');
+        sessionStorage.removeItem('sessionId');
+        sessionStorage.removeItem('userId');
+        sessionStorage.removeItem('username');
+        sessionStorage.removeItem('role');
     }
     
     // 检查是否已认证
@@ -90,9 +95,37 @@ class ApiClient {
                 response.username,
                 response.role
             );
+            this.startHeartbeat();
         }
         
         return response;
+    }
+
+    // 启动心跳
+    startHeartbeat() {
+        if (this.heartbeatInterval) {
+            clearInterval(this.heartbeatInterval);
+        }
+        
+        // 每30秒发送一次心跳
+        this.heartbeatInterval = setInterval(async () => {
+            if (this.isAuthenticated()) {
+                try {
+                    await this.request('GET', '/api/auth/heartbeat');
+                } catch (e) {
+                    console.warn('Heartbeat failed', e);
+                }
+            } else {
+                this.stopHeartbeat();
+            }
+        }, 30000);
+    }
+
+    stopHeartbeat() {
+        if (this.heartbeatInterval) {
+            clearInterval(this.heartbeatInterval);
+            this.heartbeatInterval = null;
+        }
     }
     
     async register(username, password, role) {

@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>同行评审系统 - 主页</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        /* 基础样式重置 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        
+        /* 自定义变量 */
+        :root {
+            --primary-green: #18c6b0;
+            --light-green: #43e97b;
+            --accent-color: #ff7043;
+            --light-bg: #f8f9fc;
+            --dark-text: #333;
+            --light-text: #777;
+            --shadow-light: 0 4px 12px rgba(0, 0, 0, 0.08);
+            --shadow-dark: 0 8px 16px rgba(0, 0, 0, 0.1);
+        }
+        
+        body {
+            background-color: #f5f8fa;
+            display: flex;
+            min-height: 100vh;
+            color: var(--dark-text);
+        }
+        
+        /* 侧边导航栏 */
+        .sidebar {
+            width: 280px;
+            background: linear-gradient(to bottom, #1da598, #43e97b);
+            color: white;
+            padding: 30px 0;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .logo-container {
+            padding: 0 30px 25px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+        
+        .logo-container i {
+            font-size: 32px;
+            margin-right: 15px;
+            color: #ffd54f;
+        }
+        
+        .logo-container h1 {
+            font-size: 24px;
+            font-weight: 700;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 18px 30px;
+            font-size: 18px;
+            text-decoration: none;
+            color: #fff;
+            transition: all 0.3s ease;
+            position: relative;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        
+        .nav-item i {
+            width: 28px;
+            margin-right: 15px;
+            font-size: 18px;
+            text-align: center;
+        }
+        
+        .nav-item:hover, .nav-item.active {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            padding-left: 35px;
+        }
+        
+        .arrow {
+            margin-left: auto;
+            font-size: 14px;
+        }
+        
+        .nav-sub-list {
+            background: rgba(255,255,255,0.07);
+            border-radius: 0 0 10px 10px;
+            margin-left: 0;
+            padding-left: 40px;
+            padding-bottom: 8px;
+            transition: all 0.2s;
+        }
+        
+        .nav-sub-item {
+            display: block;
+            padding: 12px 0 12px 20px;
+            font-size: 16px;
+            color: rgba(255,255,255,0.85);
+            text-decoration: none;
+            transition: all 0.2s;
+            position: relative;
+        }
+        
+        .nav-sub-item:hover {
+            color: #18c6b0;
+            background: #e0f4ff;  /* 浅蓝色背景 */
+            border-radius: 6px;
+            padding-left: 28px;
+        }
+        
+        .sidebar-footer {
+            margin-top: auto;
+            padding: 25px 30px 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.6);
+            line-height: 1.6;
+        }
+        
+        /* 主内容区 */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        
+        /* 顶部栏 */
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 40px;
+            background-color: white;
+            box-shadow: var(--shadow-light);
+            position: sticky;
+            top: 0;
+            z-index: 90;
+        }
+        
+        .topbar-logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 60px;
+            width: 60px;
+            margin-left: 10px;
+        }
+        
+        .topbar-logo i {
+            font-size: 44px;
+            color: #18c6b0;
+            filter: drop-shadow(0 2px 8px #18c6b033);
+        }
+        
+        .search-container {
+            flex: 1;
+            max-width: 600px;
+            background: white;
+            border-radius: 50px;
+            padding: 0 15px;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(24, 198, 176, 0.2);
+            border: 1px solid #e0f4f0;
+        }
+        
+        .search-container:focus-within {
+            box-shadow: 0 4px 15px rgba(24, 198, 176, 0.3);
+            border-color: #91e4d8;
+        }
+        
+        .search-icon {
+            width: 40px;
+            text-align: center;
+            color: var(--primary-green);
+            font-size: 18px;
+        }
+        
+        .search-input {
+            flex: 1;
+            border: none;
+            padding: 14px 10px;
+            font-size: 17px;
+            outline: none;
+            background: transparent;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+        }
+        
+        .user-greeting {
+            font-size: 18px;
+            font-weight: 600;
+            margin-right: 20px;
+            color: var(--primary-green);
+        }
+        
+        .user-avatar {
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            background: linear-gradient(to right, var(--primary-green), var(--light-green));
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: 600;
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            top: 120%;
+            right: 0;
+            background: white;
+            min-width: 160px;
+            box-shadow: var(--shadow-dark);
+            border-radius: 10px;
+            z-index: 100;
+            overflow: hidden;
+            padding: 10px 0;
+        }
+        
+        .dropdown-content a {
+            display: block;
+            padding: 12px 20px;
+            text-decoration: none;
+            color: var(--dark-text);
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+        
+        .dropdown-content a:hover {
+            background-color: #f8f9fa;
+            color: var(--primary-green);
+        }
+        
+        .user-avatar:hover .dropdown-content {
+            display: block;
+        }
+        
+        /* 主内容区域 - 修复了背景剪裁问题 */
+        .content-area {
+            flex: 1;
+            padding: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(to bottom, #eef9f8, #f8f9fc);
+        }
+        
+        .search-guide {
+            text-align: center;
+            max-width: 800px;
+        }
+        
+        /* 此处修复了背景剪裁兼容性问题 */
+        .welcome-title {
+            font-size: 42px;
+            font-weight: 800;
+            margin-bottom: 20px;
+            background: linear-gradient(to right, var(--primary-green), #1a9b84);
+            
+            /* 兼容所有浏览器的background-clip:text实现 */
+            /* WebKit (Safari, Chrome) */
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            
+            /* Firefox */
+            background-clip: text;
+            -moz-background-clip: text;
+            -moz-text-fill-color: transparent;
+            
+            /* 标准 */
+            background-clip: text;
+            -webkit-text-fill-color: transparent; /* For WebKit browsers */
+            -moz-text-fill-color: transparent;    /* For Firefox */
+            
+            letter-spacing: 0.5px;
+        }
+        
+        .welcome-subtitle {
+            font-size: 22px;
+            color: var(--light-text);
+            margin-bottom: 40px;
+            line-height: 1.6;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .guide-box {
+            background: white;
+            border-radius: 20px;
+            padding: 40px 50px;
+            box-shadow: var(--shadow-light);
+            display: inline-block;
+            text-align: center;
+        }
+        
+        .guide-title {
+            font-size: 28px;
+            margin-bottom: 30px;
+            color: var(--primary-green);
+            font-weight: 700;
+        }
+        
+        .guide-content {
+            font-size: 22px;
+            color: var(--dark-text);
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        
+        .search-examples {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .example-item {
+            background: #eafcf9;
+            border: 2px solid #b2f0e3;
+            border-radius: 12px;
+            padding: 12px 25px;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--primary-green);
+            min-width: 150px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        /* 搜索类型切换 */
+        .search-type-tabs {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .search-type-tab {
+            background: #eafcf9;
+            border: 2px solid #b2f0e3;
+            border-radius: 12px;
+            padding: 10px 20px;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--primary-green);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 0 10px;
+            pointer-events: auto;
+            z-index: 2;
+        }
+        
+        .search-type-tab.active {
+            background: var(--primary-green);
+            color: white;
+            border-color: var(--primary-green);
+        }
+        
+        /* 搜索栏 */
+        .search-bar-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+        
+        .search-bar {
+            display: flex;
+            align-items: center;
+            border: 2px solid #b2f0e3;
+            border-radius: 50px;
+            padding: 10px 20px;
+            width: 100%;
+            max-width: 600px;
+            background: white;
+            box-shadow: 0 2px 8px rgba(24, 198, 176, 0.2);
+        }
+        
+        .search-bar input {
+            border: none;
+            outline: none;
+            flex: 1;
+            padding: 10px;
+            font-size: 18px;
+        }
+        
+        .search-bar button {
+            background: var(--primary-green);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 10px 20px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-left: 10px;
+        }
+        
+        .search-bar button:hover {
+            background: #16a085;
+        }
+        
+        /* 搜索结果 */
+        .search-results {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .result-item {
+            background: white;
+            border: 1px solid #e0f4f0;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: var(--shadow-light);
+            transition: all 0.3s ease;
+        }
+        
+        .result-item:hover {
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .result-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: var(--primary-green);
+        }
+        
+        .result-meta {
+            font-size: 14px;
+            color: var(--light-text);
+            margin-bottom: 10px;
+        }
+        
+        .result-abstract {
+            font-size: 16px;
+            color: var(--dark-text);
+            line-height: 1.6;
+        }
+        
+        /* 搜索标题样式 */
+        .search-header {
+            text-align: center;
+            margin-bottom: 38px;
+        }
+
+        .main-title {
+            font-size: 48px;
+            font-weight: 900;
+            color: #18c6b0;
+            margin-bottom: 18px;
+            letter-spacing: 2px;
+            line-height: 1.2;
+        }
+
+        .subtitle {
+            font-size: 26px;
+            color: #18c6b0;
+            font-weight: 600;
+            margin-bottom: 18px;
+            line-height: 1.5;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 992px) {
+            .sidebar {
+                width: 230px;
+            }
+            
+            .search-container {
+                max-width: 450px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: auto;
+                padding: 15px 0;
+            }
+            
+            .logo-container {
+                padding: 15px 20px;
+                margin-bottom: 15px;
+            }
+            
+            .topbar {
+                padding: 15px 20px;
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .search-container {
+                width: 100%;
+                max-width: 100%;
+            }
+            
+            .content-area {
+                padding: 30px 20px;
+            }
+            
+            .welcome-title {
+                font-size: 32px;
+            }
+            
+            .welcome-subtitle {
+                font-size: 18px;
+            }
+            
+            .guide-box {
+                padding: 30px;
+                width: 100%;
+            }
+            
+            .guide-title {
+                font-size: 24px;
+            }
+            
+            .guide-content {
+                font-size: 18px;
+            }
+            
+            .example-item {
+                padding: 10px 15px;
+                font-size: 16px;
+                min-width: 120px;
+            }
+        }
+        
+        /* 修复高亮区域 */
+        .fix-highlight {
+            background: #fff8e1;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 900px;
+            margin: 40px auto;
+            box-shadow: 0 0 20px rgba(255, 152, 0, 0.2);
+        }
+        
+        .fix-title {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #f57c00;
+            font-size: 28px;
+        }
+        
+        .code-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            border-radius: 8px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            line-height: 1.5;
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+        
+        .code-comment {
+            color: #75715e;
+        }
+        
+        .code-keyword {
+            color: #f92672;
+        }
+        
+        .code-property {
+            color: #a6e22e;
+        }
+        
+        .explanation {
+            margin: 20px 0;
+            line-height: 1.6;
+            background: #fffde7;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <!-- 侧边导航栏（可折叠/展开） -->
+    <nav class="sidebar">
+        <div class="logo-container">
+            <i class="fas fa-book"></i>
+            <h1>论文评审系统</h1>
+        </div>
+    </nav>
+
+    <!-- 主内容区 -->
+    <main class="main-content">
+        <!-- 顶部栏 -->
+        <header class="topbar">
+            <div class="topbar-logo">
+                <i class="fas fa-graduation-cap"></i>
+            </div>
+            <div class="user-info">
+                <div class="user-greeting">请自由探索~</div>
+            </div>
+        </header>
+        <!-- 内容区域 -->
+        <section class="content-area">
+            <div class="search-center-box" id="dashboard-container">
+                <!-- 默认欢迎页 (加载前显示) -->
+                <div class="search-header">
+                    <div class="main-title">欢迎使用同行评审系统</div>
+                    <div class="subtitle">
+                        正在加载您的个性化工作台...
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // 获取用户角色信息 (已废弃，直接从 sessionStorage 获取)
+        /*
+        async function getUserRole() {
+            // ...
+        }
+        */
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const role = sessionStorage.getItem('role');
+            const username = sessionStorage.getItem('username');
+            
+            if (!username) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            generateNavigation(role);
+            loadDashboard(role, username);
+        });
+
+        function generateNavigation(roleId) {
+            const sidebar = document.querySelector('.sidebar');
+            const logoContainer = sidebar.querySelector('.logo-container');
+            
+            // 统一转换为大写进行比较
+            const role = roleId ? roleId.toUpperCase() : '';
+
+            // 清空现有导航项（保留 logo）
+            sidebar.querySelectorAll('.nav-item, .nav-sub-list').forEach(n => n.remove());
+
+            let menuHtml = '';
+
+            // 1. 个人中心 (所有角色都有)
+            menuHtml += `
+                <a class="nav-item" href="#" onclick="toggleMenu('userMenu');return false;">
+                    <i class="fas fa-user-circle"></i> 个人中心
+                    <span class="arrow" id="arrow-userMenu">&#9662;</span>
+                </a>
+                <div class="nav-sub-list" id="userMenu" style="display:none;">
+                    <a class="nav-sub-item" href="pages/dataChange.html">
+                        <i class="fas fa-id-card"></i> 个人资料
+                    </a>
+                    <a class="nav-sub-item" href="#" onclick="logout(); return false;" style="color:#e74a3b;">
+                        <i class="fas fa-sign-out-alt"></i> 退出登录
+                    </a>
+                </div>
+            `;
+
+            // 2. 根据角色生成特定菜单
+            if (role === 'AUTHOR') {
+                menuHtml += `
+                    <a class="nav-item" href="#" onclick="toggleMenu('paperMenu');return false;">
+                        <i class="fas fa-file-alt"></i> 论文管理
+                        <span class="arrow" id="arrow-paperMenu">&#9662;</span>
+                    </a>
+                    <div class="nav-sub-list" id="paperMenu" style="display:none;">
+                        <a class="nav-sub-item" href="pages/paperManage.html?action=submit">
+                            <i class="fas fa-upload"></i> 上传论文
+                        </a>
+                        <a class="nav-sub-item" href="pages/paperManage.html">
+                            <i class="fas fa-list"></i> 我的论文
+                        </a>
+                    </div>
+                `;
+            } else if (role === 'REVIEWER') {
+                menuHtml += `
+                    <a class="nav-item" href="#" onclick="toggleMenu('reviewMenu');return false;">
+                        <i class="fas fa-gavel"></i> 评审管理
+                        <span class="arrow" id="arrow-reviewMenu">&#9662;</span>
+                    </a>
+                    <div class="nav-sub-list" id="reviewMenu" style="display:none;">
+                        <a class="nav-sub-item" href="pages/reviewManage.html">
+                            <i class="fas fa-tasks"></i> 待评审任务
+                        </a>
+                        <a class="nav-sub-item" href="pages/reviewManage.html?tab=history">
+                            <i class="fas fa-history"></i> 历史评审
+                        </a>
+                    </div>
+                `;
+            } else if (role === 'EDITOR') {
+                menuHtml += `
+                    <a class="nav-item" href="#" onclick="toggleMenu('editorMenu');return false;">
+                        <i class="fas fa-edit"></i> 编辑工作台
+                        <span class="arrow" id="arrow-editorMenu">&#9662;</span>
+                    </a>
+                    <div class="nav-sub-list" id="editorMenu" style="display:none;">
+                        <a class="nav-sub-item" href="pages/paperManage.html">
+                            <i class="fas fa-layer-group"></i> 所有稿件
+                        </a>
+                        <a class="nav-sub-item" href="pages/reviewManage.html?tab=situation&v=3">
+                            <i class="fas fa-chart-line"></i> 审稿情况
+                        </a>
+                    </div>
+                `;
+            } else if (role === 'ADMIN') {
+                menuHtml += `
+                    <a class="nav-item" href="#" onclick="toggleMenu('adminMenu');return false;">
+                        <i class="fas fa-cogs"></i> 系统管理
+                        <span class="arrow" id="arrow-adminMenu">&#9662;</span>
+                    </a>
+                    <div class="nav-sub-list" id="adminMenu" style="display:none;">
+                        <a class="nav-sub-item" href="pages/userManage.html">
+                            <i class="fas fa-users-cog"></i> 用户管理
+                        </a>
+                        <a class="nav-sub-item" href="pages/systemManage.html">
+                            <i class="fas fa-server"></i> 系统监控
+                        </a>
+                    </div>
+                `;
+            }
+
+            // 插入菜单
+            logoContainer.insertAdjacentHTML('afterend', menuHtml);
+        }
+
+        async function loadDashboard(roleId, username) {
+            const container = document.getElementById('dashboard-container');
+            const sessionId = sessionStorage.getItem('sessionId');
+            const role = roleId ? roleId.toUpperCase() : '';
+            
+            // 角色名称映射
+            const roleNames = {
+                'AUTHOR': '作者',
+                'REVIEWER': '评审员',
+                'EDITOR': '编辑',
+                'ADMIN': '管理员'
+            };
+            const roleName = roleNames[role] || role;
+
+            let dashboardHtml = `
+                <div class="search-header">
+                    <div class="main-title">欢迎回来，${username}</div>
+                    <div class="subtitle">
+                        当前身份：<span style="color:#18c6b0; font-weight:bold;">${roleName}</span>
+                    </div>
+                </div>
+                <div class="search-examples" style="margin-top: 40px;">
+            `;
+
+            // 根据角色生成不同的快捷入口和统计
+            if (role === 'AUTHOR') {
+                dashboardHtml += `
+                    <div class="example-item" onclick="window.location.href='pages/paperManage.html'">
+                        <i class="fas fa-plus-circle"></i> 提交新论文
+                    </div>
+                    <div class="example-item" onclick="window.location.href='pages/paperManage.html'">
+                        <i class="fas fa-list"></i> 查看我的论文
+                    </div>
+                `;
+                
+                // 获取最近论文状态
+                try {
+                    const res = await fetch('/api/papers/my', {
+                        headers: { 'Authorization': 'Bearer ' + sessionId }
+                    });
+                    const data = await res.json();
+                    if (data.success && data.data.papers.length > 0) {
+                        const count = data.data.papers.length;
+                        dashboardHtml += `
+                            <div class="guide-box" style="display:block; margin-top:30px; width:100%;">
+                                <div class="guide-title">最近动态</div>
+                                <div class="guide-content">
+                                    您已提交 ${count} 篇论文。
+                                    <br>
+                                    <span style="font-size:16px; color:#666;">最新提交: ${data.data.papers[0].title}</span>
+                                </div>
+                            </div>
+                        `;
+                    }
+                } catch(e) { console.error(e); }
+
+            } else if (role === 'REVIEWER') {
+                dashboardHtml += `
+                    <div class="example-item" onclick="window.location.href='pages/reviewManage.html'">
+                        <i class="fas fa-tasks"></i> 待评审论文
+                    </div>
+                    <div class="example-item" onclick="window.location.href='pages/paperManage.html'">
+                        <i class="fas fa-book"></i> 我的论文
+                    </div>
+                `;
+                
+                // 获取待评审数量
+                try {
+                    const res = await fetch('/api/papers/review', {
+                        headers: { 'Authorization': 'Bearer ' + sessionId }
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        const count = data.data.papers ? data.data.papers.length : 0;
+                        dashboardHtml += `
+                            <div class="guide-box" style="display:block; margin-top:30px; width:100%;">
+                                <div class="guide-title">评审任务</div>
+                                <div class="guide-content">
+                                    您有 <span style="color:#ff9800; font-weight:bold;">${count}</span> 篇论文等待评审。
+                                </div>
+                            </div>
+                        `;
+                    }
+                } catch(e) { console.error(e); }
+
+            } else if (role === 'EDITOR') {
+                dashboardHtml += `
+                    <div class="example-item" onclick="window.location.href='pages/reviewManage.html'">
+                        <i class="fas fa-user-check"></i> 分配评审
+                    </div>
+                    <div class="example-item" onclick="window.location.href='pages/paperManage.html'">
+                        <i class="fas fa-layer-group"></i> 所有论文
+                    </div>
+                `;
+                
+                // 获取系统统计 (编辑只能看论文统计，不能看系统概览)
+                // 这里可以改为显示待分配的论文数量
+                try {
+                    const res = await fetch('/api/papers', {
+                        headers: { 'Authorization': 'Bearer ' + sessionId }
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        // 假设返回的是 { count: "10", papers: [...] }
+                        const count = data.data.count || 0;
+                        dashboardHtml += `
+                            <div class="guide-box" style="display:block; margin-top:30px; width:100%;">
+                                <div class="guide-title">稿件概览</div>
+                                <div class="guide-content">
+                                    当前系统共有 <span style="color:#18c6b0; font-weight:bold;">${count}</span> 篇稿件。
+                                </div>
+                            </div>
+                        `;
+                    }
+                } catch(e) { console.error(e); }
+            }
+
+            dashboardHtml += `</div>`;
+            container.innerHTML = dashboardHtml;
+        }
+        
+        // 绑定导航事件 (已废弃)
+        /*
+        function bindNavigationEvents() {
+            // ...
+        }
+        */
+        
+        // 页面加载时初始化 (已废弃，逻辑已移至顶部)
+        /*
+        window.addEventListener('DOMContentLoaded', async function() {
+            const userRole = await getUserRole();
+            generateNavigation(userRole);
+        });
+        */
+        
+        // 侧边栏折叠/展开功能
+        function toggleMenu(menuId) {
+            var menu = document.getElementById(menuId);
+            var arrow = document.getElementById('arrow-' + menuId);
+            if (menu.style.display === "none") {
+                menu.style.display = "block";
+                arrow.innerHTML = "&#9662;";
+            } else {
+                menu.style.display = "none";
+                arrow.innerHTML = "&#9656;";
+            }
+        }
+
+        
+
+        let currentType = "paper_id";
+
+        // 切换搜索类型
+        document.querySelectorAll('.search-type-tab').forEach(tab => {
+            tab.onclick = function() {
+                document.querySelectorAll('.search-type-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                currentType = this.getAttribute('data-type');
+                document.getElementById('searchInput').placeholder = typeMap[currentType];
+            }
+        });
+
+        // 搜索表单提交
+        document.getElementById('searchForm').onsubmit = function(e) {
+            e.preventDefault();
+            const keyword = document.getElementById('searchInput').value.trim();
+            if (!keyword) return;
+            // 跳转到检索结果页面，并带上参数
+            window.location.href = `../serviceFront/paperSearch.html?type=${encodeURIComponent(currentType)}&keyword=${encodeURIComponent(keyword)}`;
+        };
+
+        // 收藏的论文跳转
+        document.getElementById('gotoFavourite').onclick = function(e) {
+            e.preventDefault();
+            window.location.href = "../serviceFront/userFavourite.html";
+        };
+
+        // 读取URL参数并自动切换搜索类型
+        function getQueryParam(name) {
+            const url = new URL(window.location.href);
+            return url.searchParams.get(name);
+        }
+        const urlType = getQueryParam('type');
+        if (urlType && typeMap[urlType]) {
+            currentType = urlType;
+            // 激活对应tab
+            document.querySelectorAll('.search-type-tab').forEach(tab => {
+                if (tab.getAttribute('data-type') === urlType) {
+                    tab.classList.add('active');
+                } else {
+                    tab.classList.remove('active');
+                }
+            });
+            document.getElementById('searchInput').placeholder = typeMap[currentType];
+        }
+
+        function logout() {
+            fetch('/api/auth/logout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .finally(() => {
+                sessionStorage.clear();
+                window.location.href = 'login.html';
+            });
+        }
+    </script>
+</body>
+</html>

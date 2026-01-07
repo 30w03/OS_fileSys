@@ -184,6 +184,40 @@ bool BlockManager::unmount() {
     return true;
 }
 
+// 同步：强制将系统状态写入磁盘
+bool BlockManager::sync() {
+    if (!disk_) {
+        return false;
+    }
+
+    // 保存 Superblock
+    char buffer[4096];
+    memset(buffer, 0, 4096);
+    memcpy(buffer, &superblock_, sizeof(Superblock));
+    writeBlock(0, buffer);
+
+    // 保存 Inode 位图
+    Bitmap inodeBm(superblock_.totalInodes);
+    for(uint32_t i=0; i<superblock_.totalInodes; i++) {
+        if(inodeBitmap_[i]) inodeBm.set(i);
+    }
+    memset(buffer, 0, 4096);
+    inodeBm.serialize(buffer);
+    writeBlock(superblock_.inodeBitmapBlock, buffer);
+
+    // 保存数据块位图
+    Bitmap blockBm(superblock_.totalBlocks);
+    for(uint32_t i=0; i<superblock_.totalBlocks; i++) {
+        if(blockBitmap_[i]) blockBm.set(i);
+    }
+    memset(buffer, 0, 4096);
+    blockBm.serialize(buffer);
+    writeBlock(superblock_.dataBitmapBlock, buffer);
+
+    saveRefCounts();
+    return true;
+}
+
 // 分配一个空闲的 Inode，返回其编号
 uint32_t BlockManager::allocateInode() {
     for (uint32_t i = 0; i < superblock_.totalInodes; i++) {

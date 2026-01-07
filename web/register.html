@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>账户安全注册</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+
+        :root {
+            /* 主色调改为青色 */
+            --primary-color: #18c6b0;
+            --secondary-color: #3a6e6b;
+            --success-color: #1cc88a;
+            --danger-color: #e74a3b;
+            --warning-color: #f6c23e;
+            --light-color: #f8f9fc;
+            --dark-color: #343a40;
+            --shadow: 0 0.15rem 1.75rem 0 rgba(24, 198, 176, 0.15);
+            --error-bg: #e8fcf8;
+        }
+
+        body {
+            min-height: 100vh;
+            background: 
+                url('../img/library-869061_1920.jpg') no-repeat center center/cover,
+                linear-gradient(135deg, rgba(111,231,221,0.7) 0%, rgba(24,198,176,0.7) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background-color: white;
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 90vh;
+        }
+
+        .banner {
+            /* 主色调渐变改为青色 */
+            background: linear-gradient(to right, #18c6b0, #43e97b);
+            color: white;
+            text-align: center;
+        }
+
+        .banner-content {
+            padding: 10px;
+        }
+
+        .banner h2 {
+            font-size: 1.6rem;
+            margin-bottom: 10px;
+            font-weight: 600;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+
+        .banner p {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .form-container {
+            flex: 1;
+            padding: 25px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .form-content {
+            max-width: 600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 25px;
+            padding-top: 15px;
+        }
+
+        .logo h1 {
+            color: var(--primary-color);
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .logo p {
+            color: var(--secondary-color);
+            margin-top: 8px;
+            font-size: 0.9rem;
+        }
+
+        .form-title {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .form-title h2 {
+            color: var(--dark-color);
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .form-title p {
+            color: var(--secondary-color);
+            font-size: 0.9rem;
+        }
+
+        .security-info {
+            background-color: #f0f4ff;
+            border-left: 4px solid var(--primary-color);
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 25px;
+            font-size: 0.9rem;
+            color: var(--dark-color);
+        }
+
+        .security-info i {
+            color: var(--primary-color);
+            margin-right: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--dark-color);
+        }
+
+        .input-container {
+            position: relative;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--secondary-color);
+            pointer-events: none;
+            font-size: 1.1em;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 14px 15px 14px 45px;
+            border: 1px solid #d1d3e2;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s;
+            box-sizing: border-box;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(126, 78, 252, 0.25);
+        }
+
+        .error-message {
+            color: var(--danger-color);
+            font-size: 0.85rem;
+            margin-top: 6px;
+            display: none;
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(to right, #18c6b0, #43e97b);
+            color: white;
+            box-shadow: 0 4px 8px rgba(24, 198, 176, 0.3);
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 6px 12px rgba(24, 198, 176, 0.4);
+        }
+
+        .btn-admin {
+            background: linear-gradient(to right, #f6c23e, #e9b317);
+            color: #2c2929;
+            box-shadow: 0 4px 8px rgba(246, 194, 62, 0.3);
+        }
+
+        .btn-admin:hover {
+            opacity: 0.95;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(246, 194, 62, 0.4);
+        }
+
+        .login-link {
+            text-align: center;
+            margin-top: 25px;
+            color: var(--secondary-color);
+            font-size: 0.95rem;
+            padding-bottom: 15px;
+        }
+
+        .login-link a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .login-link a:hover {
+            text-decoration: underline;
+        }
+
+        .error-overlay {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: var(--error-bg);
+            border-left: 4px solid var(--danger-color);
+            border-radius: 4px;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            box-shadow: var(--shadow);
+            z-index: 1000;
+            max-width: 350px;
+            transform: translateX(120%);
+            transition: transform 0.4s ease;
+        }
+
+        .error-overlay.active {
+            transform: translateX(0);
+        }
+
+        .error-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+        }
+
+        .error-icon {
+            color: var(--danger-color);
+            font-size: 1.2rem;
+            margin-right: 12px;
+        }
+
+        .error-message-text {
+            color: #721c24;
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+
+        .error-close {
+            background: none;
+            border: none;
+            color: #721c24;
+            cursor: pointer;
+            font-size: 1.4rem;
+            margin-left: 15px;
+            line-height: 1;
+        }
+
+        .scroll-indicator {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            color: var(--secondary-color);
+            font-size: 0.8rem;
+            animation: bounce 2s infinite;
+            opacity: 0.7;
+            display: none;
+        }
+
+        .scroll-indicator i {
+            font-size: 1.5rem;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateX(-50%) translateY(0);
+            }
+            40% {
+                transform: translateX(-50%) translateY(-10px);
+            }
+            60% {
+                transform: translateX(-50%) translateY(-5px);
+            }
+        }
+
+        /* 滚动条样式 */
+        .form-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .form-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .form-container::-webkit-scrollbar-thumb {
+            background: #d0c5e8;
+            border-radius: 4px;
+        }
+
+        .form-container::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-color);
+        }
+
+        @media (min-width: 768px) {
+            .container {
+                flex-direction: row;
+                height: 85vh;
+                max-height: 700px;
+            }
+            
+            .banner {
+                flex: 0 0 40%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                text-align: left;
+                padding: 30px;
+            }
+            
+            .form-container {
+                flex: 0 0 60%;
+                padding: 40px;
+            }
+            
+            .banner h2 {
+                font-size: 1.8rem;
+            }
+            
+            .banner p {
+                font-size: 1rem;
+            }
+            
+            .scroll-indicator {
+                display: block;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 错误信息提示框 -->
+    <div class="error-overlay" id="errorBox">
+        <div class="error-content">
+            <i class="fas fa-exclamation-triangle error-icon"></i>
+            <div class="error-message-text" id="errorMessage"></div>
+        </div>
+        <button class="error-close" id="errorCloseBtn">&times;</button>
+    </div>
+
+    <div class="container">
+        <div class="banner">
+            <div class="banner-content">
+                <h2>加入安全社区</h2>
+                <p>设置安全问题保护您的账户安全</p>
+            </div>
+        </div>
+        
+        <div class="form-container">
+            <div class="scroll-indicator" id="scrollIndicator">
+                <i class="fas fa-chevron-down"></i>
+                向下滚动
+            </div>
+            
+            <div class="form-content">
+                <div class="logo">
+                    <h1><i class="fas fa-shield-alt"></i> 安全账户注册</h1>
+                    <p>设置您的账户和安全信息</p>
+                </div>
+                
+                <div class="form-title">
+                    <h2>创建安全账户</h2>
+                    <p>请填写以下信息完成注册</p>
+                </div>
+                
+                <div class="security-info">
+                    <i class="fas fa-info-circle"></i>
+                    <span>安全问题将用于密码找回和账户验证，请设置一个只有您知道答案的问题。</span>
+                </div>
+                
+                <form id="registerForm">
+                    <div class="form-group">
+                        <label for="username">用户名</label>
+                        <div class="input-container">
+                            <i class="fas fa-user input-icon"></i>
+                            <input type="text" id="username" placeholder="请输入用户名" required>
+                        </div>
+                        <div class="error-message" id="usernameError">用户名不能为空且必须为3-20个字符</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password">密码</label>
+                        <div class="input-container">
+                            <i class="fas fa-lock input-icon"></i>
+                            <input type="password" id="password" placeholder="请输入密码" required>
+                        </div>
+                        <div class="error-message" id="passwordError">密码必须为8-20个字符，且包含字母和数字</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="confirmPassword">确认密码</label>
+                        <div class="input-container">
+                            <i class="fas fa-check-circle input-icon"></i>
+                            <input type="password" id="confirmPassword" placeholder="请再次输入密码" required>
+                        </div>
+                        <div class="error-message" id="confirmError">两次输入的密码不一致</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="role">账户角色</label>
+                        <div class="input-container">
+                            <i class="fas fa-user-tag input-icon"></i>
+                            <select id="role" required>
+                                <option value="AUTHOR">作者 (Author)</option>
+                                <option value="REVIEWER">评审员 (Reviewer)</option>
+                                <option value="EDITOR">编辑 (Editor)</option>
+                                <option value="ADMIN">管理员 (Admin)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">注册账户</button>
+                </form>
+                
+                <div class="login-link">
+                    已有账户? <a href="login.html">登录您的账户</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 获取DOM元素
+            const registerForm = document.getElementById('registerForm');
+            const adminRegisterBtn = document.getElementById('adminRegisterBtn');
+            const errorBox = document.getElementById('errorBox');
+            const errorMessage = document.getElementById('errorMessage');
+            const errorCloseBtn = document.getElementById('errorCloseBtn');
+            const usernameInput = document.getElementById('username');
+            const passwordInput = document.getElementById('password');
+            const confirmPasswordInput = document.getElementById('confirmPassword');
+            const roleInput = document.getElementById('role');
+            const scrollIndicator = document.getElementById('scrollIndicator');
+            
+            // 错误信息元素
+            const usernameError = document.getElementById('usernameError');
+            const passwordError = document.getElementById('passwordError');
+            const confirmError = document.getElementById('confirmError');
+
+            // 错误提示关闭按钮
+            errorCloseBtn.addEventListener('click', function() {
+                errorBox.classList.remove('active');
+            });
+            
+            // 显示错误提示
+            function showError(message) {
+                errorMessage.textContent = message;
+                errorBox.classList.add('active');
+                
+                // 7秒后自动关闭
+                setTimeout(() => {
+                    errorBox.classList.remove('active');
+                }, 7000);
+            }
+            
+            // 检查是否需要显示滚动指示器
+            function checkScrollIndicator() {
+                const formContainer = document.querySelector('.form-container');
+                scrollIndicator.style.display = formContainer.scrollHeight > formContainer.clientHeight ? 'block' : 'none';
+            }
+            
+            // 初始检查
+            checkScrollIndicator();
+            
+            // 窗口大小改变时重新检查
+            window.addEventListener('resize', checkScrollIndicator);
+            
+            // 注册表单提交处理
+            registerForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                // 清除之前的错误
+                hideAllErrors();
+
+                let isValid = true;
+
+                // 验证用户名
+                const username = usernameInput.value.trim();
+                if (!username) {
+                    showInputError(usernameInput, usernameError, '用户名不能为空');
+                    isValid = false;
+                } else if (username.length < 3 || username.length > 20) {
+                    showInputError(usernameInput, usernameError, '用户名长度必须为3-20个字符');
+                    isValid = false;
+                }
+
+                // 验证密码
+                const password = passwordInput.value;
+                if (!password) {
+                    showInputError(passwordInput, passwordError, '密码不能为空');
+                    isValid = false;
+                } else if (password.length < 8) {
+                    showInputError(passwordInput, passwordError, '密码长度不能少于8个字符');
+                    isValid = false;
+                } else if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+                    showInputError(passwordInput, passwordError, '密码必须包含字母和数字');
+                    isValid = false;
+                }
+
+                // 验证密码确认
+                const confirmPassword = confirmPasswordInput.value;
+                if (!confirmPassword) {
+                    showInputError(confirmPasswordInput, confirmError, '请确认密码');
+                    isValid = false;
+                } else if (password !== confirmPassword) {
+                    showInputError(confirmPasswordInput, confirmError, '两次输入的密码不一致');
+                    isValid = false;
+                }
+
+                if (!isValid) return;
+
+                // 注册数据
+                const formData = {
+                    username: username,
+                    password: password,
+                    role: roleInput.value
+                };
+
+                // 模拟注册请求
+                registerUser(formData);
+            });
+
+            // 注册用户函数 - 调用后端API
+            function registerUser(userData) {
+                const submitBtn = registerForm.querySelector('button[type="submit"]');
+                const originalSubmitText = submitBtn.innerHTML;
+
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 注册中...';
+                submitBtn.disabled = true;
+
+                fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        username: userData.username,
+                        password: userData.password,
+                        role: userData.role
+                    })
+                })
+                .then(async res => {
+                    // 检查HTTP状态码
+                    if (!res.ok) {
+                        let errText = await res.text();
+                        showError(`HTTP错误: ${res.status} ${res.statusText}\n${errText}`);
+                        throw new Error(`HTTP错误: ${res.status} ${res.statusText}\n${errText}`);
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        alert('注册成功！即将跳转登录。');
+                        window.location.href = 'login.html';
+                    } else {
+                        showError(data.message || '注册失败');
+                    }
+                })
+                .catch(err => {
+                    // 控制台输出详细错误
+                    console.error('网络或服务器错误:', err);
+                    showError('网络错误: 无法连接到服务器，或服务器返回异常。请检查控制台详细信息。');
+                })
+                .finally(() => {
+                    submitBtn.innerHTML = originalSubmitText;
+                    submitBtn.disabled = false;
+                });
+            }
+
+            // 人脸采集函数 (已移除)
+            function registerFace(userNo) {
+                // ...
+            }
+            
+            // 显示字段错误
+            function showInputError(inputElement, errorElement, message) {
+                errorElement.textContent = message;
+                errorElement.style.display = 'block';
+                inputElement.style.borderColor = '#e74a3b';
+                
+                // 滚动到错误位置
+                inputElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            
+            // 隐藏所有错误
+            function hideAllErrors() {
+                // 隐藏所有错误消息
+                document.querySelectorAll('.error-message').forEach(el => {
+                    el.style.display = 'none';
+                });
+                
+                // 重置输入框边框颜色
+                document.querySelectorAll('input, select').forEach(el => {
+                    el.style.borderColor = '#d1d3e2';
+                });
+                
+                // 隐藏全局错误提示
+                errorBox.classList.remove('active');
+            }
+        });
+    </script>
+</body>
+</html>

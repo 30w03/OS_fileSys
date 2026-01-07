@@ -82,6 +82,9 @@ public:
         MSG_GET_PAPER_INFO_RESPONSE = 67,
         MSG_DOWNLOAD_PAPER_REQUEST = 68,
         MSG_DOWNLOAD_PAPER_RESPONSE = 69,
+        // 修改论文 (Overwrite)
+        MSG_UPDATE_PAPER_FILE_REQUEST = 120,
+        MSG_UPDATE_PAPER_FILE_RESPONSE = 121,
         
         // 审稿人分配 (编辑操作)
         MSG_GET_ALL_PAPERS_REQUEST = 70,
@@ -100,6 +103,8 @@ public:
         MSG_SUBMIT_REVIEW_RESPONSE = 83,
         MSG_GET_REVIEWS_REQUEST = 84,
         MSG_GET_REVIEWS_RESPONSE = 85,
+        MSG_GET_REVIEWER_HISTORY_REQUEST = 86, // 🔥 New
+        MSG_GET_REVIEWER_HISTORY_RESPONSE = 87, // 🔥 New
 
         // 用户资料
         MSG_UPDATE_PROFILE_REQUEST = 90,
@@ -118,7 +123,15 @@ public:
         MSG_GET_SYSTEM_STATS_REQUEST = 102,
         MSG_GET_SYSTEM_STATS_RESPONSE = 103,
         MSG_LIST_ONLINE_USERS_REQUEST = 104,
-        MSG_LIST_ONLINE_USERS_RESPONSE = 105
+        MSG_LIST_ONLINE_USERS_RESPONSE = 105,
+        
+        // 用户管理 (管理员)
+        MSG_UPDATE_USER_ROLE_REQUEST = 110,
+        MSG_UPDATE_USER_ROLE_RESPONSE = 111,
+        MSG_DEACTIVATE_USER_REQUEST = 112,
+        MSG_DEACTIVATE_USER_RESPONSE = 113,
+        MSG_SYSTEM_BACKUP_REQUEST = 114,
+        MSG_SYSTEM_BACKUP_RESPONSE = 115
     };
     
     struct MessageHeader {
@@ -180,6 +193,12 @@ public:
                                            const std::vector<std::string>& keywords = {});
     static Message createSubmitPaperResponse(bool success, uint32_t paperId, const std::string& message);
     
+    // 🔥 New: Update Paper File
+    static Message createUpdatePaperFileRequest(uint32_t sessionId, uint32_t paperId, const std::vector<char>& fileData);
+    static Message createUpdatePaperFileResponse(bool success, const std::string& message);
+    static bool parseUpdatePaperFileRequest(const Message& msg, uint32_t& sessionId, uint32_t& paperId, std::vector<char>& fileData);
+    static bool parseUpdatePaperFileResponse(const Message& msg, bool& success, std::string& message);
+
     static Message createUploadRevisionRequest(uint32_t sessionId, uint32_t paperId, const std::vector<char>& fileData);
     static Message createUploadRevisionResponse(bool success, const std::string& message);
     
@@ -274,4 +293,36 @@ public:
     
     // 🔥 新增：解析获取评审响应
     static bool parseGetReviewsResponse(const Message& msg, bool& success, std::vector<ReviewInfo>& reviews);
+    
+    // 🔥 新增：获取审稿历史
+    static Message createGetReviewerHistoryRequest(uint32_t sessionId);
+    static bool parseGetReviewerHistoryRequest(const Message& msg, uint32_t& sessionId);
+    static Message createGetReviewerHistoryResponse(bool success, const std::vector<ReviewInfo>& reviews);
+    static bool parseGetReviewerHistoryResponse(const Message& msg, bool& success, std::vector<ReviewInfo>& reviews);
+
+    // ============ 用户管理 (管理员) ============
+    static Message createUpdateUserRoleRequest(uint32_t sessionId, uint32_t userId, const std::string& role);
+    static bool parseUpdateUserRoleRequest(const Message& msg, uint32_t& sessionId, uint32_t& userId, std::string& role);
+    static Message createUpdateUserRoleResponse(bool success, const std::string& message);
+    static bool parseUpdateUserRoleResponse(const Message& msg, bool& success, std::string& message);
+    
+    static Message createDeactivateUserRequest(uint32_t sessionId, uint32_t userId);
+    static bool parseDeactivateUserRequest(const Message& msg, uint32_t& sessionId, uint32_t& userId);
+    static Message createDeactivateUserResponse(bool success, const std::string& message);
+    static bool parseDeactivateUserResponse(const Message& msg, bool& success, std::string& message);
+    
+    static Message createSystemBackupRequest(uint32_t sessionId);
+    static bool parseSystemBackupRequest(const Message& msg, uint32_t& sessionId);
+    static Message createSystemBackupResponse(bool success, const std::string& message);
+    static bool parseSystemBackupResponse(const Message& msg, bool& success, std::string& message);
+    
+    // 补充缺失的解析函数声明
+    static bool parseUploadRevisionRequest(const Message& msg, uint32_t& sessionId, uint32_t& paperId, std::vector<char>& fileData);
+    static bool parseUploadRevisionResponse(const Message& msg, bool& success, std::string& message);
+    
+    static bool parseDownloadPaperRequest(const Message& msg, uint32_t& sessionId, uint32_t& paperId);
+    static bool parseDownloadPaperResponse(const Message& msg, bool& success, std::vector<char>& data);
+    
+    static bool parseMakeDecisionRequest(const Message& msg, uint32_t& sessionId, uint32_t& paperId, std::string& decision);
+    static bool parseMakeDecisionResponse(const Message& msg, bool& success, std::string& message);
 };

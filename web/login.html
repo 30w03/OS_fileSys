@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文献查阅系统账户登录</title>
+    <style>
+        :root {
+            --primary-color: #18c6b0;
+            --secondary-color: #3a6e6b;
+            --success-color: #1cc88a;
+            --danger-color: #e74a3b;
+            --warning-color: #f6c23e;
+            --light-color: #f8f9fc;
+            --dark-color: #343a40;
+            --shadow: 0 0.15rem 1.75rem 0 rgba(24, 198, 176, 0.15);
+            --error-bg: #e8fcf8;
+        }
+
+        body {
+            min-height: 100vh;
+            background:
+                url('../img/library-869061_1920.jpg') no-repeat center center/cover,
+                linear-gradient(135deg, rgba(111, 231, 221, 0.7) 0%, rgba(24, 198, 176, 0.7) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 420px;
+            background-color: white;
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            padding: 40px 32px 32px 32px;
+        }
+
+        h2 {
+            color: var(--primary-color);
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 22px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 7px;
+            color: var(--dark-color);
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 13px 15px;
+            border: 1px solid #d1d3e2;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus {
+            border-color: var(--primary-color);
+            outline: none;
+        }
+
+        .captcha-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .captcha-image {
+            width: 110px;
+            height: 40px;
+            background-color: var(--light-color);
+            border-radius: 8px;
+            border: 1px solid #d1d3e2;
+            object-fit: cover;
+            cursor: pointer;
+        }
+
+        .refresh-captcha {
+            color: var(--primary-color);
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 0 8px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .refresh-captcha:hover {
+            background: var(--light-color);
+            color: var(--secondary-color);
+        }
+
+        .btn-primary {
+            width: 100%;
+            background: linear-gradient(to right, #18c6b0, #43e97b);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 13px 0;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+            box-shadow: 0 4px 8px rgba(24, 198, 176, 0.18);
+            transition: box-shadow 0.2s;
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 6px 16px rgba(24, 198, 176, 0.28);
+        }
+
+        .links {
+            margin-top: 22px;
+            text-align: center;
+        }
+
+        .links a {
+            color: var(--primary-color);
+            text-decoration: none;
+            margin: 0 10px;
+            font-size: 1rem;
+            transition: color 0.2s;
+        }
+
+        .links a:hover {
+            color: var(--secondary-color);
+            text-decoration: underline;
+        }
+
+        .error-message {
+            color: var(--danger-color);
+            font-size: 0.98em;
+            margin-top: 4px;
+            min-height: 20px;
+        }
+
+        .success-message {
+            color: var(--success-color);
+            font-size: 1em;
+            margin-top: 4px;
+            min-height: 20px;
+        }
+
+        .status-note {
+            font-size: 13px;
+            color: #666;
+            margin-top: 12px;
+            text-align: center;
+            min-height: 40px;
+            padding: 8px;
+            border-radius: 8px;
+            background-color: var(--light-color);
+            transition: all 0.3s;
+        }
+
+        .status-note.success {
+            color: var(--success-color);
+            background-color: rgba(28, 200, 138, 0.1);
+        }
+
+        .status-note.error {
+            color: var(--danger-color);
+            background-color: rgba(231, 74, 59, 0.1);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h2>安全账户登录</h2>
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">用户名</label>
+                <input type="text" id="username" name="username" placeholder="请输入用户名" required>
+                <div class="error-message" id="userError"></div>
+            </div>
+            <div class="form-group">
+                <label for="password">密码</label>
+                <input type="password" id="password" name="password" placeholder="请输入密码" required>
+                <div class="error-message" id="pwdError"></div>
+            </div>
+            <button type="submit" class="btn-primary" id="loginBtn">登录账户</button>
+            <div class="status-note" id="statusNote">
+                请输入用户名和密码登录
+            </div>
+        </form>
+        <div class="links">
+            <a href="register.html">注册新账户</a>
+            <a href="forgot-password.html">忘记密码？</a>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // 登录表单提交事件
+            document.getElementById('loginForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const username = document.getElementById('username').value.trim();
+                const password = document.getElementById('password').value;
+                const statusNote = document.getElementById('statusNote');
+
+                // 清除之前的错误消息
+                document.getElementById('userError').textContent = '';
+                document.getElementById('pwdError').textContent = '';
+                statusNote.classList.remove('error');
+
+                // 简单的表单验证
+                let isValid = true;
+
+                if (!username) {
+                    document.getElementById('userError').textContent = '请输入用户名';
+                    isValid = false;
+                }
+
+                if (!password) {
+                    document.getElementById('pwdError').textContent = '请输入密码';
+                    isValid = false;
+                }
+
+                if (!isValid) {
+                    return;
+                }
+
+                statusNote.textContent = '正在登录...';
+                fetch('/api/auth/login', {
+                    method:'POST', credentials:'include',
+                    headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({ username:username, password:password })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success) {
+                        alert(data.message || '登录失败');
+                        statusNote.textContent = data.message || '登录失败';
+                        statusNote.classList.add('error');
+                        return;
+                    }
+
+                    // 登录成功，存储信息
+                    const userData = data.data;
+                    sessionStorage.setItem('userId', userData.userId);
+                    sessionStorage.setItem('username', userData.username);
+                    sessionStorage.setItem('role', userData.role);
+                    sessionStorage.setItem('sessionId', userData.sessionId);
+
+                    statusNote.textContent = '登录成功，正在跳转…';
+                    statusNote.classList.add('success');
+                    
+                    setTimeout(() => {
+                        window.location.href = 'nomarlPage.html';
+                    }, 1000);
+                })
+                .catch(err => {
+                    alert('网络错误，请检查服务器是否启动');
+                    console.error(err);
+                    statusNote.textContent = '网络错误，请检查服务器是否启动';
+                    statusNote.classList.add('error');
+                });
+            });
+        });
+    </script>
+</body>
+
+</html>

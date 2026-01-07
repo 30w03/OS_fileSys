@@ -35,6 +35,9 @@ public:
     bool revokePermission(uint32_t userId, const std::string& path, uint32_t targetUid);
     bool setFileLock(uint32_t userId, const std::string& path, bool locked);
 
+    // 原子替换：写入临时文件并原子替换目标文件名
+    bool atomicReplaceFile(uint32_t userId, const std::string& targetPath, const std::string& tmpPath);
+
 private:
     BlockManager* blockManager_;
     DirectoryOps* dirOps_;

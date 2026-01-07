@@ -42,6 +42,8 @@ void CLI::run() {
             handleLogout();
         } else if (command == "submit") {
             handleSubmitPaper();
+        } else if (command == "update_paper") {
+            handleUpdatePaper();
         } else if (command == "mypapers") {
             handleMyPapers();
         } else if (command == "review") {
@@ -89,6 +91,7 @@ void CLI::printHelp() {
     std::cout << "    profile        - Update your profile (institution, interests)" << std::endl;
     std::cout << "\n  📝 Author Commands:" << std::endl;
     std::cout << "    submit         - Submit a new paper for review" << std::endl;
+    std::cout << "    update_paper   - Update an existing paper file (overwrite)" << std::endl;
     std::cout << "    mypapers       - View your submitted papers and their status" << std::endl;
     std::cout << "\n  👀 Reviewer Commands:" << std::endl;
     std::cout << "    review         - Review papers assigned to you" << std::endl;
@@ -246,6 +249,47 @@ void CLI::handleSubmitPaper() {
         std::cout << "✅ Paper submitted! Paper ID: " << paperId << std::endl;
     } else {
         std::cout << "❌ Failed to submit paper" << std::endl;
+    }
+}
+
+void CLI::handleUpdatePaper() {
+    if (!currentUser_) {
+        std::cout << "❌ Please login first" << std::endl;
+        return;
+    }
+    
+    std::cout << "--- Update Paper File (Overwrite) ---" << std::endl;
+    std::string paperIdStr;
+    std::cout << "Enter Paper ID: ";
+    std::getline(std::cin, paperIdStr);
+    
+    uint32_t paperId;
+    try {
+        paperId = std::stoi(paperIdStr);
+    } catch (...) {
+        std::cout << "❌ Invalid Paper ID" << std::endl;
+        return;
+    }
+    
+    std::string filepath;
+    std::cout << "New File Path: ";
+    std::getline(std::cin, filepath);
+    
+    // 读取文件
+    std::ifstream file(filepath, std::ios::binary);
+    if (!file) {
+        std::cout << "❌ Cannot open file: " << filepath << std::endl;
+        return;
+    }
+    
+    std::vector<char> data((std::istreambuf_iterator<char>(file)),
+                           std::istreambuf_iterator<char>());
+    file.close();
+    
+    if (reviewSystem_->updatePaperFile(paperId, currentUser_->userId, data)) {
+        std::cout << "✅ Paper updated successfully!" << std::endl;
+    } else {
+        std::cout << "❌ Failed to update paper" << std::endl;
     }
 }
 

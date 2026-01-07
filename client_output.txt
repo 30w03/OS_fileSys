@@ -1,0 +1,127 @@
+
+╔════════════════════════════════════════╗
+║  Peer Review System Client v1.0        ║
+╚════════════════════════════════════════╝
+
+========================================
+  Peer Review System Commands
+========================================
+
+📡 Connection:
+  connect <host> <port>     - Connect to server
+  disconnect                - Disconnect from server
+  ping                      - Ping server
+
+👤 User Management:
+  register <user> <pass> <role> - Register (role: author/reviewer/editor)
+  login <user> <pass>       - Login to system
+  logout                    - Logout
+  profile <inst> <interests> - Update profile (institution, interests)
+
+📝 Paper Management:
+  submit <title> <abstract> <keywords> <file> - Submit a paper
+  mypapers                  - View my submitted papers
+  allpapers                 - View all papers (editor only)
+
+🔍 Review Management:
+  toreview                  - View papers assigned to me for review
+  review <paper_id> <decision> <score> <comment>
+         - Submit review (decision: accept/reject/revise)
+
+👨‍💼 Editor Functions:
+  assign <paper_id> <reviewer_id> - Assign reviewer to paper
+  autoassign <paper_id>     - Automatically assign reviewers
+  stats                     - View system statistics
+
+📁 File Operations:
+  list                      - List remote files
+  upload <local> <remote>   - Upload file
+  download <remote> <local> - Download file
+  delete <remote>           - Delete remote file
+
+❓ Other:
+  help                      - Show this help
+  quit                      - Exit client
+
+🔒 Role Permissions:
+  Author: Submit papers, view own papers
+  Reviewer: Review assigned papers
+  Editor: Assign reviewers, view all papers, view stats
+  Admin: Manage users, monitor system
+========================================
+
+
+�� > ❌ Not connected
+❌ Registration failed
+
+�� > ❌ Not connected
+❌ Login failed
+
+�� > 
+========================================
+  Peer Review System Commands
+========================================
+
+📡 Connection:
+  connect <host> <port>     - Connect to server
+  disconnect                - Disconnect from server
+  ping                      - Ping server
+
+👤 User Management:
+  register <user> <pass> <role> - Register (role: author/reviewer/editor)
+  login <user> <pass>       - Login to system
+  logout                    - Logout
+  profile <inst> <interests> - Update profile (institution, interests)
+
+📝 Paper Management:
+  submit <title> <abstract> <keywords> <file> - Submit a paper
+  mypapers                  - View my submitted papers
+  allpapers                 - View all papers (editor only)
+
+🔍 Review Management:
+  toreview                  - View papers assigned to me for review
+  review <paper_id> <decision> <score> <comment>
+         - Submit review (decision: accept/reject/revise)
+
+👨‍💼 Editor Functions:
+  assign <paper_id> <reviewer_id> - Assign reviewer to paper
+  autoassign <paper_id>     - Automatically assign reviewers
+  stats                     - View system statistics
+
+📁 File Operations:
+  list                      - List remote files
+  upload <local> <remote>   - Upload file
+  download <remote> <local> - Download file
+  delete <remote>           - Delete remote file
+
+❓ Other:
+  help                      - Show this help
+  quit                      - Exit client
+
+🔒 Role Permissions:
+  Author: Submit papers, view own papers
+  Reviewer: Review assigned papers
+  Editor: Assign reviewers, view all papers, view stats
+  Admin: Manage users, monitor system
+========================================
+
+
+�� > ❌ Cannot open file: test_revision.pdf
+
+�� > ❌ Usage: download_paper <paper_id> <local_path>
+
+�� > ❌ Not logged in
+❌ Failed to record decision
+
+�� > ❌ Not logged in
+❌ Failed to update user role
+
+�� > ❌ Not logged in
+❌ Failed to deactivate user
+
+�� > ❌ Not logged in
+❌ System backup failed
+
+�� > 
+👋 Goodbye!
+

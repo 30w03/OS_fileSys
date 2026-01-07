@@ -458,9 +458,16 @@ std::vector<ReviewInfo> Client::getReviewsForPaper(uint32_t paperId) {
     // 构造请求
     Protocol::Message request;
     request.header.type = Protocol::MSG_GET_REVIEWS_REQUEST;
-    request.payload.resize(4);
-    memcpy(request.payload.data(), &paperId, 4);
-    request.header.length = 4;
+    
+    // 修正：必须包含 sessionId
+    request.payload.resize(8);
+    uint32_t n_sessionId = htonl(sessionId_);
+    uint32_t n_paperId = htonl(paperId);
+    
+    memcpy(request.payload.data(), &n_sessionId, 4);
+    memcpy(request.payload.data() + 4, &n_paperId, 4);
+    
+    request.header.length = 8;
     request.header.checksum = Protocol::calculateChecksum(request.payload);
     
     if (!connection_->sendMessage(request)) {
@@ -510,10 +517,14 @@ std::vector<PaperInfo> Client::getMyPapers() {
     }
     
     // 🔥 新增：为每篇论文获取评审详情
+    // 注意：Server::handleGetMyPapers 已经填充了 reviews，所以这里不需要再次调用 getReviewsForPaper
+    // 如果 Server 端没有填充，则需要取消注释下面的代码
+    /*
     for (auto& paper : result) {
         auto reviews = getReviewsForPaper(paper.paperId);
         paper.reviews = reviews;
     }
+    */
     
     return result;
 }
@@ -544,10 +555,14 @@ std::vector<PaperInfo> Client::getAllPapers() {
     }
     
     // 🔥 新增：为每篇论文获取评审详情
+    // 注意：Server::handleGetAllPapers 已经填充了 reviews (如果实现了的话)
+    // 如果 Server 端没有填充，则需要取消注释下面的代码
+    /*
     for (auto& paper : result) {
         auto reviews = getReviewsForPaper(paper.paperId);
         paper.reviews = reviews;
     }
+    */
     
     return result;
 }
@@ -580,11 +595,39 @@ std::vector<PaperInfo> Client::getPapersToReview() {
     }
     
     // 🔥 新增：为每篇论文获取评审详情
+    // 注意：Server::handleGetPapersToReview 已经填充了 reviews
+    /*
     for (auto& paper : result) {
         auto reviews = getReviewsForPaper(paper.paperId);
         paper.reviews = reviews;
     }
+    */
     
+    return result;
+}
+
+// 🔥 新增：获取审稿历史
+std::vector<ReviewInfo> Client::getReviewerHistory() {
+    std::vector<ReviewInfo> result;
+    if (!connected_ || sessionId_ == 0) return result;
+    
+    Protocol::Message request = Protocol::createGetReviewerHistoryRequest(sessionId_);
+    if (!connection_->sendMessage(request)) {
+        std::cerr << "❌ Failed to send history request" << std::endl;
+        return result;
+    }
+    
+    Protocol::Message response;
+    if (!connection_->receiveMessage(response)) {
+        std::cerr << "❌ Failed to receive history response" << std::endl;
+        return result;
+    }
+    
+    bool success;
+    if (!Protocol::parseGetReviewerHistoryResponse(response, success, result)) {
+        std::cerr << "❌ Failed to parse history response" << std::endl;
+        result.clear();
+    }
     return result;
 }
 
@@ -950,4 +993,252 @@ void Client::viewMyPapers() {
         
         std::cout << "└─────────────────────────────────────────\n" << std::endl;
     }
+}
+// ============================================================================
+// 🔥 新增功能实现
+// ============================================================================
+
+// 🔥 Update Paper File
+bool Client::updatePaperFile(uint32_t paperId, const std::vector<char>& content) {
+    if (!connected_ || sessionId_ == 0) {
+        std::cerr << "❌ Not logged in" << std::endl;
+        return false;
+    }
+    
+    Protocol::Message request = Protocol::createUpdatePaperFileRequest(sessionId_, paperId, content);
+    if (!connection_->sendMessage(request)) {
+        std::cerr << "❌ Failed to send update paper request" << std::endl;
+        return false;
+    }
+    
+    Protocol::Message response;
+    if (!connection_->receiveMessage(response)) {
+        std::cerr << "❌ Failed to receive update paper response" << std::endl;
+        return false;
+    }
+    
+    bool success;
+    std::string message;
+    if (!Protocol::parseUpdatePaperFileResponse(response, success, message)) {
+        std::cerr << "❌ Failed to parse update response" << std::endl;
+        return false;
+    }
+    
+    if (success) {
+        std::cout << "✅ " << message << std::endl;
+    } else {
+        std::cerr << "❌ Update failed: " << message << std::endl;
+    }
+    
+    return success;
+}
+
+bool Client::uploadRevision(uint32_t paperId, const std::vector<char>& content) {
+    if (!connected_ || sessionId_ == 0) {
+        std::cerr << "❌ Not logged in" << std::endl;
+        return false;
+    }
+    
+    Protocol::Message request = Protocol::createUploadRevisionRequest(sessionId_, paperId, content);
+    if (!connection_->sendMessage(request)) {
+        std::cerr << "❌ Failed to send upload revision request" << std::endl;
+        return false;
+    }
+    
+    Protocol::Message response;
+    if (!connection_->receiveMessage(response)) {
+        std::cerr << "❌ Failed to receive upload revision response" << std::endl;
+        return false;
+    }
+    
+    bool success;
+    std::string message;
+    if (!Protocol::parseUploadRevisionResponse(response, success, message)) {
+        std::cerr << "❌ Failed to parse upload revision response" << std::endl;
+        return false;
+    }
+    
+    if (success) {
+        std::cout << "✅ " << message << std::endl;
+    } else {
+        std::cerr << "❌ " << message << std::endl;
+    }
+    
+    return success;
+}
+
+bool Client::downloadPaper(uint32_t paperId, const std::string& localPath) {
+    if (!connected_ || sessionId_ == 0) {
+        std::cerr << "❌ Not logged in" << std::endl;
+        return false;
+    }
+    
+    Protocol::Message request = Protocol::createDownloadPaperRequest(sessionId_, paperId);
+    if (!connection_->sendMessage(request)) {
+        std::cerr << "❌ Failed to send download paper request" << std::endl;
+        return false;
+    }
+    
+    Protocol::Message response;
+    if (!connection_->receiveMessage(response)) {
+        std::cerr << "❌ Failed to receive download paper response" << std::endl;
+        return false;
+    }
+    
+    bool success;
+    std::vector<char> data;
+    if (!Protocol::parseDownloadPaperResponse(response, success, data)) {
+        std::cerr << "❌ Failed to parse download paper response" << std::endl;
+        return false;
+    }
+    
+    if (success) {
+        std::ofstream file(localPath, std::ios::binary);
+        if (!file) {
+            std::cerr << "❌ Failed to create local file: " << localPath << std::endl;
+            return false;
+        }
+        file.write(data.data(), data.size());
+        std::cout << "✅ Paper downloaded successfully to " << localPath << " (" << data.size() << " bytes)" << std::endl;
+    } else {
+        std::cerr << "❌ Failed to download paper (File not found or permission denied)" << std::endl;
+    }
+    
+    return success;
+}
+
+bool Client::makeDecision(uint32_t paperId, const std::string& decision) {
+    if (!connected_ || sessionId_ == 0) {
+        std::cerr << "❌ Not logged in" << std::endl;
+        return false;
+    }
+    
+    Protocol::Message request = Protocol::createMakeDecisionRequest(sessionId_, paperId, decision);
+    if (!connection_->sendMessage(request)) {
+        std::cerr << "❌ Failed to send make decision request" << std::endl;
+        return false;
+    }
+    
+    Protocol::Message response;
+    if (!connection_->receiveMessage(response)) {
+        std::cerr << "❌ Failed to receive make decision response" << std::endl;
+        return false;
+    }
+    
+    bool success;
+    std::string message;
+    if (!Protocol::parseMakeDecisionResponse(response, success, message)) {
+        std::cerr << "❌ Failed to parse make decision response" << std::endl;
+        return false;
+    }
+    
+    if (success) {
+        std::cout << "✅ " << message << std::endl;
+    } else {
+        std::cerr << "❌ " << message << std::endl;
+    }
+    
+    return success;
+}
+
+bool Client::updateUserRole(uint32_t userId, const std::string& role) {
+    if (!connected_ || sessionId_ == 0) {
+        std::cerr << "❌ Not logged in" << std::endl;
+        return false;
+    }
+    
+    Protocol::Message request = Protocol::createUpdateUserRoleRequest(sessionId_, userId, role);
+    if (!connection_->sendMessage(request)) {
+        std::cerr << "❌ Failed to send update user role request" << std::endl;
+        return false;
+    }
+    
+    Protocol::Message response;
+    if (!connection_->receiveMessage(response)) {
+        std::cerr << "❌ Failed to receive update user role response" << std::endl;
+        return false;
+    }
+    
+    bool success;
+    std::string message;
+    if (!Protocol::parseUpdateUserRoleResponse(response, success, message)) {
+        std::cerr << "❌ Failed to parse update user role response" << std::endl;
+        return false;
+    }
+    
+    if (success) {
+        std::cout << "✅ " << message << std::endl;
+    } else {
+        std::cerr << "❌ " << message << std::endl;
+    }
+    
+    return success;
+}
+
+bool Client::deactivateUser(uint32_t userId) {
+    if (!connected_ || sessionId_ == 0) {
+        std::cerr << "❌ Not logged in" << std::endl;
+        return false;
+    }
+    
+    Protocol::Message request = Protocol::createDeactivateUserRequest(sessionId_, userId);
+    if (!connection_->sendMessage(request)) {
+        std::cerr << "❌ Failed to send deactivate user request" << std::endl;
+        return false;
+    }
+    
+    Protocol::Message response;
+    if (!connection_->receiveMessage(response)) {
+        std::cerr << "❌ Failed to receive deactivate user response" << std::endl;
+        return false;
+    }
+    
+    bool success;
+    std::string message;
+    if (!Protocol::parseDeactivateUserResponse(response, success, message)) {
+        std::cerr << "❌ Failed to parse deactivate user response" << std::endl;
+        return false;
+    }
+    
+    if (success) {
+        std::cout << "✅ " << message << std::endl;
+    } else {
+        std::cerr << "❌ " << message << std::endl;
+    }
+    
+    return success;
+}
+
+bool Client::systemBackup() {
+    if (!connected_ || sessionId_ == 0) {
+        std::cerr << "❌ Not logged in" << std::endl;
+        return false;
+    }
+    
+    Protocol::Message request = Protocol::createSystemBackupRequest(sessionId_);
+    if (!connection_->sendMessage(request)) {
+        std::cerr << "❌ Failed to send system backup request" << std::endl;
+        return false;
+    }
+    
+    Protocol::Message response;
+    if (!connection_->receiveMessage(response)) {
+        std::cerr << "❌ Failed to receive system backup response" << std::endl;
+        return false;
+    }
+    
+    bool success;
+    std::string message;
+    if (!Protocol::parseSystemBackupResponse(response, success, message)) {
+        std::cerr << "❌ Failed to parse system backup response" << std::endl;
+        return false;
+    }
+    
+    if (success) {
+        std::cout << "✅ " << message << std::endl;
+    } else {
+        std::cerr << "❌ " << message << std::endl;
+    }
+    
+    return success;
 }

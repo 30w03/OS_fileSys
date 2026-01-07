@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>摄像头手语识别</title>
+  <style>
+    :root {
+      --primary-green: #18c6b0;
+      --light-green: #43e97b;
+      --light-bg: #f8f9fc;
+      --dark-text: #333;
+      --shadow-light: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI','Microsoft YaHei',sans-serif;}
+    body{display:flex;min-height:100vh;background:var(--light-bg);color:var(--dark-text);}
+    .sidebar {
+      width:240px;background: linear-gradient(to bottom,#1da598,#43e97b);
+      padding:30px 0;color:#fff;display:flex;flex-direction:column;
+    }
+    .logo-container{padding:0 30px 25px;border-bottom:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;margin-bottom:25px;}
+    .logo-container i{font-size:32px;margin-right:15px;color:#ffd54f;}
+    .logo-container h1{font-size:20px;font-weight:700;}
+    .nav-item{
+      display:flex;align-items:center;padding:15px 30px;font-size:16px;text-decoration:none;color:#fff;transition:all .3s;cursor:pointer;
+    }
+    .nav-item i{width:24px;margin-right:12px;}
+    .nav-item.active, .nav-item:hover{background:rgba(255,255,255,0.1);padding-left:35px;}
+    .main-content{flex:1;display:flex;flex-direction:column;}
+    .topbar{
+      display:flex;align-items:center;padding:20px 40px;
+      background:#fff;box-shadow:var(--shadow-light);position:sticky;top:0;z-index:10;
+    }
+    .topbar h1{font-size:1.5em;color:var(--primary-green);}
+    .content-area{
+      flex:1;padding:40px;display:flex;flex-direction:column;align-items:center;
+    }
+    img {
+      width:100%;max-width:600px;border:2px solid var(--primary-green);
+      border-radius:8px;box-shadow:var(--shadow-light);
+    }
+    textarea{
+      width:100%;max-width:600px;height:100px;margin-top:20px;
+      padding:15px;font-size:1em;border:1px solid #ddd;border-radius:8px;resize:none;
+    }
+    .btn{
+      margin-top:20px;padding:10px 20px;font-size:1em;
+      border:none;border-radius:6px;color:#fff;cursor:pointer;
+      background:var(--primary-green);transition:background .3s;
+    }
+    .btn:hover{background:var(--light-green);}
+    .btn + .btn{margin-left:15px;}
+  </style>
+</head>
+<body>
+  <nav class="sidebar">
+    <div class="logo-container">
+      <i class="fas fa-video"></i>
+      <h1>手语识别</h1>
+    </div>
+    <a class="nav-item active" href="cameraSign.html">
+      <i class="fas fa-video"></i> 摄像头识别
+    </a>
+    <a class="nav-item" href="../nomarlPage.html">
+      <i class="fas fa-arrow-left"></i> 返回主页面
+    </a>
+  </nav>
+  <main class="main-content">
+    <header class="topbar">
+      <h1>实时手语转文字</h1>
+    </header>
+    <section class="content-area">
+      <img id="videoFrame" style="width:100%;max-width:600px;border:2px solid var(--primary-green);border-radius:8px;box-shadow:var(--shadow-light);" />
+      <textarea id="outputText" placeholder="识别结果会显示在这里…" readonly></textarea>
+      <div>
+        <button class="btn" id="startBtn">开始</button>
+        <button class="btn" id="resetBtn">重置</button>
+        <button class="btn" id="stopBtn">结束</button>
+      </div>
+    </section>
+  </main>
+  <script>
+  const videoFrame = document.getElementById('videoFrame');
+  const output = document.getElementById('outputText');
+  const startBtn = document.getElementById('startBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  let resultInterval = null;
+  let streaming = false;
+
+  function startLetter() {
+    fetch('/api/start-letter').then(() => {
+      output.value = '';
+      videoFrame.src = '/api/letter-frame'; // 只设置一次
+      if (resultInterval) clearInterval(resultInterval);
+      resultInterval = setInterval(async () => {
+        try {
+          const res = await fetch('/api/letter-result');
+          const data = await res.json();
+          // 只显示识别到的手势关键词（如OK），去除其它提示
+          let txt = data.result || '';
+          // 提取Confirmed: ... 里的内容
+          let match = txt.match(/Confirmed: ([^\s]+)/);
+          if (match) {
+            output.value = match[1];
+          } else {
+            output.value = txt.replace(/\(.+\)/, '').trim();
+          }
+        } catch (e) {
+          output.value = '识别结果获取失败';
+        }
+      }, 500);
+      streaming = true;
+    });
+  }
+
+  function stopLetter() {
+    fetch('/api/stop-letter', { method: 'POST' })
+      .then(() => {
+        videoFrame.src = '';
+        if (resultInterval) clearInterval(resultInterval);
+        output.value = '已停止';
+        streaming = false;
+      })
+      .catch(() => {
+        videoFrame.src = '';
+        if (resultInterval) clearInterval(resultInterval);
+        output.value = '已停止';
+        streaming = false;
+      });
+  }
+
+  function resetLetter() {
+    fetch('/api/continue-recognition', { method: 'POST' })
+      .then(() => {
+        // 可选：给用户一个反馈
+        output.value = '等待新一轮识别...';
+      });
+  }
+
+  startBtn.onclick = () => {
+    if (!streaming) startLetter();
+  };
+  stopBtn.onclick = stopLetter;
+  document.getElementById('resetBtn').onclick = resetLetter;
+  </script>
+  <!-- Font Awesome -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/js/all.min.js"></script>
+</body>
+</html>

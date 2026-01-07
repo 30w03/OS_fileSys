@@ -1,256 +1,278 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-cn">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>同行评审管理系统</title>
-    <link rel="stylesheet" href="css/main.css">
-    <link rel="stylesheet" href="css/auth.css">
-    <link rel="stylesheet" href="css/dashboard.css">
-    <link rel="stylesheet" href="css/responsive.css">
+    <title>文献查阅系统账户登录</title>
+    <style>
+        :root {
+            --primary-color: #18c6b0;
+            --secondary-color: #3a6e6b;
+            --success-color: #1cc88a;
+            --danger-color: #e74a3b;
+            --warning-color: #f6c23e;
+            --light-color: #f8f9fc;
+            --dark-color: #343a40;
+            --shadow: 0 0.15rem 1.75rem 0 rgba(24, 198, 176, 0.15);
+            --error-bg: #e8fcf8;
+        }
+
+        body {
+            min-height: 100vh;
+            background:
+                url('../img/library-869061_1920.jpg') no-repeat center center/cover,
+                linear-gradient(135deg, rgba(111, 231, 221, 0.7) 0%, rgba(24, 198, 176, 0.7) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 420px;
+            background-color: white;
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            padding: 40px 32px 32px 32px;
+        }
+
+        h2 {
+            color: var(--primary-color);
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 22px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 7px;
+            color: var(--dark-color);
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 13px 15px;
+            border: 1px solid #d1d3e2;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus {
+            border-color: var(--primary-color);
+            outline: none;
+        }
+
+        .captcha-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .captcha-image {
+            width: 110px;
+            height: 40px;
+            background-color: var(--light-color);
+            border-radius: 8px;
+            border: 1px solid #d1d3e2;
+            object-fit: cover;
+            cursor: pointer;
+        }
+
+        .refresh-captcha {
+            color: var(--primary-color);
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 0 8px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .refresh-captcha:hover {
+            background: var(--light-color);
+            color: var(--secondary-color);
+        }
+
+        .btn-primary {
+            width: 100%;
+            background: linear-gradient(to right, #18c6b0, #43e97b);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 13px 0;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+            box-shadow: 0 4px 8px rgba(24, 198, 176, 0.18);
+            transition: box-shadow 0.2s;
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 6px 16px rgba(24, 198, 176, 0.28);
+        }
+
+        .links {
+            margin-top: 22px;
+            text-align: center;
+        }
+
+        .links a {
+            color: var(--primary-color);
+            text-decoration: none;
+            margin: 0 10px;
+            font-size: 1rem;
+            transition: color 0.2s;
+        }
+
+        .links a:hover {
+            color: var(--secondary-color);
+            text-decoration: underline;
+        }
+
+        .error-message {
+            color: var(--danger-color);
+            font-size: 0.98em;
+            margin-top: 4px;
+            min-height: 20px;
+        }
+
+        .success-message {
+            color: var(--success-color);
+            font-size: 1em;
+            margin-top: 4px;
+            min-height: 20px;
+        }
+
+        .status-note {
+            font-size: 13px;
+            color: #666;
+            margin-top: 12px;
+            text-align: center;
+            min-height: 40px;
+            padding: 8px;
+            border-radius: 8px;
+            background-color: var(--light-color);
+            transition: all 0.3s;
+        }
+
+        .status-note.success {
+            color: var(--success-color);
+            background-color: rgba(28, 200, 138, 0.1);
+        }
+
+        .status-note.error {
+            color: var(--danger-color);
+            background-color: rgba(231, 74, 59, 0.1);
+        }
+    </style>
 </head>
+
 <body>
-    <div id="app">
-        <div id="auth-container" class="auth-container">
-            <div class="auth-header">
-                <h1>📚 同行评审管理系统</h1>
-                <p>学术论文提交与评审平台</p>
+    <div class="container">
+        <h2>安全账户登录</h2>
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">用户名</label>
+                <input type="text" id="username" name="username" placeholder="请输入用户名" required>
+                <div class="error-message" id="userError"></div>
             </div>
-            
-            <div class="auth-tabs">
-                <button class="tab-btn active" data-tab="login">登录</button>
-                <button class="tab-btn" data-tab="register">注册</button>
+            <div class="form-group">
+                <label for="password">密码</label>
+                <input type="password" id="password" name="password" placeholder="请输入密码" required>
+                <div class="error-message" id="pwdError"></div>
             </div>
-            
-            <div class="auth-content">
-                <div id="login-form" class="auth-form active">
-                    <form id="loginForm">
-                        <div class="form-group">
-                            <label for="login-username">用户名</label>
-                            <input type="text" id="login-username" name="username" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="login-password">密码</label>
-                            <input type="password" id="login-password" name="password" required>
-                        </div>
-                        <button type="submit" class="btn btn-primary">登录</button>
-                    </form>
-                </div>
-                
-                <div id="register-form" class="auth-form">
-                    <form id="registerForm">
-                        <div class="form-group">
-                            <label for="register-username">用户名</label>
-                            <input type="text" id="register-username" name="username" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="register-password">密码</label>
-                            <input type="password" id="register-password" name="password" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="register-role">用户角色</label>
-                            <select id="register-role" name="role" required>
-                                <option value="AUTHOR">作者 (Author)</option>
-                                <option value="REVIEWER">评审员 (Reviewer)</option>
-                                <option value="EDITOR">编辑 (Editor)</option>
-                            </select>
-                        </div>
-                        <button type="submit" class="btn btn-primary">注册</button>
-                    </form>
-                </div>
+            <button type="submit" class="btn-primary" id="loginBtn">登录账户</button>
+            <div class="status-note" id="statusNote">
+                请输入用户名和密码登录
             </div>
-        </div>
-        
-        <div id="dashboard" class="dashboard" style="display: none;">
-            <header class="dashboard-header">
-                <div class="header-left">
-                    <h1>📚 同行评审管理系统</h1>
-                    <span id="user-info" class="user-info"></span>
-                </div>
-                <div class="header-right">
-                    <button id="logout-btn" class="btn btn-secondary">退出登录</button>
-                </div>
-            </header>
-            
-            <nav class="dashboard-nav">
-                <ul>
-                    <li><a href="#" data-page="overview" class="nav-link active">概览</a></li>
-                    <li><a href="#" data-page="files" class="nav-link">文件管理</a></li>
-                    <li><a href="#" data-page="reviews" class="nav-link">评审系统</a></li>
-                    <li class="admin-only" style="display: none;"><a href="#" data-page="monitoring" class="nav-link">系统监控</a></li>
-                    <li class="admin-only" style="display: none;"><a href="#" data-page="users" class="nav-link">用户管理</a></li>
-                </ul>
-            </nav>
-            
-            <main class="dashboard-content">
-                <div id="overview-page" class="page active">
-                    <div class="page-header">
-                        <h2>系统概览</h2>
-                        <div class="quick-stats" id="quick-stats">
-                            <!-- 动态加载统计信息 -->
-                        </div>
-                    </div>
-                    <div class="overview-content">
-                        <div class="welcome-card">
-                            <h3>欢迎使用同行评审管理系统</h3>
-                            <p>请从左侧导航菜单选择功能模块开始工作。</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <div id="files-page" class="page">
-                    <div class="page-header">
-                        <h2>文件管理</h2>
-                        <button class="btn btn-primary" id="upload-file-btn">上传文件</button>
-                    </div>
-                    <div class="files-content">
-                        <div class="file-list" id="file-list">
-                            <!-- 动态加载文件列表 -->
-                        </div>
-                    </div>
-                </div>
-                
-                <div id="reviews-page" class="page">
-                    <div class="page-header">
-                        <h2>评审系统</h2>
-                        <div class="review-tabs">
-                            <button class="tab-btn active" data-review-tab="pending">待评审</button>
-                            <button class="tab-btn" data-review-tab="completed">已完成</button>
-                        </div>
-                    </div>
-                    <div class="reviews-content">
-                        <div id="pending-reviews" class="review-section active">
-                            <!-- 待评审论文列表 -->
-                        </div>
-                        <div id="completed-reviews" class="review-section">
-                            <!-- 已完成评审列表 -->
-                        </div>
-                    </div>
-                </div>
-                
-                <div id="monitoring-page" class="page">
-                    <div class="page-header">
-                        <h2>系统监控</h2>
-                        <div class="header-controls">
-                            <select id="monitoring-time-range">
-                                <option value="1h">过去1小时</option>
-                                <option value="6h">过去6小时</option>
-                                <option value="24h" selected>过去24小时</option>
-                                <option value="7d">过去7天</option>
-                                <option value="30d">过去30天</option>
-                            </select>
-                            <button class="btn btn-outline" id="monitoring-refresh">刷新</button>
-                        </div>
-                    </div>
-                    <div class="monitoring-content">
-                        <div class="stats-section">
-                            <h3>系统统计</h3>
-                            <div class="stats-container" id="stats-container">
-                                <!-- 动态加载统计卡片 -->
-                            </div>
-                        </div>
-                        
-                        <div class="charts-section">
-                            <div class="chart-container">
-                                <div id="review-status-chart">
-                                    <!-- 评审状态分布图 -->
-                                </div>
-                            </div>
-                            <div class="chart-container">
-                                <div id="user-activity-chart">
-                                    <!-- 用户活动趋势图 -->
-                                </div>
-                            </div>
-                            <div class="chart-container">
-                                <div id="file-upload-chart">
-                                    <!-- 文件上传趋势图 -->
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="online-users-section">
-                            <h3>在线用户</h3>
-                            <div class="online-users-container" id="online-users-container">
-                                <!-- 在线用户列表 -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div id="users-page" class="page">
-                    <div class="page-header">
-                        <h2>用户管理</h2>
-                        <div class="header-controls">
-                            <div class="search-controls">
-                                <input type="text" id="user-search" placeholder="搜索用户名或邮箱...">
-                                <select id="user-role-filter">
-                                    <option value="">所有角色</option>
-                                    <option value="AUTHOR">作者</option>
-                                    <option value="REVIEWER">评审员</option>
-                                    <option value="EDITOR">编辑</option>
-                                    <option value="ADMIN">管理员</option>
-                                </select>
-                            </div>
-                            <div class="batch-controls">
-                                <select id="batch-action">
-                                    <option value="">批量操作</option>
-                                    <option value="activate">激活</option>
-                                    <option value="deactivate">停用</option>
-                                    <option value="suspend">暂停</option>
-                                    <option value="delete">删除</option>
-                                </select>
-                            </div>
-                            <button class="btn btn-primary" id="add-user-btn">添加用户</button>
-                        </div>
-                    </div>
-                    <div class="users-content">
-                        <div class="user-list" id="user-list">
-                            <!-- 用户列表 -->
-                        </div>
-                        <div class="pagination-container" id="user-pagination">
-                            <!-- 分页控件 -->
-                        </div>
-                    </div>
-                </div>
-            </main>
-        </div>
-        
-        <div id="loading-overlay" class="loading-overlay">
-            <div class="loading-spinner"></div>
-            <p>加载中...</p>
-        </div>
-        
-        <div id="notification" class="notification">
-            <span id="notification-message"></span>
-            <button id="notification-close">&times;</button>
+        </form>
+        <div class="links">
+            <a href="register.html">注册新账户</a>
+            <a href="forgot-password.html">忘记密码？</a>
         </div>
     </div>
-    
-    <!-- 模态框 -->
-    <div id="modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="modal-title">标题</h3>
-                <button class="modal-close">&times;</button>
-            </div>
-            <div class="modal-body" id="modal-body">
-                <!-- 动态内容 -->
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary modal-cancel">取消</button>
-                <button class="btn btn-primary modal-confirm">确定</button>
-            </div>
-        </div>
-    </div>
-    
-    <script src="js/config.js"></script>
-    <script src="js/api.js"></script>
-    <script src="js/auth.js"></script>
-    <script src="js/dashboard.js"></script>
-    <script src="js/files.js"></script>
-    <script src="js/reviews.js"></script>
-    <script src="js/monitoring.js"></script>
-    <script src="js/users.js"></script>
-    <script src="js/main.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // 登录表单提交事件
+            document.getElementById('loginForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const username = document.getElementById('username').value.trim();
+                const password = document.getElementById('password').value;
+                const statusNote = document.getElementById('statusNote');
+
+                // 清除之前的错误消息
+                document.getElementById('userError').textContent = '';
+                document.getElementById('pwdError').textContent = '';
+                statusNote.classList.remove('error');
+
+                // 简单的表单验证
+                let isValid = true;
+
+                if (!username) {
+                    document.getElementById('userError').textContent = '请输入用户名';
+                    isValid = false;
+                }
+
+                if (!password) {
+                    document.getElementById('pwdError').textContent = '请输入密码';
+                    isValid = false;
+                }
+
+                if (!isValid) {
+                    return;
+                }
+
+                statusNote.textContent = '正在登录...';
+                fetch('http://localhost:8080/api/auth/login', {
+                    method:'POST', credentials:'include',
+                    headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({ username:username, password:password })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success) {
+                        alert(data.message || '登录失败');
+                        statusNote.textContent = data.message || '登录失败';
+                        statusNote.classList.add('error');
+                        return;
+                    }
+
+                    // 登录成功，存储信息
+                    const userData = data.data;
+                    sessionStorage.setItem('userId', userData.userId);
+                    sessionStorage.setItem('username', userData.username);
+                    sessionStorage.setItem('role', userData.role);
+                    sessionStorage.setItem('sessionId', userData.sessionId);
+
+                    statusNote.textContent = '登录成功，正在跳转…';
+                    statusNote.classList.add('success');
+                    
+                    setTimeout(() => {
+                        window.location.href = 'nomarlPage.html';
+                    }, 1000);
+                })
+                .catch(err => {
+                    alert('网络错误，请检查服务器是否启动');
+                    console.error(err);
+                    statusNote.textContent = '网络错误，请检查服务器是否启动';
+                    statusNote.classList.add('error');
+                });
+            });
+        });
+    </script>
 </body>
+
 </html>

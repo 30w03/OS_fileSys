@@ -35,6 +35,9 @@ public:
     
     // 论文管理
     bool submitPaper(const std::string& title, const std::string& abstract, const std::vector<char>& content, const std::vector<std::string>& keywords = {});
+    bool uploadRevision(uint32_t paperId, const std::vector<char>& content);
+    bool updatePaperFile(uint32_t paperId, const std::vector<char>& content); // 🔥 New
+    bool downloadPaper(uint32_t paperId, const std::string& localPath);
     std::vector<PaperInfo> getMyPapers();
     std::vector<PaperInfo> getAllPapers();
     
@@ -45,6 +48,10 @@ public:
     // 编辑操作
     bool assignReviewer(uint32_t paperId, uint32_t reviewerId);
     bool autoAssignReviewers(uint32_t paperId);
+    bool makeDecision(uint32_t paperId, const std::string& decision);
+    bool updateUserRole(uint32_t userId, const std::string& role);
+    bool deactivateUser(uint32_t userId);
+    bool systemBackup();
     
     // 统计信息
     Statistics getStatistics();
@@ -66,6 +73,9 @@ public:
     // 显示我的论文（带评审详情）
     void viewMyPapers();
     
+    // 🔥 新增：获取审稿历史
+    std::vector<ReviewInfo> getReviewerHistory();
+
 private:
     std::unique_ptr<Connection> connection_;
     bool connected_;

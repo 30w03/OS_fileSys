@@ -18,6 +18,7 @@ public:
     bool updateUserProfile(uint32_t userId, const std::string& institution, 
                           const std::vector<std::string>& interests, int maxLoad);
     bool deactivateUser(uint32_t userId);
+    bool deleteUser(uint32_t userId); // 🔥 New method
     std::vector<User> listAllUsers();
     
     // 会话管理
@@ -33,6 +34,7 @@ public:
     bool loadFromFile(const std::string& filename);
     // 统计信息
     uint32_t getUserCount() const { return users_.size(); }
+    std::vector<User> getOnlineUsers();
     
 private:
     std::string hashPassword(const std::string& password);

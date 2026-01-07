@@ -1,0 +1,14 @@
+nohup: ignoring input
+Starting Peer Review System Server...
+Port: 8080
+Disk image: disk.img
+ℹ️  No existing metadata found, starting fresh
+Mounting filesystem from: disk.img
+Filesystem mounted successfully
+WAL: Reading entries. StartBlock: 35 SizeBlocks: 64
+WAL: Reading entries. StartBlock: 35 SizeBlocks: 64
+✅ Filesystem mounted successfully
+Loading user data...
+✅ Loaded 6 users and 8 sessions from file
+Failed to bind socket to port 8080
+Failed to start server

@@ -2,9 +2,9 @@
 const CONFIG = {
     // 服务器配置
     SERVER: {
-        HOST: 'localhost',
-        PORT: 8080,
-        PROTOCOL: 'http'
+        HOST: '',
+        PORT: '',
+        PROTOCOL: ''
     },
     
     // API配置

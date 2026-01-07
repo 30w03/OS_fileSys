@@ -1,0 +1,286 @@
+# Author 和 Reviewer 功能调用链
+
+## 1. Author (作者) 功能调用链
+
+### 1.1 提交论文
+
+```
+HTTP 请求: POST /api/papers
+    ↓
+HttpHandler::handleSubmitPaper()
+    ↓
+ReviewSystem::submitPaper()
+    ↓
+Filesystem::writeFile()
+    ↓
+ReviewSystem::saveMetadataNoLock()
+```
+
+### 1.2 获取我的论文
+
+```
+HTTP 请求: GET /api/papers/my
+    ↓
+HttpHandler::handleGetMyPapers()
+    ↓
+ReviewSystem::getPapersByAuthor()
+    ↓
+(返回作者的所有论文及评审意见)
+```
+
+### 1.3 上传论文修订版
+
+```
+HTTP 请求: POST /api/papers/{id}/revision
+    ↓
+HttpHandler::handleUploadRevision()
+    ↓
+ReviewSystem::uploadRevision()
+    ↓
+Filesystem::writeFile()
+    ↓
+ReviewSystem::saveMetadataNoLock()
+```
+
+### 1.4 下载论文
+
+```
+HTTP 请求: GET /api/papers/{id}/download
+    ↓
+HttpHandler::handleDownloadPaper()
+    ↓
+ReviewSystem::downloadPaper()
+    ↓
+Filesystem::readFile()
+```
+
+### 1.5 获取所有论文
+
+```
+HTTP 请求: GET /api/papers
+    ↓
+HttpHandler::handleGetPapers()
+    ↓
+ReviewSystem::getAllPapers()
+    ↓
+(返回所有论文列表)
+```
+
+## 2. Reviewer (审稿人) 功能调用链
+
+### 2.1 获取待审论文
+
+```
+HTTP 请求: GET /api/papers/review
+    ↓
+HttpHandler::handleGetPapersToReview()
+    ↓
+ReviewSystem::getPapersForReviewer()
+    ↓
+(返回分配给该审稿人的所有待审论文)
+```
+
+### 2.2 提交评审意见
+
+```
+HTTP 请求: POST /api/reviews/{paperId}
+    ↓
+HttpHandler::handleSubmitReview()
+    ↓
+ReviewSystem::submitReview()
+    ↓
+Filesystem::writeFile()
+    ↓
+ReviewSystem::saveMetadataNoLock()
+```
+
+### 2.3 下载评审附件
+
+```
+HTTP 请求: GET /api/reviews/{id}/download
+    ↓
+HttpHandler::handleDownloadReviewAttachment()
+    ↓
+ReviewSystem::getReviewInfo()
+    ↓
+Filesystem::readFile()
+```
+
+### 2.4 获取评审进度
+
+```
+HTTP 请求: GET /api/reviews/progress
+    ↓
+HttpHandler::handleGetReviewProgress()
+    ↓
+ReviewSystem::getAllPapers()
+    ↓
+ReviewSystem::getAssignedReviewers()
+    ↓
+ReviewSystem::getReviewsForPaper()
+    ↓
+UserManager::getUserById()
+    ↓
+(返回所有论文的评审进度)
+```
+
+## 3. Editor (编辑) 功能调用链
+
+### 3.1 分配评审人
+
+```
+HTTP 请求: POST /api/papers/assign
+    ↓
+HttpHandler::handleAssignReviewer()
+    ↓
+UserManager::getUserById()
+    ↓
+ReviewSystem::getAssignedReviewers()
+    ↓
+ReviewSystem::assignReviewer()
+    ↓
+ReviewSystem::saveMetadataNoLock()
+```
+
+### 3.2 提交录用决定
+
+```
+HTTP 请求: POST /api/papers/{id}/decision
+    ↓
+HttpHandler::handleMakeDecision()
+    ↓
+ReviewSystem::makeFinalDecision()
+    ↓
+ReviewSystem::saveMetadataNoLock()
+```
+
+## 4. 通用功能调用链 (适用于所有角色)
+
+### 4.1 用户认证
+
+#### 4.1.1 用户登录
+
+```
+HTTP 请求: POST /api/auth/login
+    ↓
+HttpHandler::handleLogin()
+    ↓
+UserManager::authenticateUser()
+    ↓
+UserManager::createSession()
+```
+
+#### 4.1.2 用户注册
+
+```
+HTTP 请求: POST /api/auth/register
+    ↓
+HttpHandler::handleRegister()
+    ↓
+UserManager::createUser()
+```
+
+#### 4.1.3 用户登出
+
+```
+HTTP 请求: POST /api/auth/logout
+    ↓
+HttpHandler::handleLogout()
+    ↓
+UserManager::invalidateSession()
+```
+
+### 4.2 用户资料
+
+#### 4.2.1 获取用户资料
+
+```
+HTTP 请求: GET /api/user/profile
+    ↓
+HttpHandler::handleGetUserProfile()
+    ↓
+UserManager::getUserById()
+```
+
+### 4.3 文件管理
+
+#### 4.3.1 获取文件列表
+
+```
+HTTP 请求: GET /api/files
+    ↓
+HttpHandler::handleGetFiles()
+    ↓
+Filesystem::listFiles()
+```
+
+#### 4.3.2 上传文件
+
+```
+HTTP 请求: POST /api/files/upload
+    ↓
+HttpHandler::handleUploadFile()
+```
+
+#### 4.3.3 删除文件
+
+```
+HTTP 请求: DELETE /api/files/{filename}
+    ↓
+HttpHandler::handleDeleteFile()
+```
+
+## 5. 权限检查机制
+
+在所有需要权限验证的请求中，都会先调用权限检查方法：
+
+```
+HTTP 请求 (需要权限验证)
+    ↓
+HttpHandler::validateAuth()
+    ↓
+UserManager::validateSession()
+    ↓
+UserManager::hasPermission()
+    ↓
+(检查用户角色权限)
+    ↓
+(如果权限不足，返回403错误)
+    ↓
+(否则继续处理请求)
+```
+
+权限检查逻辑：
+```cpp
+bool hasPermission(uint32_t userId, UserRole requiredRole) {
+    User user;
+    if (!getUserById(userId, user)) {
+        return false;
+    }
+    return static_cast<uint8_t>(user.role) >= static_cast<uint8_t>(requiredRole);
+}
+```
+
+## 6. 数据持久化调用链
+
+所有业务操作最终都会调用文件系统接口进行数据持久化：
+
+```
+业务逻辑方法
+    ↓
+Manager 方法
+    ↓
+Filesystem 接口
+    ↓
+具体存储实现 (文件系统/数据库)
+```
+
+常用的持久化操作：
+- `saveUsers()`：保存用户信息
+- `loadUsers()`：加载用户信息
+- `savePapers()`：保存论文信息
+- `loadPapers()`：加载论文信息
+- `saveReviews()`：保存评审信息
+- `loadReviews()`：加载评审信息
+- `saveSessions()`：保存会话信息
+- `loadSessions()`：加载会话信息

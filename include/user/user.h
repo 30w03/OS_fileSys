@@ -39,7 +39,8 @@ struct Session {
     uint32_t sessionId;
     uint32_t userId;
     uint64_t timestamp;  // 创建时间
+    uint64_t lastActivityTime; // 最后活动时间
     bool isValid;
     
-    Session() : sessionId(0), userId(0), timestamp(0), isValid(false) {}
+    Session() : sessionId(0), userId(0), timestamp(0), lastActivityTime(0), isValid(false) {}
 };

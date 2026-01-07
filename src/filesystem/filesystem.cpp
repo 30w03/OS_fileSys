@@ -63,6 +63,12 @@ void Filesystem::unmount() {
     mounted_ = false;
 }
 
+void Filesystem::sync() {
+    if (mounted_) {
+        blockManager_->sync();
+    }
+}
+
 // --- 兼容接口 ---
 
 bool Filesystem::createFile(const std::string& path) {

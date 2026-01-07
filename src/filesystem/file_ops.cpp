@@ -306,15 +306,20 @@ ssize_t FileOps::writeFile(uint32_t userId, const std::string& path, const char*
         }
     }
     
-    if (!pathValid || current == INVALID_INODE) return -1;
+    if (!pathValid || current == INVALID_INODE) {
+        std::cerr << "DEBUG: path resolution failed for path=" << path << " (pathValid=" << pathValid << ", current=" << current << ")" << std::endl;
+        return -1;
+    }
     uint32_t inodeNum = current;
     
     Inode inode;
     if (!blockManager_->readInode(inodeNum, inode)) {
+        std::cerr << "DEBUG: readInode failed for inode " << inodeNum << " path " << path << std::endl;
         return -1;
     }
-    
+    std::cerr << "DEBUG: writeFile: inodeNum=" << inodeNum << " uid=" << inode.uid << " orig_size=" << inode.size << " path=" << path << std::endl;
     if (!checkPermission(userId, inode, AccessMode::WRITE)) {
+        std::cerr << "DEBUG: permission denied for user " << userId << " on path " << path << std::endl;
         return -1;
     }
 
@@ -372,29 +377,40 @@ ssize_t FileOps::writeFile(uint32_t userId, const std::string& path, const char*
         uint32_t blockOffset = (offset + bytesWritten) % 4096;
         uint32_t toWrite = std::min(size - bytesWritten, static_cast<size_t>(4096 - blockOffset));
         
+        std::cerr << "DEBUG: write loop: logicalBlock=" << logicalBlock << " blockOffset=" << blockOffset << " toWrite=" << toWrite << " bytesWritten=" << bytesWritten << " size=" << size << std::endl;
+        
         uint32_t physicalBlock = getBlockNumber(inode, logicalBlock);
+        std::cerr << "DEBUG: initial physicalBlock=" << physicalBlock << std::endl;
         
         if (physicalBlock == 0 || physicalBlock == INVALID_BLOCK) {
             physicalBlock = blockManager_->allocateBlock();
             if (physicalBlock == INVALID_BLOCK) {
+                std::cerr << "DEBUG: allocateBlock failed at logicalBlock=" << logicalBlock << " (disk full?)" << std::endl;
                 break; // Disk full
             }
             if (!setBlockNumber(inode, logicalBlock, physicalBlock)) {
                 blockManager_->freeBlock(physicalBlock);
+                std::cerr << "DEBUG: setBlockNumber failed for block=" << physicalBlock << std::endl;
                 break; // Failed to set block (e.g. limit reached)
             }
             inode.blocks++;
+            std::cerr << "DEBUG: allocated physicalBlock=" << physicalBlock << std::endl;
         } else {
             // Existing block. Check if shared (CoW)
             if (blockManager_->isShared(physicalBlock)) {
                 uint32_t newBlock = blockManager_->copyOnWrite(physicalBlock);
-                if (newBlock == INVALID_BLOCK) break;
+                if (newBlock == INVALID_BLOCK) {
+                    std::cerr << "DEBUG: copyOnWrite failed for block=" << physicalBlock << std::endl;
+                    break;
+                }
                 
                 // Update inode to point to new block
                 if (!setBlockNumber(inode, logicalBlock, newBlock)) {
+                    std::cerr << "DEBUG: setBlockNumber failed to update to newBlock=" << newBlock << std::endl;
                     break;
                 }
                 physicalBlock = newBlock;
+                std::cerr << "DEBUG: CoW produced newBlock=" << physicalBlock << std::endl;
             }
         }
         
@@ -403,19 +419,21 @@ ssize_t FileOps::writeFile(uint32_t userId, const std::string& path, const char*
         if (toWrite < 4096) {
              if (!blockManager_->readBlock(physicalBlock, blockBuffer)) {
                  std::memset(blockBuffer, 0, 4096);
+                 std::cerr << "DEBUG: readBlock failed for block " << physicalBlock << ", using zeros" << std::endl;
              }
         }
         
         std::memcpy(blockBuffer + blockOffset, data + bytesWritten, toWrite);
         
         if (!blockManager_->writeBlock(physicalBlock, blockBuffer)) {
+            std::cerr << "DEBUG: writeBlock failed for block " << physicalBlock << std::endl;
             break;
         }
         
         bytesWritten += toWrite;
     }
     
-    if (bytesWritten > 0) {
+    if (bytesWritten > 0 || size == 0) {
         inode.size = std::max(inode.size, static_cast<uint32_t>(offset + bytesWritten));
         inode.mtime = std::time(nullptr);
         blockManager_->writeInode(inodeNum, inode);
@@ -441,6 +459,87 @@ size_t FileOps::getFileSize(uint32_t userId, const std::string& path) {
 }
 
 bool FileOps::truncate(uint32_t userId, const std::string& path, size_t newSize) {
+    // 实现真正的 truncate：释放超出 newSize 的块，或扩展文件到 newSize
+    uint32_t inodeNum = dirOps_->resolvePath(path);
+    if (inodeNum == INVALID_INODE) return false;
+
+    Inode inode;
+    if (!blockManager_->readInode(inodeNum, inode)) return false;
+
+    if (!checkPermission(userId, inode, AccessMode::WRITE)) return false;
+
+    if (newSize == inode.size) return true;
+
+    if (newSize < inode.size) {
+        // 释放多余的块
+        uint32_t lastNeededBlock = (newSize == 0) ? 0 : ( (newSize - 1) / Config::BLOCK_SIZE );
+        uint32_t currentBlocks = (inode.size + Config::BLOCK_SIZE - 1) / Config::BLOCK_SIZE;
+        for (uint32_t b = lastNeededBlock + 1; b < currentBlocks; b++) {
+            uint32_t blockNum = getBlockNumber(inode, b);
+            if (blockNum != 0 && blockNum != INVALID_BLOCK) {
+                blockManager_->freeBlock(blockNum);
+                // clear pointer
+                setBlockNumber(inode, b, 0);
+            }
+        }
+        inode.size = newSize;
+        inode.mtime = std::time(nullptr);
+        blockManager_->writeInode(inodeNum, inode);
+        return true;
+    } else {
+        // 扩展文件：写零
+        size_t toWrite = newSize - inode.size;
+        std::vector<char> zeros(4096, 0);
+        size_t written = 0;
+        while (written < toWrite) {
+            size_t w = std::min<size_t>(toWrite - written, zeros.size());
+            ssize_t r = writeFile(userId, path, zeros.data(), w, inode.size + written);
+            if (r < 0) return false;
+            written += r;
+        }
+        inode.mtime = std::time(nullptr);
+        blockManager_->writeInode(inodeNum, inode);
+        return true;
+    }
+}
+
+
+// 原子替换实现：先创建/写入 tmpPath，然后把目录 entry 指向新 inode，再删除临时名
+bool FileOps::atomicReplaceFile(uint32_t userId, const std::string& targetPath, const std::string& tmpPath) {
+    // Resolve parent directories and names
+    size_t tSlash = targetPath.find_last_of('/');
+    std::string tParent = (tSlash == 0) ? "/" : targetPath.substr(0, tSlash);
+    std::string tName = targetPath.substr(tSlash + 1);
+
+    size_t sSlash = tmpPath.find_last_of('/');
+    std::string sParent = (sSlash == 0) ? "/" : tmpPath.substr(0, sSlash);
+    std::string sName = tmpPath.substr(sSlash + 1);
+
+    uint32_t tParentInode = dirOps_->resolvePath(tParent);
+    uint32_t sParentInode = dirOps_->resolvePath(sParent);
+    if (tParentInode == INVALID_INODE || sParentInode == INVALID_INODE) {
+        std::cerr << "DEBUG: atomicReplaceFile: invalid parent path" << std::endl;
+        return false;
+    }
+
+    uint32_t newInode = dirOps_->lookup(sParentInode, sName);
+    if (newInode == INVALID_INODE) {
+        std::cerr << "DEBUG: atomicReplaceFile: tmp file not found: " << tmpPath << std::endl;
+        return false;
+    }
+
+    // Update target directory entry to point to newInode
+    if (!dirOps_->updateEntry(tParentInode, tName, newInode)) {
+        std::cerr << "DEBUG: atomicReplaceFile: updateEntry failed" << std::endl;
+        return false;
+    }
+
+    // Remove temporary entry
+    if (!dirOps_->removeEntry(sParentInode, sName)) {
+        std::cerr << "DEBUG: atomicReplaceFile: failed to remove tmp entry " << tmpPath << std::endl;
+        // Non-fatal; just warn
+    }
+
     return true;
 }
 

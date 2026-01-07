@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>系统快照管理 - 论文评审系统</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body { background-color: #f5f8fa; display: flex; min-height: 100vh; color: #333; margin: 0; font-family: 'Segoe UI', sans-serif; }
+        .sidebar { width: 280px; background: linear-gradient(to bottom, #2c3e50, #4ca1af); color: white; padding: 30px 0; display: flex; flex-direction: column; }
+        .logo-container { padding: 0 30px 25px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; margin-bottom: 25px; }
+        .logo-container i { font-size: 32px; margin-right: 15px; color: #ffd54f; }
+        .logo-container h1 { font-size: 24px; font-weight: 700; }
+        .nav-item { display: flex; align-items: center; padding: 18px 30px; font-size: 18px; text-decoration: none; color: #fff; transition: all 0.3s ease; }
+        .nav-item:hover { background: rgba(255,255,255,0.1); padding-left: 35px; }
+        
+        .main-content { flex: 1; padding: 40px; }
+        .page-header { margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
+        .page-title { font-size: 28px; color: #2c3e50; margin: 0; }
+        
+        .action-card { background: white; padding: 25px; border-radius: 10px; margin-bottom: 30px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
+        .action-info h3 { margin: 0 0 10px 0; color: #2c3e50; }
+        .action-info p { margin: 0; color: #7f8c8d; }
+        
+        .snapshot-list { background: white; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 15px 25px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background-color: #f8f9fa; color: #7f8c8d; font-weight: 600; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover { background-color: #f8f9fa; }
+        
+        .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.3s; color: white; display: inline-flex; align-items: center; justify-content: center; }
+        .btn i { margin-right: 8px; }
+        .btn-primary { background: #3498db; }
+        .btn-success { background: #2ecc71; }
+        .btn-danger { background: #e74c3c; }
+        .btn-warning { background: #f39c12; }
+        .btn:disabled { opacity: 0.7; cursor: not-allowed; }
+
+        .tag { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; background: #eee; color: #555; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo-container">
+            <i class="fas fa-database"></i>
+            <h1>系统管理</h1>
+        </div>
+        <a class="nav-item" href="systemManage.html"><i class="fas fa-arrow-left"></i> 返回系统管理</a>
+        <a class="nav-item" href="../nomarlPage.html"><i class="fas fa-home"></i> 返回主页</a>
+    </div>
+
+    <div class="main-content">
+        <div class="page-header">
+            <h1 class="page-title">系统快照 (System Snapshots)</h1>
+        </div>
+
+        <div class="action-card">
+            <div class="action-info">
+                <h3>创建新快照</h3>
+                <p>保存当前系统所有数据（用户、论文、评审状态）的副本。</p>
+            </div>
+            <button class="btn btn-success" onclick="createSnapshot()">
+                <i class="fas fa-plus-circle"></i> 创建当前快照
+            </button>
+        </div>
+
+        <div class="snapshot-list">
+            <table>
+                <thead>
+                    <tr>
+                        <th>快照名称/时间</th>
+                        <th>大小 (估计)</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="snapshotTableBody">
+                    <tr><td colspan="3" style="text-align:center;">加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSnapshots();
+        });
+
+        async function loadSnapshots() {
+            try {
+                const sessionId = sessionStorage.getItem('sessionId');
+                const res = await fetch('/api/admin/snapshots', {
+                    headers: { 'Authorization': 'Bearer ' + sessionId }
+                });
+                const data = await res.json();
+                
+                const tbody = document.getElementById('snapshotTableBody');
+                if (!data.success) {
+                    tbody.innerHTML = `<tr><td colspan="3" style="color:red;">${data.message}</td></tr>`;
+                    return;
+                }
+
+                if (data.data.snapshots.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#999;">暂无快照</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.data.snapshots.map(snap => `
+                    <tr>
+                        <td>
+                            <strong style="color:#2c3e50;">${snap.name}</strong><br>
+                            <span style="font-size:12px; color:#95a5a6;">${snap.timestamp}</span>
+                        </td>
+                        <td><span class="tag">${snap.size}</span></td>
+                        <td>
+                            <button class="btn btn-warning" style="padding:6px 12px; font-size:14px; margin-right:10px;" onclick="restoreSnapshot('${snap.name}')">
+                                <i class="fas fa-history"></i> 恢复 (覆盖当前)
+                            </button>
+                            <button class="btn btn-danger" style="padding:6px 12px; font-size:14px;" onclick="deleteSnapshot('${snap.name}')">
+                                <i class="fas fa-trash-alt"></i> 删除
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                console.error(err);
+                document.getElementById('snapshotTableBody').innerHTML = `<tr><td colspan="3" style="color:red;">网络/解析错误: ${err.message}</td></tr>`;
+            }
+        }
+
+        async function createSnapshot() {
+            if (!confirm('确定要创建当前系统的快照吗？')) return;
+            
+            try {
+                const btn = document.querySelector('.btn-success');
+                const originalText = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 创建中...';
+
+                const sessionId = sessionStorage.getItem('sessionId');
+                const res = await fetch('/api/admin/snapshots', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + sessionId }
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    alert('快照创建成功！');
+                    loadSnapshots();
+                } else {
+                    alert('创建失败: ' + data.message);
+                }
+                
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            } catch (err) {
+                console.error(err);
+                alert('网络错误');
+            }
+        }
+
+        async function restoreSnapshot(name) {
+            if (!confirm(`⚠️ 警告：恢复快照 [${name}] 将覆盖当前的系统状态！\n\n1. 所有现有数据将被替换。\n2. 恢复后可能需要重新登录。\n\n确定要继续吗？`)) return;
+            
+            try {
+                const sessionId = sessionStorage.getItem('sessionId');
+                // Creating a loading overlay or just non-blocking alert for now
+                alert('正在恢复，系统将重启/重载...请稍候');
+                
+                const res = await fetch(`/api/admin/snapshots/restore`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + sessionId
+                    },
+                    body: JSON.stringify({ snapshotId: name })
+                });
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    alert('系统恢复成功！请重新登录。');
+                    window.location.href = '../login.html';
+                } else {
+                    alert('恢复失败: ' + data.message);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('网络错误');
+            }
+        }
+
+        async function deleteSnapshot(name) {
+            if (!confirm(`确定要删除快照 [${name}] 吗？`)) return;
+            
+            try {
+                const sessionId = sessionStorage.getItem('sessionId');
+                const res = await fetch(`/api/admin/snapshots/delete`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + sessionId
+                    },
+                    body: JSON.stringify({ snapshotId: name })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    loadSnapshots();
+                } else {
+                    alert('删除失败: ' + data.message);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('网络错误');
+            }
+        }
+    </script>
+</body>
+</html>

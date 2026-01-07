@@ -47,6 +47,12 @@ private:
     void handleGetStatistics(Connection* client, const Protocol::Message& request);
     void handleGetSystemStats(Connection* client, const Protocol::Message& request);
     void handleListOnlineUsers(Connection* client, const Protocol::Message& request);
+    void handleUploadRevision(Connection* client, const Protocol::Message& request);
+    void handleUpdatePaperFile(Connection* client, const Protocol::Message& request); // 🔥 New
+    void handleGetReviewerHistory(Connection* client, const Protocol::Message& request); // 🔥 New
+    void handleUpdateUserRole(Connection* client, const Protocol::Message& request);
+    void handleDeactivateUser(Connection* client, const Protocol::Message& request);
+    void handleSystemBackup(Connection* client, const Protocol::Message& request);
     
     // 监控数据结构
     struct SystemStats {

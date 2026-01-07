@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>文字到手势转换</title>
+  <style>
+    :root {
+      --primary-green: #18c6b0;
+      --light-green: #43e97b;
+      --light-bg: #f8f9fc;
+      --dark-text: #333;
+      --shadow-light: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI','Microsoft YaHei',sans-serif;}
+    body{display:flex;min-height:100vh;background:var(--light-bg);color:var(--dark-text);}
+    .sidebar {
+      width:240px;background: linear-gradient(to bottom,#1da598,#43e97b);
+      padding:30px 0;color:#fff;display:flex;flex-direction:column;
+    }
+    .logo-container{padding:0 30px 25px;border-bottom:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;margin-bottom:25px;}
+    .logo-container i{font-size:32px;margin-right:15px;color:#ffd54f;}
+    .logo-container h1{font-size:20px;font-weight:700;}
+    .nav-item{
+      display:flex;align-items:center;padding:15px 30px;font-size:16px;text-decoration:none;color:#fff;transition:all .3s;cursor:pointer;
+    }
+    .nav-item i{width:24px;margin-right:12px;}
+    .nav-item.active, .nav-item:hover{background:rgba(255,255,255,0.1);padding-left:35px;}
+    .main-content{flex:1;display:flex;flex-direction:column;}
+    .topbar{
+      display:flex;align-items:center;padding:20px 40px;
+      background:#fff;box-shadow:var(--shadow-light);position:sticky;top:0;z-index:10;
+    }
+    .topbar h1{font-size:1.5em;color:var(--primary-green);}
+    .content-area{
+      flex:1;padding:40px;display:flex;flex-direction:column;align-items:center;
+    }
+    .input-container {
+      width: 100%;
+      max-width: 500px;
+      margin-bottom: 20px;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 12px 15px;
+      font-size: 1em;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+    }
+    .gesture-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 15px;
+      width: 100%;
+      max-width: 600px;
+      margin-bottom: 25px;
+    }
+    .gesture-btn {
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      background: var(--primary-green);
+      color: white;
+      cursor: pointer;
+      transition: background .3s;
+    }
+    .gesture-btn:hover {
+      background: var(--light-green);
+    }
+    .btn{
+      margin-top:10px;padding:10px 20px;font-size:1em;
+      border:none;border-radius:6px;color:#fff;cursor:pointer;
+      background:var(--primary-green);transition:background .3s;
+    }
+    .btn:hover{background:var(--light-green);}
+    .btn + .btn{margin-left:15px;}
+    .btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    .status {
+      margin-top: 15px;
+      color: #666;
+      font-size: 1em;
+      text-align: center;
+    }
+    .robot-status {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 8px;
+      background: #e8f4f8;
+      width: 100%;
+      max-width: 500px;
+      text-align: center;
+    }
+    .status-indicator {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+    .status-connected {
+      background: var(--light-green);
+    }
+    .status-disconnected {
+      background: #ff6b6b;
+    }
+  </style>
+</head>
+<body>
+  <nav class="sidebar">
+    <div class="logo-container">
+      <i class="fas fa-hands"></i>
+      <h1>手语演示</h1>
+    </div>
+    <a class="nav-item" href="../nomarlPage.html">
+      <i class="fas fa-arrow-left"></i> 返回主页面
+    </a>
+  </nav>
+  <main class="main-content">
+    <header class="topbar">
+      <h1>文字到手势转换</h1>
+    </header>
+    <section class="content-area">
+      <div class="input-container">
+        <input type="text" id="wordInput" placeholder="输入手势名称，如：OK!, Hello!">
+      </div>
+      
+      <div class="gesture-list">
+        <button class="gesture-btn" data-gesture="Good!">大拇指</button>
+        <button class="gesture-btn" data-gesture="OK!">OK手势</button>
+        <button class="gesture-btn" data-gesture="Hello!">挥手</button>
+        <button class="gesture-btn" data-gesture="Yeh!">胜利手势</button>
+        <button class="gesture-btn" data-gesture="Be quiet!">嘘声手势</button>
+        <button class="gesture-btn" data-gesture="Congratulations!">握拳</button>
+      </div>
+      
+      <div>
+        <button class="btn" id="executeBtn">执行手势</button>
+        <button class="btn" id="resetBtn">复位机械手</button>
+      </div>
+      
+      <div class="status" id="statusText">等待输入...</div>
+      
+      <div class="robot-status">
+        <div id="robotStatus">
+          <span class="status-indicator status-disconnected"></span>
+          机械手状态: 未连接
+        </div>
+      </div>
+    </section>
+  </main>
+  <script>
+    const wordInput = document.getElementById('wordInput');
+    const executeBtn = document.getElementById('executeBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const statusText = document.getElementById('statusText');
+    const robotStatus = document.getElementById('robotStatus');
+    const gestureBtns = document.querySelectorAll('.gesture-btn');
+    
+    // 支持的姿势列表
+    const SUPPORTED_GESTURES = [
+      'Good!', 'OK!', 'Hello!', 'Yeh!', 'Be quiet!', 'Congratulations!'
+    ];
+    
+    // 检查机械手状态
+    async function checkRobotStatus() {
+      try {
+        const response = await fetch('/api/robot-status');
+        const data = await response.json();
+        
+        const indicator = robotStatus.querySelector('.status-indicator');
+        if (data.connected) {
+          indicator.className = 'status-indicator status-connected';
+          robotStatus.innerHTML = `<span class="status-indicator status-connected"></span> 机械手状态: 已连接 (${data.port})`;
+        } else {
+          indicator.className = 'status-indicator status-disconnected';
+          robotStatus.innerHTML = `<span class="status-indicator status-disconnected"></span> 机械手状态: 未连接 - ${data.message}`;
+        }
+      } catch (error) {
+        console.error("检查机械手状态失败:", error);
+        robotStatus.innerHTML = `<span class="status-indicator status-disconnected"></span> 机械手状态: 检测失败`;
+      }
+    }
+    
+    // 执行手势
+    async function executeGesture(gesture) {
+      if (!gesture || !SUPPORTED_GESTURES.includes(gesture)) {
+        statusText.textContent = "不支持的手势名称";
+        return;
+      }
+      
+      try {
+        statusText.textContent = `执行手势: ${gesture}...`;
+        executeBtn.disabled = true;
+        
+        const response = await fetch('/api/text-to-gesture', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ gesture: gesture })
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP错误: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        statusText.textContent = `执行成功: ${data.message}`;
+      } catch (error) {
+        console.error("执行手势失败:", error);
+        statusText.textContent = `错误: ${error.message || '请求失败'}`;
+      } finally {
+        executeBtn.disabled = false;
+      }
+    }
+    
+    // 复位机械手
+    async function resetRobot() {
+      try {
+        statusText.textContent = "复位机械手中...";
+        resetBtn.disabled = true;
+        
+        const response = await fetch('/api/reset-robot', {
+          method: 'POST'
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP错误: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        statusText.textContent = `复位成功: ${data.message}`;
+      } catch (error) {
+        console.error("复位机械手失败:", error);
+        statusText.textContent = `错误: ${error.message || '请求失败'}`;
+      } finally {
+        resetBtn.disabled = false;
+      }
+    }
+    
+    // 事件监听
+    executeBtn.addEventListener('click', () => {
+      const gesture = wordInput.value.trim();
+      executeGesture(gesture);
+    });
+    
+    resetBtn.addEventListener('click', resetRobot);
+    
+    // 手势按钮点击事件
+    gestureBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const gesture = btn.dataset.gesture;
+        wordInput.value = gesture;
+        executeGesture(gesture);
+      });
+    });
+    
+    // 初始加载时检查状态
+    document.addEventListener('DOMContentLoaded', () => {
+      checkRobotStatus();
+    });
+  </script>
+  <!-- Font Awesome -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/js/all.min.js"></script>
+</body>
+</html>
