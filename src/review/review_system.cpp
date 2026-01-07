@@ -846,6 +846,11 @@ std::map<PaperStatus, int> ReviewSystem::getStatistics() {
     return stats;
 }
 
+uint32_t ReviewSystem::getReviewCount() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return reviews_.size();
+}
+
 void ReviewSystem::printStatistics() {
     auto stats = getStatistics();
     
@@ -1090,12 +1095,22 @@ bool ReviewSystem::loadMetadata() {
         for(uint32_t i=0; i<paperCount; ++i) {
             Paper p;
             p.paperId = readU32();
+            if (p.paperId == 0 || p.paperId > 1000000) {
+                throw std::runtime_error("Corrupted metadata: Invalid Paper ID detected");
+            }
+
             p.title = readString();
             p.abstract = readString();
             p.authorIds = readVecU32();
             p.filepath = readString();
             if (ptr >= end) throw std::runtime_error("Buffer underflow");
-            p.status = static_cast<PaperStatus>(*ptr++);
+            
+            uint8_t statusByte = static_cast<uint8_t>(*ptr++);
+            if (statusByte > 10) { // Assuming reasonable max status
+                 throw std::runtime_error("Corrupted metadata: Invalid Status");
+            }
+            p.status = static_cast<PaperStatus>(statusByte);
+
             p.submissionTime = static_cast<time_t>(readU64());
             p.assignedReviewers = readVecU32();
             p.keywords = readVecString(); // New field
@@ -1127,6 +1142,9 @@ bool ReviewSystem::loadMetadata() {
         
     } catch (const std::exception& e) {
         std::cerr << "❌ Failed to load metadata: " << e.what() << std::endl;
-        return true;  // 返回 true 以便系统继续运行
+        std::cerr << "CRITICAL ERROR: Metadata corruption detected. System starting with empty state." << std::endl;
+        // Optionally: print data size
+        // std::cerr << "Read " << data.size() << " bytes." << std::endl;
+        return true;  // Keep running empty, but log error
     }
 }

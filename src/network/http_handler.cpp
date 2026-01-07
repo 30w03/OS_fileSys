@@ -832,7 +832,7 @@ std::string HttpHandler::handleGetStatistics(const std::map<std::string, std::st
     std::map<std::string, std::string> data = {
         {"total_papers", std::to_string(total_papers)},
         {"total_users", std::to_string(userManager_->getUserCount())},
-        {"total_reviews", "0"} // 这里应该实现实际计算
+        {"total_reviews", std::to_string(reviewSystem_->getReviewCount())}
     };
     
     return createJsonResponse(true, "统计信息获取成功", data, headers);
@@ -1832,7 +1832,19 @@ std::string HttpHandler::handleRestoreSnapshot(const std::string& body, const st
         }
 
         if (fs::exists(sourceDir + "/users.dat")) {
-            fs::copy_file(sourceDir + "/users.dat", "users.dat", fs::copy_options::overwrite_existing);
+            try {
+                // Remove existing file first to avoid permission issues with overwrite
+                if (fs::exists("users.dat")) {
+                    fs::remove("users.dat");
+                }
+                fs::copy_file(sourceDir + "/users.dat", "users.dat");
+            } catch (const std::exception& e) {
+                 addSystemLog("ERROR", "Failed to restore users.dat: " + std::string(e.what()));
+                 // Fallback to manual copy if fs::copy_file fails
+                 std::ifstream src(sourceDir + "/users.dat", std::ios::binary);
+                 std::ofstream dst("users.dat", std::ios::binary);
+                 dst << src.rdbuf();
+            }
         }
         
         // 3. 重新加载系统组件

@@ -69,6 +69,13 @@ void Filesystem::sync() {
     }
 }
 
+uint64_t Filesystem::getUsedSpace() {
+    if (!blockManager_) return 0;
+    const Superblock& sb = blockManager_->getSuperblock();
+    uint64_t usedBlocks = sb.totalBlocks - sb.freeBlocks;
+    return usedBlocks * sb.blockSize;
+}
+
 // --- 兼容接口 ---
 
 bool Filesystem::createFile(const std::string& path) {

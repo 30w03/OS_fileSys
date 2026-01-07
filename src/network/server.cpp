@@ -498,10 +498,16 @@ void Server::handleGetSystemStats(Connection* client, const Protocol::Message& r
     
     // 获取磁盘使用情况
     uint32_t diskUsageMB = 0;
-    std::ifstream diskFile(diskImage_, std::ios::binary | std::ios::ate);
-    if (diskFile.is_open()) {
-        diskUsageMB = diskFile.tellg() / (1024 * 1024);
-        diskFile.close();
+    // 使用文件系统 API 获取实际使用空间
+    if (filesystem_) {
+        diskUsageMB = filesystem_->getUsedSpace() / (1024 * 1024);
+    } else {
+        // Fallback: Check file size if filesystem not ready
+        std::ifstream diskFile(diskImage_, std::ios::binary | std::ios::ate);
+        if (diskFile.is_open()) {
+            diskUsageMB = diskFile.tellg() / (1024 * 1024);
+            diskFile.close();
+        }
     }
     
     // 构造响应
@@ -1655,11 +1661,7 @@ void Server::handleGetStatistics(Connection* client, const Protocol::Message& re
     }
     
     // ✅ 修复：计算总评审数
-    uint32_t total_reviews = 0;
-    for (uint32_t pid = 1; pid <= total_papers; pid++) {
-        auto reviews = reviewSystem_->getReviewsForPaper(pid);
-        total_reviews += reviews.size();
-    }
+    uint32_t total_reviews = reviewSystem_->getReviewCount();
     
     // 构造二进制响应
     Protocol::Message response;

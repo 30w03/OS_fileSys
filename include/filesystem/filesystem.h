@@ -25,6 +25,7 @@ public:
     
     // Getters
     const std::string& getDiskImagePath() const { return diskImage_; }
+    uint64_t getUsedSpace(); // 获取已用空间 (bytes)
 
     // 获取功能模块
     std::shared_ptr<FileOps> getFileOps() { return fileOps_; }

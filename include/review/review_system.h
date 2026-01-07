@@ -64,6 +64,7 @@ public:
     
     // 统计信息
     std::map<PaperStatus, int> getStatistics();
+    uint32_t getReviewCount() const; // 获取评审总数
     void printStatistics();
     
     // 持久化
