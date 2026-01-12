@@ -823,24 +823,7 @@
                     </div>
                 `;
                 
-                // 获取待评审数量
-                try {
-                    const res = await fetch('/api/papers/review', {
-                        headers: { 'Authorization': 'Bearer ' + sessionId }
-                    });
-                    const data = await res.json();
-                    if (data.success) {
-                        const count = data.data.papers ? data.data.papers.length : 0;
-                        dashboardHtml += `
-                            <div class="guide-box" style="display:block; margin-top:30px; width:100%;">
-                                <div class="guide-title">评审任务</div>
-                                <div class="guide-content">
-                                    您有 <span style="color:#ff9800; font-weight:bold;">${count}</span> 篇论文等待评审。
-                                </div>
-                            </div>
-                        `;
-                    }
-                } catch(e) { console.error(e); }
+                // 获取待评审数量 (已移除)
 
             } else if (role === 'EDITOR') {
                 dashboardHtml += `

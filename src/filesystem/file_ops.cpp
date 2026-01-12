@@ -377,40 +377,31 @@ ssize_t FileOps::writeFile(uint32_t userId, const std::string& path, const char*
         uint32_t blockOffset = (offset + bytesWritten) % 4096;
         uint32_t toWrite = std::min(size - bytesWritten, static_cast<size_t>(4096 - blockOffset));
         
-        std::cerr << "DEBUG: write loop: logicalBlock=" << logicalBlock << " blockOffset=" << blockOffset << " toWrite=" << toWrite << " bytesWritten=" << bytesWritten << " size=" << size << std::endl;
-        
         uint32_t physicalBlock = getBlockNumber(inode, logicalBlock);
-        std::cerr << "DEBUG: initial physicalBlock=" << physicalBlock << std::endl;
         
         if (physicalBlock == 0 || physicalBlock == INVALID_BLOCK) {
             physicalBlock = blockManager_->allocateBlock();
             if (physicalBlock == INVALID_BLOCK) {
-                std::cerr << "DEBUG: allocateBlock failed at logicalBlock=" << logicalBlock << " (disk full?)" << std::endl;
                 break; // Disk full
             }
             if (!setBlockNumber(inode, logicalBlock, physicalBlock)) {
                 blockManager_->freeBlock(physicalBlock);
-                std::cerr << "DEBUG: setBlockNumber failed for block=" << physicalBlock << std::endl;
                 break; // Failed to set block (e.g. limit reached)
             }
             inode.blocks++;
-            std::cerr << "DEBUG: allocated physicalBlock=" << physicalBlock << std::endl;
         } else {
             // Existing block. Check if shared (CoW)
             if (blockManager_->isShared(physicalBlock)) {
                 uint32_t newBlock = blockManager_->copyOnWrite(physicalBlock);
                 if (newBlock == INVALID_BLOCK) {
-                    std::cerr << "DEBUG: copyOnWrite failed for block=" << physicalBlock << std::endl;
                     break;
                 }
                 
                 // Update inode to point to new block
                 if (!setBlockNumber(inode, logicalBlock, newBlock)) {
-                    std::cerr << "DEBUG: setBlockNumber failed to update to newBlock=" << newBlock << std::endl;
                     break;
                 }
                 physicalBlock = newBlock;
-                std::cerr << "DEBUG: CoW produced newBlock=" << physicalBlock << std::endl;
             }
         }
         
@@ -419,14 +410,12 @@ ssize_t FileOps::writeFile(uint32_t userId, const std::string& path, const char*
         if (toWrite < 4096) {
              if (!blockManager_->readBlock(physicalBlock, blockBuffer)) {
                  std::memset(blockBuffer, 0, 4096);
-                 std::cerr << "DEBUG: readBlock failed for block " << physicalBlock << ", using zeros" << std::endl;
              }
         }
         
         std::memcpy(blockBuffer + blockOffset, data + bytesWritten, toWrite);
         
         if (!blockManager_->writeBlock(physicalBlock, blockBuffer)) {
-            std::cerr << "DEBUG: writeBlock failed for block " << physicalBlock << std::endl;
             break;
         }
         
